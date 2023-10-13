@@ -30,5 +30,5 @@ This is an example of a Regional deployment which of course includes 3x Availabi
 # Usage:
 1. Clone this repo
 $ git clone [https://github.com/CSA-RH/HCP](https://github.com/CSA-RH/HCP)
-2. Go to path, chmod and mke your choice while executing the shell script.
+2. Go to path, chmod and make your choice while executing the shell script.
 
