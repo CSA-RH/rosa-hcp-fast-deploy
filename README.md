@@ -53,14 +53,14 @@ $ ./rosa_hcp.sh
 
 **Please enter your choice:**
 
-For options 1) and 2) make sure you have both the "AWS Access Key" and the "AWS Secret Access Key" to start the process. 
+For options 1) and 2) make sure you have both the "**AWS Access Key**" and the "**AWS Secret Access Key**" to start the process. 
 
-# LOG file
+# About the LOG file
 During the HCP implementation phase a LOG file will be created so you can follow the main activities performed by this shell script. 
 The file will reside in the same directory as the shell script.
 
 Here is an example:
-...
+```
 $ tail -f gm-2310161718.log 
 
 INFO: Validating AWS credentials...
@@ -84,7 +84,7 @@ Creating the VPC
 ....
 2023-10-16 15:29:29 +0000 UTC hostedclusters gm-2310161718 The hosted control plane is available
 INFO: Cluster 'gm-2310161718' is now ready
-...
+```
 
 After the creation of the HCP Cluster a Cluster-Admin account will be added to your HCP Cluster, the password will be recorded in the LOG file.
 ...
