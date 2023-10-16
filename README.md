@@ -124,4 +124,5 @@ $ ./rosa_hcp.sh
 
 Please enter your choice: 3
 ```
+It takes approximately 15 minutes to delete your HCP cluster, including its related VPC. 
 Please be aware that deleting the cluster will also delete the LOG file at the end of the process. 
