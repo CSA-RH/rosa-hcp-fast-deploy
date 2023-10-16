@@ -44,7 +44,7 @@ Resolving deltas: 100% (2/2), done.
 $ cd HCP/
 ```
 
-3. Add execution permission
+3. Add execution permissions
 ```
 $ chmod +x rosa_hcp.sh 
 ```
@@ -52,13 +52,14 @@ $ chmod +x rosa_hcp.sh
 4. Run the script and then make your choise:
 ```
 $ ./rosa_hcp.sh 
-```
+
 1) Single-AZ 1
 2) Multi-AZ 2
 3) Delete_HCP 3
 4) Quit
 
 Please enter your choice:
+```
 
 For options 1) and 2) make sure you have both the "AWS Access Key" and the "AWS Secret Access Key" to start the process. 
 
