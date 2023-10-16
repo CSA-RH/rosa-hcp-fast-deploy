@@ -55,4 +55,5 @@ $ ./rosa_hcp.sh
 
 For both options 1) and 2) make sure you have "AWS Access Key" and "AWS Secret Access Key" to start the process, and once done, feel free to destroy your ROSA HCP cluster by choosing option 3)
 
+Enjoy
 
