@@ -54,21 +54,14 @@ $ ./rosa_hcp.sh
 **Please enter your choice:**
 
 For options 1) and 2) make sure you have both the "AWS Access Key" and the "AWS Secret Access Key" to start the process. 
-During the HCP implementation phase a LOG file will be created so that you can follow the main tasks done by this script.
 
+# LOG file
+During the HCP implementation phase a LOG file will be created so you can follow the main activities performed by this shell script. 
+The file will reside in the same directory as the shell script.
 Here is an example:
-$ ls -al
-total 64
--rw-r--r--. 1 gmollo gmollo  1391 16 ott 17.18 **gm-2310161718.log**
--rw-r--r--. 1 gmollo gmollo 35149 16 ott 16.56 LICENSE
--rw-r--r--. 1 gmollo gmollo  2616 16 ott 16.56 README.md
--rwxr-xr-x. 1 gmollo gmollo 16857 16 ott 16.56 rosa_hcp.sh
-
+...
 $ tail -f gm-2310161718.log 
-            "Region": "us-east-2"
-        }
-    }
-}
+...   
 INFO: Validating AWS credentials...
 INFO: AWS credentials are valid!
 INFO: Verifying permissions for non-STS clusters
@@ -88,8 +81,19 @@ rosa init ... done! going to create the VPC ...
 Creating the VPC
 ....
 ....
+2023-10-16 15:29:29 +0000 UTC hostedclusters gm-2310161718 The hosted control plane is available
+INFO: Cluster 'gm-2310161718' is now ready
+...
 
+After the creation of the HCP Cluster a Cluster-Admin account will be added to your HCP Cluster, the password will be recorded in the LOG file.
+...
+INFO: Admin account has been added to cluster 'gm-2310161718'.
+INFO: Please securely store this generated password. If you lose this password you can delete and recreate the cluster admin user.
+INFO: To login, run the following command:
+Example:
+   oc login https://api.gm-2310161718.wxyz.p9.openshiftapps.com:443 --username cluster-admin --password p5BIM-tbPPa-Y3RQB-ULS4b
+
+...
+   
 Once you are done, feel free to destroy your ROSA HCP cluster by launching the same script and choosing option 3)
-
-Thats all folks.
-Enjoy
+Deleting the cluster will also delete the LOG file at the end of the process. 
