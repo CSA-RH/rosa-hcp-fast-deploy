@@ -58,7 +58,7 @@ $ ./rosa_hcp.sh
 3) Delete_HCP 3
 4) Quit
 
-Please enter your choice: **1**
+Please enter your choice: 1
 
 AWS Access Key ID [****************OXCF]: 
 AWS Secret Access Key [****************fCIn]: 
@@ -119,6 +119,6 @@ $ ./rosa_hcp.sh
 3) Delete_HCP 3
 4) Quit
 
-Please enter your choice: **3**
+Please enter your choice: 3
 ```
 Please be aware that deleting the cluster will also delete the LOG file at the end of the process. 
