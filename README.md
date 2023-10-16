@@ -31,13 +31,13 @@ This is an example of a Regional deployment which of course includes 3x Availabi
 ```
 $ git clone [https://github.com/CSA-RH/HCP](https://github.com/CSA-RH/HCP)
 ```
-Cloning into 'HCP'...
+_Cloning into 'HCP'...
 remote: Enumerating objects: 13, done.
 remote: Counting objects: 100% (13/13), done.
 remote: Compressing objects: 100% (12/12), done.
 remote: Total 13 (delta 2), reused 0 (delta 0), pack-reused 0
 Receiving objects: 100% (13/13), 18.44 KiB | 165.00 KiB/s, done.
-Resolving deltas: 100% (2/2), done.
+Resolving deltas: 100% (2/2), done._
 
 2. Go to path:
 ```
