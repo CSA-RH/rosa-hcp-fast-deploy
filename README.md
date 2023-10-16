@@ -1,8 +1,7 @@
-# Note #1 - Technology Preview:
+# Please Note - Technology Preview:
 At the time we are writing, the Red Hat OpenShift Service on AWS (ROSA) with Hosted Control Planes (HCP) is a **Technology Preview** feature only. Technology Preview features are not supported by Red Hat manufacturing service level agreements (SLAs) and may not be functionally complete. Red Hat does not recommend using them in production. These features provide early access to upcoming product features, allowing customers to test the functionality and provide feedback during the development process. For more information about the scope of Red Hat Technology Preview feature support, see Scope of Technology [Preview Feature Support](https://access.redhat.com/support/offerings/techpreview)
 
-# Note #2:
-Please note that when this repository was created there was no private link option.
+Also, please note that when this repository was created there was no private link option.
 
 # HCP - ROSA with hosted control planes
 This is a single shell script that will create all the resources needed to deploy a public **HCP** cluster via the CLI.
@@ -30,15 +29,15 @@ This is an example of a Regional deployment which of course includes 3x Availabi
 1. Clone this repo
 ```
 $ git clone [https://github.com/CSA-RH/HCP](https://github.com/CSA-RH/HCP)
-```
-_Cloning into 'HCP'...
+
+Cloning into 'HCP'...
 remote: Enumerating objects: 13, done.
 remote: Counting objects: 100% (13/13), done.
 remote: Compressing objects: 100% (12/12), done.
 remote: Total 13 (delta 2), reused 0 (delta 0), pack-reused 0
 Receiving objects: 100% (13/13), 18.44 KiB | 165.00 KiB/s, done.
-Resolving deltas: 100% (2/2), done._
-
+Resolving deltas: 100% (2/2), done.
+```
 2. Go to path:
 ```
 $ cd HCP/
