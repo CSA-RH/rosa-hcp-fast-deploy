@@ -30,5 +30,28 @@ This is an example of a Regional deployment which of course includes 3x Availabi
 # Usage:
 1. Clone this repo
 $ git clone [https://github.com/CSA-RH/HCP](https://github.com/CSA-RH/HCP)
-2. Go to path, chmod and make your choice while executing the shell script.
+Cloning into 'HCP'...
+remote: Enumerating objects: 13, done.
+remote: Counting objects: 100% (13/13), done.
+remote: Compressing objects: 100% (12/12), done.
+remote: Total 13 (delta 2), reused 0 (delta 0), pack-reused 0
+Receiving objects: 100% (13/13), 18.44 KiB | 165.00 KiB/s, done.
+Resolving deltas: 100% (2/2), done.
+
+2. Go to path:
+$ cd HCP/
+
+3. Add execution permission
+$ chmod +x rosa_hcp.sh 
+
+4. Run the script and then make your choise:
+$ ./rosa_hcp.sh 
+1) Single-AZ 1
+2) Multi-AZ 2
+3) Delete_HCP 3
+4) Quit
+**Please enter your choice:**
+
+For boh otion 1) and 2) make sure you have "AWS Access Key" and "AWS Secret Access Key" to start the process and once you are done, feel free to destroy your cluster by hitting the option 3)
+
 
