@@ -50,8 +50,9 @@ $ ./rosa_hcp.sh
 2) Multi-AZ 2
 3) Delete_HCP 3
 4) Quit
+
 **Please enter your choice:**
 
-For boh otion 1) and 2) make sure you have "AWS Access Key" and "AWS Secret Access Key" to start the process and once you are done, feel free to destroy your cluster by hitting the option 3)
+For both options 1) and 2) make sure you have "AWS Access Key" and "AWS Secret Access Key" to start the process, and once done, feel free to destroy your ROSA HCP cluster by choosing option 3)
 
 
