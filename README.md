@@ -53,7 +53,39 @@ $ ./rosa_hcp.sh
 
 **Please enter your choice:**
 
-For both options 1) and 2) make sure you have "AWS Access Key" and "AWS Secret Access Key" to start the process, and once done, feel free to destroy your ROSA HCP cluster by choosing option 3)
+For options 1) and 2) make sure you have both the "AWS Access Key" and the "AWS Secret Access Key" to start the process. 
+During the HCP implementation phase a LOG file will be created so that you can follow the main tasks done by this script.
 
+Here is an example:
+$ ls -al
+total 64
+-rw-r--r--. 1 gmollo gmollo  1391 16 ott 17.18 **gm-2310161718.log**
+-rw-r--r--. 1 gmollo gmollo 35149 16 ott 16.56 LICENSE
+-rw-r--r--. 1 gmollo gmollo  2616 16 ott 16.56 README.md
+-rwxr-xr-x. 1 gmollo gmollo 16857 16 ott 16.56 rosa_hcp.sh
+
+$ tail -f gm-2310161718.log 
+            "Region": "us-east-2"
+        }
+    }
+}
+INFO: Validating AWS credentials...
+INFO: AWS credentials are valid!
+INFO: Verifying permissions for non-STS clusters
+INFO: Validating SCP policies...
+INFO: AWS SCP policies ok
+INFO: Ensuring cluster administrator user 'osdCcsAdmin'...
+INFO: Validating SCP policies for 'osdCcsAdmin'...
+INFO: AWS SCP policies ok
+INFO: Validating cluster creation...
+INFO: Cluster creation valid
+#
+rosa init ... done! going to create the VPC ...
+Creating the VPC
+....
+....
+
+Once you are done, feel free to destroy your ROSA HCP cluster by launching the same script and choosing option 3)
+
+Thats all folks.
 Enjoy
-
