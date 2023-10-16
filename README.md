@@ -20,10 +20,11 @@ here is an on overview of the [default cluster specifications](https://docs.open
 You can choose between Single-AZ or Multi-AZ deployment and we must have one public subnet with a NAT gateway so, in both cases and mainly for economic reasons, this shell script will consider having only 1x NAT gateway in just 1x AZ plus just one single Internet Gateway.
 
 Here is an example of the VPC with a Single Availability Zone (AZ):
-![image](https://github.com/CSA-RH/HCP/assets/40911235/5b917abd-f8a9-4b2c-a256-254413cce29b)
+![image](https://github.com/CSA-RH/HCP/assets/40911235/26d2ba39-49f1-405d-ad50-45ac24239eb2)
 
 This is an example of a Regional deployment which of course includes 3x Availability Zones (AZs):
-![image](https://github.com/CSA-RH/HCP/assets/40911235/9811709c-4a38-4640-9f30-589f92fd8b6a)
+![image](https://github.com/CSA-RH/HCP/assets/40911235/50a26cb6-44a3-43e5-b836-5fe66f6bde3b)
+
 
 # Create your HCP cluster
 1. Clone this repo
