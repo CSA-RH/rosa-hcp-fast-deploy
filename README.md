@@ -65,11 +65,9 @@ total 64
 -rwxr-xr-x. 1 gmollo gmollo 16857 16 ott 16.56 rosa_hcp.sh
 
 $ tail -f gm-2310161718.log 
+....
+....
 
-            "Region": "us-east-2"
-        }
-    }
-}
 INFO: Validating AWS credentials...
 INFO: AWS credentials are valid!
 INFO: Verifying permissions for non-STS clusters
@@ -80,6 +78,7 @@ INFO: Validating SCP policies for 'osdCcsAdmin'...
 INFO: AWS SCP policies ok
 INFO: Validating cluster creation...
 INFO: Cluster creation valid
+
 #
 rosa init ... done! going to create the VPC ...
 Creating the VPC
