@@ -5,11 +5,11 @@ At the time we are writing, the Red Hat OpenShift Service on AWS (ROSA) with Hos
 Please note that when this repository was created there was no private link option.
 
 # HCP - ROSA with hosted control planes
-This is a single shell script that will create all the resources needed to deploy a public HCP cluster via the CLI.
+This is a single shell script that will create all the resources needed to deploy a public **HCP** cluster via the CLI.
 In more depth the script will take care of:
 - Set up your AWS account and roles (eg. the account-wide IAM roles and policies, cluster-specific Operator roles and policies, and OpenID Connect (OIDC) identity provider).
 - Create the VPC;
-- Create your ROSA HCP Cluster with a minimal configuration (2 workers/Single-AZ; 3 workers/Multi-AZ).
+- Create your ROSA **HCP** Cluster with a minimal configuration (2 workers/Single-AZ; 3 workers/Multi-AZ).
 here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
 
 # About the prerequisites
@@ -70,7 +70,7 @@ When you choose option 1) or option 2), the "**aws configure**" command is calle
 
 
 # About the LOG file
-During the HCP implementation phase a LOG file will be created so you can follow the main activities performed by this shell script. 
+During the **HCP** implementation phase a LOG file will be created so you can follow the main activities performed by this shell script. 
 The file will reside in the same directory as the shell script.
 
 Here is an example:
@@ -110,5 +110,6 @@ Example:
 ```
 
 # Delete your HCP cluster
-Once you are done, feel free to destroy your ROSA **HCP** cluster by launching the same script and choosing option 3)
-Deleting the cluster will also delete the LOG file at the end of the process. 
+Once you are done, feel free to destroy your ROSA **HCP** cluster by launching the same script and choosing option 3). 
+
+Please be aware that deleting the cluster will also delete the LOG file at the end of the process. 
