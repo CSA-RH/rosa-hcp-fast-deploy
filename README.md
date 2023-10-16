@@ -58,10 +58,16 @@ $ ./rosa_hcp.sh
 3) Delete_HCP 3
 4) Quit
 
-Please enter your choice:
+Please enter your choice: 1
+
+AWS Access Key ID [****************OXCF]: 
+AWS Secret Access Key [****************fCIn]: 
+Default region name [us-east-2]: 
+Default output format [json]:
 ```
 
-For options 1) and 2) make sure you have both the "AWS Access Key" and the "AWS Secret Access Key" to start the process. 
+When you choose option 1) or option 2), the "**aws configure**" command is called first, so make sure you already have both the "AWS Access Key" and the "AWS Secret Access Key" to start the process .
+
 
 # About the LOG file
 During the HCP implementation phase a LOG file will be created so you can follow the main activities performed by this shell script. 
