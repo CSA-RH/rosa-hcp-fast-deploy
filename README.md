@@ -58,10 +58,11 @@ For options 1) and 2) make sure you have both the "AWS Access Key" and the "AWS 
 # LOG file
 During the HCP implementation phase a LOG file will be created so you can follow the main activities performed by this shell script. 
 The file will reside in the same directory as the shell script.
+
 Here is an example:
-....
+...
 $ tail -f gm-2310161718.log 
-....   
+
 INFO: Validating AWS credentials...
 INFO: AWS credentials are valid!
 INFO: Verifying permissions for non-STS clusters
@@ -77,7 +78,7 @@ INFO: Cluster creation valid
 rosa init ... done! going to create the VPC ...
 Creating the VPC
 #
-rosa init ... done! going to create the VPC ...
+rosa init, done!
 Creating the VPC
 ....
 ....
@@ -92,7 +93,6 @@ INFO: Please securely store this generated password. If you lose this password y
 INFO: To login, run the following command:
 Example:
    oc login https://api.gm-2310161718.wxyz.p9.openshiftapps.com:443 --username cluster-admin --password p5BIM-tbPPa-Y3RQB-ULS4b
-
 ...
    
 Once you are done, feel free to destroy your ROSA HCP cluster by launching the same script and choosing option 3)
