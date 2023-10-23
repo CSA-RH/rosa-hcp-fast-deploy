@@ -222,17 +222,17 @@ rosa delete oidc-provider --oidc-config-id $OIDC_ID --mode auto --yes 2>&1 >> $C
 #
 vpc_id=`cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}'`
 #
-   while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways | jq -r '.NatGateways[].NatGatewayId') 2>&1 |tee -a $CLUSTER_LOG
+   while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways | jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
 sleep 100
 #
-    while read -r sg ; do aws ec2 delete-security-group --group-id $sg ; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.SecurityGroups[].GroupId') 2>&1 |tee -a $CLUSTER_LOG
-    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$vpc_id| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 |tee -a $CLUSTER_LOG
-    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.Subnets[].SubnetId') 2>&1 |tee -a $CLUSTER_LOG
-   while read -r rt_id ; do aws ec2 delete-route-table --route-table-id $rt_id ;done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$vpc_id |jq -r '.RouteTables[].RouteTableId') 2>&1 |tee -a $CLUSTER_LOG
-   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $vpc_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$vpc_id | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 |tee -a $CLUSTER_LOG
-   while read -r ig_id ; do aws ec2 delete-internet-gateway --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 |tee -a $CLUSTER_LOG
-   while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 |tee -a $CLUSTER_LOG
+    while read -r sg ; do aws ec2 delete-security-group --group-id $sg ; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
+    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$vpc_id| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
+    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
+   while read -r rt_id ; do aws ec2 delete-route-table --route-table-id $rt_id ;done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$vpc_id |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
+   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $vpc_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$vpc_id | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+   while read -r ig_id ; do aws ec2 delete-internet-gateway --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+   while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
 #
 aws ec2 delete-vpc --vpc-id=$vpc_id
 #
