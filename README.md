@@ -10,7 +10,7 @@ In more depth the script will take care of:
 - Create the VPC;
 - Create your ROSA **HCP** Cluster with a minimal configuration (2 workers/Single-AZ; 3 workers/Multi-AZ).
 
-Including its related VPC, It takes approximately 15 minutes to create/destroy an HCP cluster.
+Including its related VPC, it takes approximately 15 minutes to create/destroy an HCP cluster.
 
 Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
 
@@ -32,7 +32,7 @@ This is an example of a Regional deployment which of course includes 3x Availabi
 # Create your HCP cluster
 1. Clone this repo
 ```
-$ git clone [https://github.com/CSA-RH/HCP](https://github.com/CSA-RH/HCP)
+$ git clone https://github.com/CSA-RH/HCP
 
 Cloning into 'HCP'...
 remote: Enumerating objects: 13, done.
