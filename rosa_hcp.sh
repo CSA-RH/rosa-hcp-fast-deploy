@@ -1,11 +1,14 @@
 #!/bin/bash
 ######################################################################################################################
 #
-# Please note: this is very basic way to automate the HCP cluster setup via the CLI once your AWS blank environment
-# (eg. RHPDS) has been created. The script will create the:
-#  - the AWS env/roles needed to implemnet a ROSA HCP cluster, so AWS Access Key and AWS Secret Access Key are needed;
-#  - the VPC, you can choose between Single-AZ or Multi-AZ;
-#  - ROSA HCP cluster with minimal config (2x workers/Single-AZ; 3x workers/Multi-AZ).
+# This is a single shell script that will create all the resources needed to deploy a public HCP cluster via the CLI. In more depth the script will take care of:
+#
+# - Set up your AWS account and roles (eg. the account-wide IAM roles and policies, cluster-specific Operator roles and policies, and OpenID Connect (OIDC) identity provider).
+# - Create the VPC;
+# - Create your ROSA HCP Cluster with a minimal configuration (2 workers/Single-AZ; 3 workers/Multi-AZ).
+#
+# Including its related VPC, it takes approximately 15 minutes to create/destroy an HCP cluster.
+#
 #
 # Once you are ready to delete it, the script will perform the reverse deleting what was previously created.
 # It will look for the $CLUSTER_LOG file in order to be able to identify some resources (i.e. VPC Id, Subnets, ...).
@@ -214,7 +217,7 @@ OIDC_ID=`rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "# Start deleting HCP Cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a $CLUSTER_LOG
-echo "# Please note: you might get a warning while deleting the VPC as you can not delete default resources" 2>&1 |tee -a $CLUSTER_LOG
+echo "# Please note: you might get a warning while deleting the previously created VPC as you can not delete default resources (eg. default SG, RT, etc.)" 2>&1 |tee -a $CLUSTER_LOG
 echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 >> $CLUSTER_LOG
@@ -229,10 +232,9 @@ vpc_id=`cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}'`
 echo "waiting for the NAT-GW to die " 2>&1 |tee -a $CLUSTER_LOG
 sleep 100
 #
-#
-   while read -r sg ; do aws ec2 delete-security-group --group-id $sg ; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
-   while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$vpc_id| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
-   while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
+    while read -r sg ; do aws ec2 delete-security-group --group-id $sg ; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
+    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$vpc_id| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
+    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
    while read -r rt_id ; do aws ec2 delete-route-table --route-table-id $rt_id ;done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$vpc_id |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
    while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $vpc_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$vpc_id | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
    while read -r ig_id ; do aws ec2 delete-internet-gateway --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
