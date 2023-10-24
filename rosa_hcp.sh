@@ -213,7 +213,9 @@ AWS_REGION=us-east-2
 OIDC_ID=`rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32`
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
+echo "# Start deleting HCP Cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a $CLUSTER_LOG
+echo "# Please note: you might get a warning while deleting the VPC as you can not delete default resources" 2>&1 |tee -a $CLUSTER_LOG
+echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 >> $CLUSTER_LOG
 rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
@@ -224,27 +226,27 @@ vpc_id=`cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}'`
 #
    while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways | jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
+echo "waiting for the NAT-GW to die " 2>&1 |tee -a $CLUSTER_LOG
 sleep 100
 #
-    while read -r sg ; do aws ec2 delete-security-group --group-id $sg ; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
-    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$vpc_id| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
-    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
+#
+   while read -r sg ; do aws ec2 delete-security-group --group-id $sg ; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
+   while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$vpc_id| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
+   while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
    while read -r rt_id ; do aws ec2 delete-route-table --route-table-id $rt_id ;done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$vpc_id |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
    while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $vpc_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$vpc_id | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
    while read -r ig_id ; do aws ec2 delete-internet-gateway --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
 #
-aws ec2 delete-vpc --vpc-id=$vpc_id
+aws ec2 delete-vpc --vpc-id=$vpc_id 2>&1 >> $CLUSTER_LOG
 #
 rosa delete account-roles --mode auto --prefix $PREFIX --yes 2>&1 |tee -a $CLUSTER_LOG
 rosa init --delete --yes 2>&1 |tee -a $CLUSTER_LOG
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "... done! " 2>&1 |tee -a $CLUSTER_LOG
+echo "done! " 2>&1 |tee -a $CLUSTER_LOG
 echo " Cluster " $CLUSTER_NAME " has been deleted !" 2>&1 |tee -a $CLUSTER_LOG
-echo " You can find the old $CLUSTER_LOG LOG file in /tmp folder" 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
+echo " Now you can find the old $CLUSTER_LOG LOG file in /tmp folder" 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 mv $CLUSTER_LOG /tmp
 }
