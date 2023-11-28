@@ -46,10 +46,12 @@ $ chmod +x rosa_hcp.sh
 ```
 $ ./rosa_hcp.sh 
 
-1) Single-AZ 1
-2) Multi-AZ 2
-3) Delete_HCP 3
-4) Quit
+Welcome to the ROSA HCP installation menu
+1) Single-AZ 
+2) Single-AZ-Priv 
+3) Multi-AZ 
+4) Delete_HCP 
+5) Quit
 
 Please enter your choice: 1
 
@@ -119,12 +121,15 @@ Once you are done, feel free to destroy your ROSA **HCP** cluster by launching t
 ```
 $ ./rosa_hcp.sh 
 
-1) Single-AZ 1
-2) Multi-AZ 2
-3) Delete_HCP 3
-4) Quit
 
-Please enter your choice: 3
+Welcome to the ROSA HCP installation menu
+1) Single-AZ 
+2) Single-AZ-Priv 
+3) Multi-AZ 
+4) Delete_HCP 
+5) Quit
+
+Please enter your choice: 4
 ```
 It takes approximately 15 minutes to delete the HCP cluster, including its VPCs, IAM roles, OIDCs, etc.<br />
 Please note that after the deletion process is complete the LOG file will be moved from its current location to **/tmp**.
