@@ -333,7 +333,7 @@ do
 		break
             ;;
         "Single-AZ-Priv ")
-          SingleAZ-Priv
+          Single-AZ-Priv
 		break
             ;;
         "Multi-AZ ")
