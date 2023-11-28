@@ -1,7 +1,6 @@
 #!/bin/bash
 ######################################################################################################################
 #
-#
 # This is a single shell script that will create all the resources needed to deploy a public HCP cluster via the CLI. In more depth the script will take care of:
 #
 # - Set up your AWS account and roles (eg. the account-wide IAM roles and policies, cluster-specific Operator roles and policies, and OpenID Connect (OIDC) identity provider).
