@@ -36,6 +36,7 @@ CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
+echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |tee -a $CLUSTER_LOG
 #
 PREFIX=ManagedOpenShift
 AWS_REGION=us-east-2
@@ -82,7 +83,8 @@ aws ec2 create-tags --resources $PRIVATE_RT_ID1 $EIP_ADDRESS --tags Key=Name,Val
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "VPC creation ... done! going to create account and operator roles, then your HCP Cluster ..." 2>&1 |tee -a $CLUSTER_LOG
 #
-rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
+#rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
+rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
 #
 INSTALL_ARN=`rosa list account-roles|grep Install|grep HCP|awk '{print $3}'`
 WORKER_ARN=`rosa list account-roles|grep -i worker|grep HCP|awk '{print $3}'`
@@ -106,6 +108,68 @@ echo " " 2>&1 |tee -a $CLUSTER_LOG
 }
 #
 ############################################################
+# Single AZ Private                                        #
+############################################################
+Single-AZ-Priv()
+{
+NOW=`date +"%y%m%d%H%M"`
+CLUSTER_NAME=gm-$NOW
+INSTALL_DIR=$(pwd)
+CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+touch $CLUSTER_LOG
+echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a $CLUSTER_LOG
+#
+PREFIX=ManagedOpenShift
+AWS_REGION=us-east-2
+#
+aws configure 
+echo "#"
+aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
+aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
+rosa init 2>&1 >> $CLUSTER_LOG
+echo "#" 2>&1 |tee -a $CLUSTER_LOG
+echo "rosa init ... done! going to create the VPC ..." 2>&1 |tee -a $CLUSTER_LOG
+#
+VPC_ID_VALUE=`aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text`
+echo "Creating the VPC"  2>&1 >> $CLUSTER_LOG
+echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> $CLUSTER_LOG
+aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME
+aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
+aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
+#
+PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone us-east-2a --query Subnet.SubnetId --output text`
+echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 >> $CLUSTER_LOG
+aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
+#
+echo "#" 2>&1 |tee -a $CLUSTER_LOG
+echo "VPC creation ... done! going to create account and operator roles, then your HCP Cluster ..." 2>&1 |tee -a $CLUSTER_LOG
+#
+#rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
+rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
+#
+INSTALL_ARN=`rosa list account-roles|grep Install|grep HCP|awk '{print $3}'`
+WORKER_ARN=`rosa list account-roles|grep -i worker|grep HCP|awk '{print $3}'`
+SUPPORT_ARN=`rosa list account-roles|grep -i support|grep HCP|awk '{print $3}'`
+OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
+echo "OIDC_ID " $OIDC_ID 2>&1 >> $CLUSTER_LOG
+#
+rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG 
+SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
+#
+rosa create cluster --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --subnet-ids=$PRIV_SUB_2a -m auto -y 2>&1 |tee -a $CLUSTER_LOG
+rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
+rosa create admin --cluster=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
+rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
+#
+echo "#" 2>&1 |tee -a $CLUSTER_LOG
+echo "... done! " 2>&1 |tee -a $CLUSTER_LOG
+echo " Please check the $CLUSTER_LOG LOG file for useful information " 2>&1 |tee -a $CLUSTER_LOG
+echo " " 2>&1 |tee -a $CLUSTER_LOG
+echo " " 2>&1 |tee -a $CLUSTER_LOG
+echo " " 2>&1 |tee -a $CLUSTER_LOG
+}
+#
+############################################################
 # Multi AZ                                                 #
 ############################################################
 MultiAZ()
@@ -115,6 +179,7 @@ CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
+echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Multi-AZ ..." 2>&1 |tee -a $CLUSTER_LOG
 #
 PREFIX=ManagedOpenShift
 AWS_REGION=us-east-2
@@ -160,7 +225,8 @@ aws ec2 create-tags --resources $PUBLIC_RT_ID --tags Key=Name,Value=$CLUSTER_NAM
 EIP_ADDRESS=`aws ec2 allocate-address --domain vpc --query AllocationId --output text`
 echo "EIP_ADDRESS " $EIP_ADDRESS 2>&1 >> $CLUSTER_LOG
 NAT_GATEWAY_ID=`aws ec2 create-nat-gateway --subnet-id $PUBLIC_SUB_2a --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text`
-echo "Waiting for NAT GW to warm up (2min)" 2>&1 >> $CLUSTER_LOG
+#
+echo "Waiting for NAT GW to warm up \(2min\)" 2>&1 >> $CLUSTER_LOG
 sleep 120
 aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
 PRIVATE_RT_ID1=`aws ec2 create-route-table --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text`
@@ -179,7 +245,8 @@ aws ec2 create-tags --resources $PRIVATE_RT_ID3 $EIP_ADDRESS --tags Key=Name,Val
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "VPC creation ... done! going to create account and operator roles, then your HCP Cluster ..." 2>&1 |tee -a $CLUSTER_LOG
 #
-rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
+#rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
+rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
 INSTALL_ARN=`rosa list account-roles|grep Install|grep HCP|awk '{print $3}'`
 WORKER_ARN=`rosa list account-roles|grep -i worker|grep HCP|awk '{print $3}'`
 SUPPORT_ARN=`rosa list account-roles|grep -i support|grep HCP|awk '{print $3}'`
@@ -216,8 +283,8 @@ AWS_REGION=us-east-2
 OIDC_ID=`rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32`
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "# Start deleting HCP Cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a $CLUSTER_LOG
-echo "# Please note: you might get a warning while deleting the previously created VPC as you can not delete default resources (eg. default SG, RT, etc.)" 2>&1 |tee -a $CLUSTER_LOG
+echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a $CLUSTER_LOG
+echo "# Please note: you might get a warning while deleting the previously created VPC as you can not delete default resources \(eg. default SG, RT, etc.\)" 2>&1 |tee -a $CLUSTER_LOG
 echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 >> $CLUSTER_LOG
@@ -254,27 +321,32 @@ mv $CLUSTER_LOG /tmp
 }
 #
 #
+echo "Welcome to the ROSA HCP installation menu"
 PS3='Please enter your choice: '
-options=("Single-AZ 1" "Multi-AZ 2" "Delete_HCP 3" "Quit")
+options=("Single-AZ " "Single-AZ-Priv " "Multi-AZ " "Delete_HCP " "Quit")
 select opt in "${options[@]}"
 do
     case $opt in
-        "Single-AZ 1")
+        "Single-AZ ")
           SingleAZ
 		break
             ;;
-        "Multi-AZ 2")
+        "Single-AZ-Priv ")
+          SingleAZ-Priv
+		break
+            ;;
+        "Multi-AZ ")
             MultiAZ
 		break
             ;;
-        "Delete_HCP 3")
+        "Delete_HCP ")
             Delete_HCP
 		break
             ;;
         "Quit")
             break
             ;;
-        *) echo "invalid option $REPLY";;
+        *) echo "invalid option $REPLY"
+	    ;;
     esac
 done
-#
