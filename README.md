@@ -4,7 +4,7 @@ Also, please note that when this repository was created there was no private lin
 <br />
 
 # AWS ROSA Cluster with hosted control planes (HCP)
-The idea behind this shell script (**rosa_hcp.sh**) is to automatically deploy a ROSA **HCP** cluster in a few minutes, using the CLI.<br />
+Automatically deploy a ROSA **HCP** cluster in a few minutes, using the CLI, that was the idea behind this shell script.<br />
 What the script will do:
 - Configure your AWS account and roles (eg. the account-wide IAM roles and policies, the cluster-specific Operator roles and policies, the OIDC identity provider, etc.)
 - Create the VPC, including creating Subnets, IGW, NatGW, S3 Endpoint, configuring Routes, etc.
