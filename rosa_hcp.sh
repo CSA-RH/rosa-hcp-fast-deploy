@@ -138,8 +138,26 @@ aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 #
 PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone us-east-2a --query Subnet.SubnetId --output text`
-echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 >> $CLUSTER_LOG
+#echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
+#echo "stacazzodesubnet " $PRIV_SUB_2a","$PUBLIC_SUB_2a 2>&1 >> $CLUSTER_LOG
+#IGW=`aws ec2 create-internet-gateway --query InternetGateway.InternetGatewayId --output text`
+#aws ec2 attach-internet-gateway --vpc-id $VPC_ID_VALUE --internet-gateway-id $IGW
+#aws ec2 create-tags --resources $IGW --tags Key=Name,Value=$CLUSTER_NAME-IGW
+#PUBLIC_RT_ID=`aws ec2 create-route-table --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text`
+#aws ec2 create-route --route-table-id $PUBLIC_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW
+#aws ec2 associate-route-table --subnet-id $PUBLIC_SUB_2a --route-table-id $PUBLIC_RT_ID 2>&1 >> $CLUSTER_LOG
+#aws ec2 create-tags --resources $PUBLIC_RT_ID --tags Key=Name,Value=$CLUSTER_NAME-public-rtb
+#EIP_ADDRESS=`aws ec2 allocate-address --domain vpc --query AllocationId --output text`
+#NAT_GATEWAY_ID=`aws ec2 create-nat-gateway --subnet-id $PUBLIC_SUB_2a --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text`
+#echo "Waiting for NAT GW to warm up (2min)" 2>&1 |tee -a $CLUSTER_LOG
+#sleep 120
+#aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
+PRIVATE_RT_ID1=`aws ec2 create-route-table --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text`
+#aws ec2 create-route --route-table-id $PRIVATE_RT_ID1 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID
+aws ec2 associate-route-table --subnet-id $PRIV_SUB_2a --route-table-id $PRIVATE_RT_ID1 2>&1 >> $CLUSTER_LOG
+aws ec2 create-tags --resources $PRIVATE_RT_ID1 --tags Key=Name,Value=$CLUSTER_NAME-private-rtb
+#
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "VPC creation ... done! going to create account and operator roles, then your HCP Cluster ..." 2>&1 |tee -a $CLUSTER_LOG
