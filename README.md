@@ -84,13 +84,12 @@ INFO: Cluster creation valid
 #
 rosa init ... done! going to create the VPC ...
 Creating the VPC
+VPC_ID_VALUE  vpc-00c74df8b67f078c5
+Creating the Private Subnet:  subnet-09aa813462bdc903c
 #
-rosa init, done!
-Creating the VPC
+VPC creation ... done! going to create account and operator roles, then your ROSA HCP Cluster ...
 ....
 ....
-2023-10-16 15:29:29 +0000 UTC hostedclusters gm-2310161718 The hosted control plane is available
-INFO: Cluster 'gm-2310161718' is now ready
 ```
 
 After a successful deployment,  a cluster-admin account will be added to your **HCP** cluster and its password will be logged in the LOG file.
