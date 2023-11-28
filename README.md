@@ -61,7 +61,7 @@ Default output format [json]:
 When creating the cluster, the "**aws configure**" command is called first, so make sure you have both the "AWS Access Key" and the "AWS Secret Access Key" at hand to be able to start the process.
 Since the AWS CLI will now remember your credentials, no further input or action is required until the ROSA **HPC** cluster installation is complete.
 
-#### Log Files
+#### Installation Log File 
 During the **HCP** cluster implementation phase a LOG file is created in the same folder as the shell script so you can follow all the intermediate steps.
 
 Here is an example:
@@ -101,17 +101,16 @@ Example:
 ```
 
 # Resources
-You can choose between Single and Multi-AZ deployment model. 
+The number of subnets and other resources will vary depending on what you pick: you can choose to implement a public or a private ROSA **HCP** cluster as well as choose between Single and Multi-AZ deployment models.
 In both cases and for economic reasons this shell script will consider having a minimal configuration:
 - 1x NAT Gateway (NGW) in just one single AZ to allow instances with no public IPs to access the internet
-- 1x Internet Gateway (IGW) to allow instances with public IPs to access the internet
-The number of subnets and other resources will vary depending on whether you choose to deploy a Public or Private ROSA **HCP** cluster.
+- 1x Internet Gateway (IGW) to allow instances with public IPs to access the internet<br />
 
-#### Single-AZ
+#### Single-AZ (Public)
 Here is an example of the VPC with a Single-AZ (2x workers):
 ![image](https://github.com/CSA-RH/HCP/assets/40911235/26d2ba39-49f1-405d-ad50-45ac24239eb2)
 
-#### Multi-AZ
+#### Multi-AZ (Public)
 This is an example of a Multi-AZ (3x workers):
 ![image](https://github.com/CSA-RH/HCP/assets/40911235/50a26cb6-44a3-43e5-b836-5fe66f6bde3b)
 
