@@ -1,33 +1,23 @@
-# Please Note:
-At the time we are writing, the Red Hat OpenShift Service on AWS (ROSA) with Hosted Control Planes (HCP) is a **Technology Preview** feature only. Technology Preview features are not supported by Red Hat manufacturing service level agreements (SLAs) and may not be functionally complete. Red Hat does not recommend using them in production. These features provide early access to upcoming product features, allowing customers to test the functionality and provide feedback during the development process. For more information about the scope of Red Hat Technology Preview feature support, see Scope of Technology [Preview Feature Support](https://access.redhat.com/support/offerings/techpreview)
-
+> [!NOTE]
+>  At the time we are writing, the Red Hat OpenShift Service on AWS (ROSA) with Hosted Control Planes (HCP) is a **Technology Preview** feature only. Technology Preview features are not supported by Red Hat manufacturing service level agreements (SLAs) and may not be functionally complete. Red Hat does not recommend using them in production. These features provide early access to upcoming product features, allowing customers to test the functionality and provide feedback during the development process. For more information about the scope of Red Hat Technology Preview feature support, see Scope of Technology [Preview Feature Support](https://access.redhat.com/support/offerings/techpreview).<br />
 Also, please note that when this repository was created there was no private link option.
+<br />
 
-# HCP - ROSA with hosted control planes
-This is a single shell script that will create all the resources needed to deploy a public **HCP** cluster via the CLI.
-In more depth the script will take care of:
-- Set up your AWS account and roles (eg. the account-wide IAM roles and policies, cluster-specific Operator roles and policies, and OpenID Connect (OIDC) identity provider).
-- Create the VPC;
-- Create your ROSA **HCP** Cluster with a minimal configuration (2 workers/Single-AZ; 3 workers/Multi-AZ).
+# HCP - AWS ROSA Cluster with hosted control planes
+The idea behind this shell script (**rosa_hcp.sh**) is to automatically deploy a public ROSA **HCP** cluster in a few minutes, using the CLI.<br />
+What the script will do for you is:
+- Configure your AWS account and roles (eg. the account-wide IAM roles and policies, the cluster-specific Operator roles and policies, the OIDC identity provider, etc.)
+- Create the VPC, including creating Subnets, IGW, NatGW, S3 Endpoint, configuring Routes, etc.
+- Create your ROSA **HCP** Cluster
 
-Including its related VPC, it takes approximately 15 minutes to create/destroy an HCP cluster.
+All you need is:
+- An AWS account or an RHDP "blank environment"
+- Your AWS Access Key and AWS Secret Access Key
+- Updated versions of ROSA CLI[^1] and AWS CLI.
 
-Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
+The process to create/delete an HCP cluster and all its resources will take approximately 15 minutes. <br /> Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
 
-# About the prerequisites
-- ROSA CLI, AWS CLI
-- AWS account or an RHPDS "blank environment" 
-- The AWS Access Key and AWS Secret Access Key - "aws configure" command will take them in a sort of "cache" after the first run
-
-# Resources
-You can choose between Single-AZ or Multi-AZ deployment and we must have one public subnet with a NAT gateway so, in both cases and mainly for economic reasons, this shell script will consider having only 1x NAT gateway in just 1x AZ plus just one single Internet Gateway.
-
-Here is an example of the VPC with a Single Availability Zone (AZ):
-![image](https://github.com/CSA-RH/HCP/assets/40911235/26d2ba39-49f1-405d-ad50-45ac24239eb2)
-
-This is an example of a Regional deployment which of course includes 3x Availability Zones (AZs):
-![image](https://github.com/CSA-RH/HCP/assets/40911235/50a26cb6-44a3-43e5-b836-5fe66f6bde3b)
-
+[^1]: If you get an error like this: "_E: Failed to create cluster: Version 'X.Y.Z' is below minimum supported for Hosted Control Plane_", you'll probably have to update the ROSA CLI in order to be able to create the latest cluster version available.
 
 # Create your HCP cluster
 1. Clone this repo
@@ -68,13 +58,11 @@ AWS Secret Access Key [****************fCIn]:
 Default region name [us-east-2]: 
 Default output format [json]:
 ```
+When creating the cluster, the "**aws configure**" command is called first, so make sure you have both the "AWS Access Key" and the "AWS Secret Access Key" at hand to be able to start the process.
+Since the AWS CLI will now remember your credentials, no further input or action is required until the ROSA **HPC** cluster installation is complete.
 
-When you choose option 1) or option 2), the "**aws configure**" command is called first, so make sure you already have both the "AWS Access Key" and the "AWS Secret Access Key" to start the process .
-
-
-# About the LOG file
-During the **HCP** implementation phase a LOG file will be created so you can follow the main activities performed by this shell script. 
-The file will reside in the same directory as the shell script.
+#### Log Files
+During the **HCP** implementation phase a LOG file is created in the same folder as the shell script so you can follow all the intermediate steps.
 
 Here is an example:
 ```
@@ -103,14 +91,26 @@ Creating the VPC
 INFO: Cluster 'gm-2310161718' is now ready
 ```
 
-A Cluster-Admin account will be added to your **HCP** Cluster after a successful implementation, its password will be recorded in the LOG file.
+After a successful deployment,  a cluster-admin account will be added to your **HCP** cluster and its password will be logged in the LOG file.
 ```
 INFO: Admin account has been added to cluster 'gm-2310161718'.
 INFO: Please securely store this generated password. If you lose this password you can delete and recreate the cluster admin user.
 INFO: To login, run the following command:
 Example:
-   oc login https://api.gm-2310161718.wxyz.p9.openshiftapps.com:443 --username cluster-admin --password p5BIM-tbPPa-Y3RQB-ULS4b
+   oc login https://api.gm-2310161718.wxyz.p9.openshiftapps.com:443 --username cluster-admin --password p5BiM-tbPPa-p5BiM-tbPPa
 ```
+
+# Deployment model
+You can choose between Single and Multi-AZ deployment model. 
+In both cases and for economic reasons this shell script will consider having a minimal configuration:
+- 1x NAT Gateway (NGW) in just one single AZ to allow instances with no public IPs to access the internet
+- 1x Internet Gateway (IGW) to allow instances with public IPs to access the internet
+
+Here is an example of the VPC with a Single-AZ (2x workers):
+![image](https://github.com/CSA-RH/HCP/assets/40911235/26d2ba39-49f1-405d-ad50-45ac24239eb2)
+
+This is an example of a Multi-AZ (3x workers):
+![image](https://github.com/CSA-RH/HCP/assets/40911235/50a26cb6-44a3-43e5-b836-5fe66f6bde3b)
 
 # Delete your HCP cluster
 Once you are done, feel free to destroy your ROSA **HCP** cluster by launching the same shell script and choosing option 3) this time. 
@@ -124,5 +124,5 @@ $ ./rosa_hcp.sh
 
 Please enter your choice: 3
 ```
-It takes approximately 15 minutes to delete your HCP cluster, including its related VPC, account roles, etc. 
-Please be aware that deleting the cluster will also move the LOG file from its current position to **/tmp** at the end of the process.
+It takes approximately 15 minutes to delete the HCP cluster, including its VPCs, IAM roles, OIDCs, etc.<br />
+Please note that after the deletion process is complete the LOG file will be moved from its current location to **/tmp**.
