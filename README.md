@@ -3,38 +3,38 @@
 Also, please note that when this repository was created there was no private link option.
 <br />
 
-# HCP - AWS ROSA Cluster with hosted control planes
-The idea behind this shell script (**rosa_hcp.sh**) is to automatically deploy a public ROSA **HCP** cluster in a few minutes, using the CLI.<br />
+# AWS ROSA Cluster with hosted control planes (HCP)
+The idea behind this shell script (**rosa_hcp.sh**) is to automatically deploy a ROSA **HCP** cluster in a few minutes, using the CLI.<br />
 What the script will do for you is:
 - Configure your AWS account and roles (eg. the account-wide IAM roles and policies, the cluster-specific Operator roles and policies, the OIDC identity provider, etc.)
 - Create the VPC, including creating Subnets, IGW, NatGW, S3 Endpoint, configuring Routes, etc.
-- Create your ROSA **HCP** Cluster
+- Create your Public or Private ROSA **HCP** Cluster
 
 All you need is:
 - An AWS account or an RHDP "blank environment"
 - Your AWS Access Key and AWS Secret Access Key
 - Updated versions of ROSA CLI[^1] and AWS CLI.
 
-The process to create/delete an HCP cluster and all its resources will take approximately 15 minutes. <br /> Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
+The process to create/delete a ROSA HCP cluster and all its resources will take approximately 15 minutes. <br /> Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
 
 [^1]: If you get an error like this: "_E: Failed to create cluster: Version 'X.Y.Z' is below minimum supported for Hosted Control Plane_", you'll probably have to update the ROSA CLI in order to be able to create the latest cluster version available.
 
-# Create your HCP cluster
+# Create your ROSA HCP cluster
 1. Clone this repo
 ```
 $ git clone https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes
 
-Cloning into 'HCP'...
-remote: Enumerating objects: 13, done.
-remote: Counting objects: 100% (13/13), done.
-remote: Compressing objects: 100% (12/12), done.
-remote: Total 13 (delta 2), reused 0 (delta 0), pack-reused 0
-Receiving objects: 100% (13/13), 18.44 KiB | 165.00 KiB/s, done.
-Resolving deltas: 100% (2/2), done.
+Cloning into 'aws-rosa-cluster-with-hosted-control-planes'...
+remote: Enumerating objects: 118, done.<br />
+remote: Counting objects: 100% (118/118), done.<br />
+remote: Compressing objects: 100% (112/112), done.<br />
+remote: Total 118 (delta 43), reused 11 (delta 5), pack-reused 0<br />
+Receiving objects: 100% (118/118), 45.89 KiB | 1.64 MiB/s, done.<br />
+Resolving deltas: 100% (43/43), done.<br />
 ```
 2. Go to path:
 ```
-$ cd HCP/
+$ cd aws-rosa-cluster-with-hosted-control-planes/
 ```
 
 3. Add execution permissions
@@ -62,7 +62,7 @@ When creating the cluster, the "**aws configure**" command is called first, so m
 Since the AWS CLI will now remember your credentials, no further input or action is required until the ROSA **HPC** cluster installation is complete.
 
 #### Log Files
-During the **HCP** implementation phase a LOG file is created in the same folder as the shell script so you can follow all the intermediate steps.
+During the **HCP** cluster implementation phase a LOG file is created in the same folder as the shell script so you can follow all the intermediate steps.
 
 Here is an example:
 ```
@@ -105,10 +105,13 @@ You can choose between Single and Multi-AZ deployment model.
 In both cases and for economic reasons this shell script will consider having a minimal configuration:
 - 1x NAT Gateway (NGW) in just one single AZ to allow instances with no public IPs to access the internet
 - 1x Internet Gateway (IGW) to allow instances with public IPs to access the internet
+The number of subnets and other resources will vary depending on whether you choose to deploy a Public or Private ROSA **HCP** cluster.
 
+#### Single-AZ
 Here is an example of the VPC with a Single-AZ (2x workers):
 ![image](https://github.com/CSA-RH/HCP/assets/40911235/26d2ba39-49f1-405d-ad50-45ac24239eb2)
 
+#### Multi-AZ
 This is an example of a Multi-AZ (3x workers):
 ![image](https://github.com/CSA-RH/HCP/assets/40911235/50a26cb6-44a3-43e5-b836-5fe66f6bde3b)
 
