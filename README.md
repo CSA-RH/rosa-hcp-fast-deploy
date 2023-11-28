@@ -129,6 +129,13 @@ Welcome to the ROSA HCP installation menu
 5) Quit
 
 Please enter your choice: 4
+
+INFO: Cluster 'gm-2311282318' will start uninstalling now
+INFO: Your cluster 'gm-2311282318' will be deleted but the following objects may remain
+INFO: Operator IAM Roles: - arn:aws:iam::790553242681:role/ManagedOpenShift-openshift-image-registry-installer-cloud-creden
+...
+...
 ```
+
 It takes approximately 15 minutes to delete the HCP cluster, including its VPCs, IAM roles, OIDCs, etc.<br />
 Please note that after the deletion process is complete the LOG file will be moved from its current location to **/tmp**.
