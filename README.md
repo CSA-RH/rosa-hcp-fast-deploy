@@ -100,7 +100,7 @@ Example:
    oc login https://api.gm-2310161718.wxyz.p9.openshiftapps.com:443 --username cluster-admin --password p5BiM-tbPPa-p5BiM-tbPPa
 ```
 
-# Deployment model
+# Resources
 You can choose between Single and Multi-AZ deployment model. 
 In both cases and for economic reasons this shell script will consider having a minimal configuration:
 - 1x NAT Gateway (NGW) in just one single AZ to allow instances with no public IPs to access the internet
