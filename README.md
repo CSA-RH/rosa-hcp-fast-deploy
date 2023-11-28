@@ -102,7 +102,6 @@ Example:
 ```
 
 # Resources
-This is an example of a Multi-AZ (3x workers):
 You can choose to implement a public or a private ROSA **HCP** cluster as well as choose between Single-AZ (2x workers) and Multi-AZ (3x workers).
 The number of subnets and other resources will vary depending on what you pick.
 Where public Subnets are expected, the script will consider having a minimal configuration like this:
