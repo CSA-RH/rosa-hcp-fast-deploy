@@ -22,7 +22,7 @@ The process to create/delete an HCP cluster and all its resources will take appr
 # Create your HCP cluster
 1. Clone this repo
 ```
-$ git clone https://github.com/CSA-RH/HCP
+$ git clone https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes
 
 Cloning into 'HCP'...
 remote: Enumerating objects: 13, done.
