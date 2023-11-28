@@ -102,18 +102,19 @@ Example:
 ```
 
 # Resources
-The number of subnets and other resources will vary depending on what you pick: you can choose to implement a public or a private ROSA **HCP** cluster as well as choose between Single and Multi-AZ deployment models.
-In both cases and for economic reasons this shell script will consider having a minimal configuration:
+This is an example of a Multi-AZ (3x workers):
+You can choose to implement a public or a private ROSA **HCP** cluster as well as choose between Single-AZ (2x workers) and Multi-AZ (3x workers).
+The number of subnets and other resources will vary depending on what you pick.
+Where public Subnets are expected, the script will consider having a minimal configuration like this:
 - 1x NAT Gateway (NGW) in just one single AZ to allow instances with no public IPs to access the internet
 - 1x Internet Gateway (IGW) to allow instances with public IPs to access the internet<br />
 
-#### Single-AZ (Public)
-Here is an example of the VPC with a Single-AZ (2x workers):
-![image](https://github.com/CSA-RH/HCP/assets/40911235/26d2ba39-49f1-405d-ad50-45ac24239eb2)
+#### ROSA with HCP deployed on a public network:
+![image](https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes/assets/148223511/cbaeb255-c8a1-417f-8680-af11b5c2994e)
 
-#### Multi-AZ (Public)
-This is an example of a Multi-AZ (3x workers):
-![image](https://github.com/CSA-RH/HCP/assets/40911235/50a26cb6-44a3-43e5-b836-5fe66f6bde3b)
+#### ROSA with HCP deployed on a private network
+![image](https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes/assets/148223511/400508f8-411d-46b2-9da1-4c472bbb92ef)
+
 
 # Delete your HCP cluster
 Once you are done, feel free to destroy your ROSA **HCP** cluster by launching the same shell script and choosing option 3) this time. 
