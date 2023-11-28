@@ -17,7 +17,7 @@
 #
 ########################################################################################################################
 #
-#set -xe
+set -x
 RETVAL=$?
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -156,7 +156,7 @@ echo "OIDC_ID " $OIDC_ID 2>&1 >> $CLUSTER_LOG
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG 
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
-rosa create cluster --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --subnet-ids=$PRIV_SUB_2a -m auto -y 2>&1 |tee -a $CLUSTER_LOG
+rosa create cluster --private --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --subnet-ids=$PRIV_SUB_2a -m auto -y 2>&1 |tee -a $CLUSTER_LOG
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
 rosa create admin --cluster=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
