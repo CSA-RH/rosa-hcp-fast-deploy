@@ -72,7 +72,10 @@ Default region name [us-east-2]:
 Default output format [json]:
 ```
 > [!NOTE]
-> When creating the cluster, the "**aws configure**" command is called first, so make sure you have both the "AWS Access Key" and the "AWS Secret Access Key" at hand to be able to start the process. Since the AWS CLI will now remember your credentials, no further input or action is required until the ROSA **HPC** cluster installation is complete.
+> When creating the cluster, the "**aws configure**" command is called first:
+> - make sure you have both the "AWS Access Key" and the "AWS Secret Access Key" at hand to be able to start the process
+> - the Region you specify here will be used as a target for the installation
+> Since the AWS CLI will now remember your inputs, no further input or action is required until the ROSA **HPC** cluster installation is complete.
 
 #### Installation Log File 
 During the **HCP** cluster implementation phase a LOG file is created in the same folder as the shell script so you can follow all the intermediate steps.
