@@ -26,12 +26,12 @@ It is possible to choose between Single-AZ (2x workers) and Multi-AZ (3x workers
 #### ROSA with HCP deployed on a public network:
 Where public Subnets are expected, the script will consider having a minimal configuration like this:
 - 1x NAT Gateway (NGW) in just one single AZ 
-- 1x Internet Gateway (IGW) to allow instances with public IPs to access the internet<br />
+- 1x Internet Gateway (IGW) to allow the egress (NAT) traffic to the Internet<br />
 
 ![image](https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes/assets/148223511/cbaeb255-c8a1-417f-8680-af11b5c2994e)
 
 #### ROSA with HCP deployed on a private network
-In the case of the private **HCP** cluster it is assumed that it will be reachable through a VPN or a Direct Connect service, therefore the script does not include the creation of public Subnets, IGW, NGWs in the VPC.
+In the case of the private **HCP** cluster it is assumed that it will be reachable through a VPN or a Direct Connect service, therefore the script does not include the creation of any Public Subnets, IGW, NGWs in the VPC.
 ![image](https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes/assets/148223511/400508f8-411d-46b2-9da1-4c472bbb92ef)
 
 
