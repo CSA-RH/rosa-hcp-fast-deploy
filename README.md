@@ -1,8 +1,3 @@
-> [!IMPORTANT]
->  The Red Hat OpenShift Service on AWS (ROSA) with Hosted Control Planes (HCP) is a **Technology Preview** feature only. Technology Preview features are not supported by Red Hat manufacturing service level agreements (SLAs) and may not be functionally complete. Red Hat does not recommend using them in production. These features provide early access to upcoming product features, allowing customers to test the functionality and provide feedback during the development process. For more information about the scope of Red Hat Technology Preview feature support, see Scope of Technology [Preview Feature Support](https://access.redhat.com/support/offerings/techpreview).<br />
-Also, please note that when this repository was created there was no AWS PrivateLink clusters option for HCP.
-<br />
-
 # AWS ROSA Cluster with hosted control planes (HCP)
 Automatically deploy a ROSA **HCP** cluster in a few minutes, using the CLI, that was the idea behind this shell script.<br />
 All you need is:
