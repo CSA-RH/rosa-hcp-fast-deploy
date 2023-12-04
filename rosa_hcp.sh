@@ -17,14 +17,13 @@
 #
 ########################################################################################################################
 #
-#set -xe
+set -x
 RETVAL=$?
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 #
-PREFIX=ManagedOpenShift
-AWS_REGION=us-east-2
+PREFIX=TestManagedHCP
 #
 ############################################################
 # Single AZ                                                #
@@ -36,18 +35,18 @@ CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
-echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |tee -a $CLUSTER_LOG
 #
-PREFIX=ManagedOpenShift
-AWS_REGION=us-east-2
+PREFIX=TestManagedHCP
 #
 aws configure 
+echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |tee -a $CLUSTER_LOG
+AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 echo "#"
 aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
-rosa init 2>&1 >> $CLUSTER_LOG
+#rosa init 2>&1 >> $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "rosa init ... done! going to create the VPC ..." 2>&1 |tee -a $CLUSTER_LOG
+#echo "rosa init ... done! going to create the VPC ..." 2>&1 |tee -a $CLUSTER_LOG
 #
 VPC_ID_VALUE=`aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text`
 echo "Creating the VPC"  2>&1 >> $CLUSTER_LOG
@@ -55,10 +54,10 @@ echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
-PUBLIC_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone us-east-2a --query Subnet.SubnetId --output text`
+PUBLIC_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone $AWS_REGIONa --query Subnet.SubnetId --output text`
 #echo "Creating the Public Subnet: " $PUBLIC_SUB_2a 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-public
-PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone us-east-2a --query Subnet.SubnetId --output text`
+PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone $AWS_REGIONa --query Subnet.SubnetId --output text`
 #echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
 #echo "stacazzodesubnet " $PRIV_SUB_2a","$PUBLIC_SUB_2a 2>&1 >> $CLUSTER_LOG
@@ -94,9 +93,13 @@ echo "OIDC_ID " $OIDC_ID 2>&1 >> $CLUSTER_LOG
 #
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG 
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
+#
 rosa create cluster --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 |tee -a $CLUSTER_LOG
+#
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
+#
 rosa create admin --cluster=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
+#
 rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
@@ -117,18 +120,18 @@ CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
-echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a $CLUSTER_LOG
 #
-PREFIX=ManagedOpenShift
-AWS_REGION=us-east-2
+PREFIX=TestManagedHCP
 #
 aws configure 
+echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a $CLUSTER_LOG
+AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 echo "#"
 aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
-rosa init 2>&1 >> $CLUSTER_LOG
+#rosa init 2>&1 >> $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "rosa init ... done! going to create the VPC ..." 2>&1 |tee -a $CLUSTER_LOG
+#echo "rosa init ... done! going to create the VPC ..." 2>&1 |tee -a $CLUSTER_LOG
 #
 VPC_ID_VALUE=`aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text`
 echo "Creating the VPC"  2>&1 >> $CLUSTER_LOG
@@ -137,7 +140,7 @@ aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAM
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 #
-PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone us-east-2a --query Subnet.SubnetId --output text`
+PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone $AWS_REGIONa --query Subnet.SubnetId --output text`
 #echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
 #echo "stacazzodesubnet " $PRIV_SUB_2a","$PUBLIC_SUB_2a 2>&1 >> $CLUSTER_LOG
@@ -162,12 +165,11 @@ aws ec2 create-tags --resources $PRIVATE_RT_ID1 --tags Key=Name,Value=$CLUSTER_N
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "VPC creation ... done! going to create account and operator roles, then your HCP Cluster ..." 2>&1 |tee -a $CLUSTER_LOG
 #
-#rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
 #
-INSTALL_ARN=`rosa list account-roles|grep Install|grep HCP|awk '{print $3}'`
-WORKER_ARN=`rosa list account-roles|grep -i worker|grep HCP|awk '{print $3}'`
-SUPPORT_ARN=`rosa list account-roles|grep -i support|grep HCP|awk '{print $3}'`
+INSTALL_ARN=`rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}'`
+WORKER_ARN=`rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}'`
+SUPPORT_ARN=`rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}'`
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "OIDC_ID " $OIDC_ID 2>&1 >> $CLUSTER_LOG
 #
@@ -197,19 +199,19 @@ CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
-echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Multi-AZ ..." 2>&1 |tee -a $CLUSTER_LOG
 #
-PREFIX=ManagedOpenShift
-AWS_REGION=us-east-2
+PREFIX=TestManagedHCP
 #
 aws configure
+echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a $CLUSTER_LOG
+AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 echo "#"
-aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
-aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
+###aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
+###aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-rosa init 2>&1 >> $CLUSTER_LOG
+###rosa init 2>&1 >> $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "rosa init ... done! going to create the VPC ..." 2>&1 |tee -a $CLUSTER_LOG
+#echo "rosa init ... done! going to create the VPC ..." 2>&1 |tee -a $CLUSTER_LOG
 #
 echo "Creating the VPC"  2>&1 >> $CLUSTER_LOG
 VPC_ID_VALUE=`aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text`
@@ -217,17 +219,17 @@ echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
-PUBLIC_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone us-east-2a --query Subnet.SubnetId --output text`
+PUBLIC_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text`
 aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-public
-PUBLIC_SUB_2b=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.16.0/20 --availability-zone us-east-2b --query Subnet.SubnetId --output text`
+PUBLIC_SUB_2b=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.16.0/20 --availability-zone ${AWS_REGION}b --query Subnet.SubnetId --output text`
 aws ec2 create-tags --resources $PUBLIC_SUB_2b --tags Key=Name,Value=$CLUSTER_NAME-public
-PUBLIC_SUB_2c=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.32.0/20 --availability-zone us-east-2c --query Subnet.SubnetId --output text`
+PUBLIC_SUB_2c=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.32.0/20 --availability-zone ${AWS_REGION}c --query Subnet.SubnetId --output text`
 aws ec2 create-tags --resources $PUBLIC_SUB_2c --tags Key=Name,Value=$CLUSTER_NAME-public
-PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone us-east-2a --query Subnet.SubnetId --output text`
+PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text`
 aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
-PRIV_SUB_2b=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.144.0/20 --availability-zone us-east-2b --query Subnet.SubnetId --output text`
+PRIV_SUB_2b=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.144.0/20 --availability-zone ${AWS_REGION}b --query Subnet.SubnetId --output text`
 aws ec2 create-tags --resources  $PRIV_SUB_2b --tags Key=Name,Value=$CLUSTER_NAME-private
-PRIV_SUB_2c=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.160.0/20 --availability-zone us-east-2c --query Subnet.SubnetId --output text`
+PRIV_SUB_2c=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.160.0/20 --availability-zone ${AWS_REGION}c --query Subnet.SubnetId --output text`
 aws ec2 create-tags --resources  $PRIV_SUB_2c --tags Key=Name,Value=$CLUSTER_NAME-private
 SUBNET_IDS=$PRIV_SUB_2a","$PRIV_SUB_2b","$PRIV_SUB_2c","$PUBLIC_SUB_2a","$PUBLIC_SUB_2b","$PUBLIC_SUB_2c
 IGW=`aws ec2 create-internet-gateway --query InternetGateway.InternetGatewayId --output text`
@@ -263,16 +265,16 @@ aws ec2 create-tags --resources $PRIVATE_RT_ID3 $EIP_ADDRESS --tags Key=Name,Val
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "VPC creation ... done! going to create account and operator roles, then your HCP Cluster ..." 2>&1 |tee -a $CLUSTER_LOG
 #
-#rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
-INSTALL_ARN=`rosa list account-roles|grep Install|grep HCP|awk '{print $3}'`
-WORKER_ARN=`rosa list account-roles|grep -i worker|grep HCP|awk '{print $3}'`
-SUPPORT_ARN=`rosa list account-roles|grep -i support|grep HCP|awk '{print $3}'`
+INSTALL_ARN=`rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}'`
+WORKER_ARN=`rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}'`
+SUPPORT_ARN=`rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}'`
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "OIDC_ID " $OIDC_ID 2>&1 >> $CLUSTER_LOG
 #
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region us-east-2 --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
+#
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region $AWS_REGION --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
 rosa create admin --cluster=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
@@ -296,8 +298,8 @@ CLUSTER_NAME=`ls $INSTALL_DIR|grep *.log| awk -F. '{print $1}'`
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 #
 #
-PREFIX=ManagedOpenShift
-AWS_REGION=us-east-2
+PREFIX=TestManagedHCP
+AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 OIDC_ID=`rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32`
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
@@ -310,25 +312,25 @@ rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
 rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
 rosa delete oidc-provider --oidc-config-id $OIDC_ID --mode auto --yes 2>&1 >> $CLUSTER_LOG
 #
-vpc_id=`cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}'`
+VPC_ID=`cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}'`
 #
    while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways | jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
 echo "waiting for the NAT-GW to die " 2>&1 |tee -a $CLUSTER_LOG
 sleep 100
 #
-    while read -r sg ; do aws ec2 delete-security-group --group-id $sg ; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
-    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$vpc_id| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
-    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$vpc_id | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
-   while read -r rt_id ; do aws ec2 delete-route-table --route-table-id $rt_id ;done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$vpc_id |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
-   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $vpc_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$vpc_id | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+    while read -r sg ; do aws ec2 delete-security-group --group-id $sg ; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
+    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
+    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
+   while read -r rt_id ; do aws ec2 delete-route-table --route-table-id $rt_id ;done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
+   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
    while read -r ig_id ; do aws ec2 delete-internet-gateway --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
 #
-aws ec2 delete-vpc --vpc-id=$vpc_id 2>&1 >> $CLUSTER_LOG
+aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
 #
 rosa delete account-roles --mode auto --prefix $PREFIX --yes 2>&1 |tee -a $CLUSTER_LOG
-rosa init --delete --yes 2>&1 |tee -a $CLUSTER_LOG
+#rosa init --delete --yes 2>&1 |tee -a $CLUSTER_LOG
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "done! " 2>&1 |tee -a $CLUSTER_LOG
