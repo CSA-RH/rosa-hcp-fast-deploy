@@ -17,7 +17,7 @@
 #
 ########################################################################################################################
 #
-set -x
+#set -x
 RETVAL=$?
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -35,6 +35,7 @@ CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
+BILLING_ID=`rosa whoami|grep "AWS Account ID:"|awk '{print $4}'`
 #
 PREFIX=TestManagedHCP
 #
@@ -44,9 +45,9 @@ AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 echo "#"
 aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
-#rosa init 2>&1 >> $CLUSTER_LOG
+#rosa verify permissions 2>&1 >> $CLUSTER_LOG
+#rosa verify quota --region=$AWS_REGION
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-#echo "rosa init ... done! going to create the VPC ..." 2>&1 |tee -a $CLUSTER_LOG
 #
 VPC_ID_VALUE=`aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text`
 echo "Creating the VPC"  2>&1 >> $CLUSTER_LOG
@@ -54,10 +55,10 @@ echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
-PUBLIC_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone $AWS_REGIONa --query Subnet.SubnetId --output text`
+PUBLIC_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text`
 #echo "Creating the Public Subnet: " $PUBLIC_SUB_2a 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-public
-PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone $AWS_REGIONa --query Subnet.SubnetId --output text`
+PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text`
 #echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
 #echo "stacazzodesubnet " $PRIV_SUB_2a","$PUBLIC_SUB_2a 2>&1 >> $CLUSTER_LOG
@@ -94,7 +95,7 @@ echo "OIDC_ID " $OIDC_ID 2>&1 >> $CLUSTER_LOG
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG 
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
-rosa create cluster --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 |tee -a $CLUSTER_LOG
+rosa create cluster --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 |tee -a $CLUSTER_LOG
 #
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
 #
@@ -120,6 +121,7 @@ CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
+BILLING_ID=`rosa whoami|grep "AWS Account ID:"|awk '{print $4}'`
 #
 PREFIX=TestManagedHCP
 #
@@ -129,9 +131,7 @@ AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 echo "#"
 aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
-#rosa init 2>&1 >> $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-#echo "rosa init ... done! going to create the VPC ..." 2>&1 |tee -a $CLUSTER_LOG
 #
 VPC_ID_VALUE=`aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text`
 echo "Creating the VPC"  2>&1 >> $CLUSTER_LOG
@@ -140,7 +140,7 @@ aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAM
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 #
-PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone $AWS_REGIONa --query Subnet.SubnetId --output text`
+PRIV_SUB_2a=`aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text`
 #echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
 #echo "stacazzodesubnet " $PRIV_SUB_2a","$PUBLIC_SUB_2a 2>&1 >> $CLUSTER_LOG
@@ -176,7 +176,7 @@ echo "OIDC_ID " $OIDC_ID 2>&1 >> $CLUSTER_LOG
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG 
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
-rosa create cluster --private --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --subnet-ids=$PRIV_SUB_2a -m auto -y 2>&1 |tee -a $CLUSTER_LOG
+rosa create cluster --private --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$PRIV_SUB_2a -m auto -y 2>&1 |tee -a $CLUSTER_LOG
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
 rosa create admin --cluster=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
@@ -199,6 +199,7 @@ CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
+BILLING_ID=`rosa whoami|grep "AWS Account ID:"|awk '{print $4}'`
 #
 PREFIX=TestManagedHCP
 #
@@ -206,12 +207,10 @@ aws configure
 echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a $CLUSTER_LOG
 AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 echo "#"
-###aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
-###aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
+aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
+aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-###rosa init 2>&1 >> $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-#echo "rosa init ... done! going to create the VPC ..." 2>&1 |tee -a $CLUSTER_LOG
 #
 echo "Creating the VPC"  2>&1 >> $CLUSTER_LOG
 VPC_ID_VALUE=`aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text`
@@ -274,7 +273,7 @@ echo "OIDC_ID " $OIDC_ID 2>&1 >> $CLUSTER_LOG
 #
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
 #
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region $AWS_REGION --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
 rosa create admin --cluster=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
@@ -330,7 +329,6 @@ sleep 100
 aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
 #
 rosa delete account-roles --mode auto --prefix $PREFIX --yes 2>&1 |tee -a $CLUSTER_LOG
-#rosa init --delete --yes 2>&1 |tee -a $CLUSTER_LOG
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "done! " 2>&1 |tee -a $CLUSTER_LOG
