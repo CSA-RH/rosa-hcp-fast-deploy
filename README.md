@@ -123,7 +123,7 @@ Example:
 ```
 
 # Delete your HCP cluster
-Once you are done, feel free to destroy your ROSA **HCP** cluster by launching the same shell script and choosing option 3) this time. 
+Once you are done, feel free to destroy your ROSA **HCP** cluster by launching the same shell script and choosing option 4) this time. 
 ```
 $ ./rosa_hcp.sh 
 
