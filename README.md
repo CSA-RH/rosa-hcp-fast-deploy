@@ -1,42 +1,46 @@
 # AWS ROSA Cluster with hosted control planes (HCP)
-Automatically deploy a ROSA **HCP** cluster in a few minutes, using the CLI, that was the idea behind this shell script.<br />
-A few simple but fundamental steps summarize the activities this script will do for you:
-- The initial setup
-  - Configure your AWS account and roles (eg. the account-wide IAM roles and policies, the cluster-specific Operator roles and policies, the OIDC identity provider, etc.)
-  - Create the VPC, including Subnets, IGW, NGW, configuring Routes, etc.
-- Create your ROSA **HCP** Cluster
-
-Here is what you need:
-- An AWS account (or an RHDP "blank environment")
-- Your AWS Access Key and your AWS Secret Access Key
-- ROSA CLI[^1] and AWS CLI already installed and updated
+The idea behind this shell script was to automatically create the necessary environment and deploy a ROSA **HCP** cluster in a few minutes, using the CLI.<br />
+The initial setup includes the creation and configuration of
+   - the virtual private cloud (VPC), including Subnets, IGW, NGW, configuring Routes, etc.
+   - the Account-wide IAM roles and policies
+   - the cluster-specific Operator roles and policies
+   - the OIDC identity provider configuration
+Then the script will create your ROSA **HCP** cluster, which can be deployed in different flavors (eg. Public, Private, Single-AZ, Multi-AZ).
 
 The entire process to create/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
 
+## Script prerequisites
+- An AWS account (or an RHDP "AWS Blank Environment")
+- Your AWS Access Key and your AWS Secret Access Key
+- ROSA CLI[^1] and AWS CLI already installed and updated
+
+> [!IMPORTANT]
+> Follow this procedure to link the AWS and Red Hat accounts
+
+From the AWS Console look for the “Red Hat OpenShift Service on AWS (ROSA)” and click the “Get started” button (1), then locate and enable the “ROSA with HCP” service (2);
+ensure Service Quotas meet the requirements and Elastic Load Balancing (ELB) service-linked role already exists (3); click the “Continue to Red Hat” button (4); complete the connection by clicking the “Connect accounts” button (5).
+
+![image](https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes/assets/148223511/7852a5bf-2b31-4673-8f58-1efd841a7b8d)
+
+Once done your AWS and Red Hat account are linked and you can start witht the HCP cluster installation.
+
 [^1]: If you get an error like this: "_E: Failed to create cluster: Version 'X.Y.Z' is below minimum supported for Hosted Control Plane_", you'll probably have to update the ROSA CLI in order to be able to create the latest cluster version available.
 
-# Resources
-It is possible to choose between Single-AZ (2x workers) and Multi-AZ (3x workers), it is also possible to choose to implement a public or private ROSA **HCP** cluster. The number and type of subnets and other resources will vary depending on what you pick.
+## Deployment model, resources
+You can choose to implement a public OR private ROSA **HCP** cluster, the number and type of subnets and other resources will vary depending on what you pick.
+Also, it is possible to choose between Single-AZ (2x workers) and Multi-AZ (3x workers), 
 
-#### ROSA with HCP deployed on a public network:
 Where public Subnets are expected, the script will consider having a minimal configuration like this:
 - 1x NAT Gateway (NGW) in just one single AZ 
 - 1x Internet Gateway (IGW) to allow the egress (NAT) traffic to the Internet<br />
 
 ![image](https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes/assets/148223511/cbaeb255-c8a1-417f-8680-af11b5c2994e)
 
-#### ROSA with HCP deployed on a private network
 In the case of the private **HCP** cluster it is assumed that it will be reachable through a VPN or a Direct Connect service, therefore the script does not include the creation of any Public Subnets, IGW, NGWs in the VPC.
 ![image](https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes/assets/148223511/400508f8-411d-46b2-9da1-4c472bbb92ef)
 
 
 # Create your ROSA HCP cluster
-From the AWS console, look for the “Red Hat OpenShift Service on AWS (ROSA)”, then : 
-- enable the ROSA HCP service and complete your account connection so that AWS and Red Hat accounts are linked
-- check Service Quotas, 
-- ensure Elastic Load Balancing (ELB) service-linked role already exists.
-
-Once your AWS and Red Hat account are linked you can start witht the HCP cluster installation.
 1. Clone this repo
 ```
 $ git clone https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes
@@ -64,9 +68,9 @@ $ chmod +x rosa_hcp.sh
 $ ./rosa_hcp.sh 
 
 Welcome to the ROSA HCP installation menu
-1) Single-AZ 
+1) Single-AZ-Pub 
 2) Single-AZ-Priv 
-3) Multi-AZ 
+3) Multi-AZ-Pub 
 4) Delete_HCP 
 5) Quit
 
@@ -129,9 +133,9 @@ $ ./rosa_hcp.sh
 
 
 Welcome to the ROSA HCP installation menu
-1) Single-AZ 
+1) Single-AZ-Pub 
 2) Single-AZ-Priv 
-3) Multi-AZ 
+3) Multi-AZ-Pub 
 4) Delete_HCP 
 5) Quit
 
