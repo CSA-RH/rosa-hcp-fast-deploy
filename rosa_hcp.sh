@@ -104,7 +104,8 @@ rosa create admin --cluster=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "... done! " 2>&1 |tee -a $CLUSTER_LOG
+echo "Done!!! " 2>&1 |tee -a $CLUSTER_LOG
+echo " Cluster " $CLUSTER_NAME " Has been installed and is up and running" 2>&1 |tee -a $CLUSTER_LOG
 echo " Please check the $CLUSTER_LOG LOG file for useful information " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
@@ -183,7 +184,8 @@ rosa create admin --cluster=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "... done! " 2>&1 |tee -a $CLUSTER_LOG
+echo "Done!!! " 2>&1 |tee -a $CLUSTER_LOG
+echo " Cluster " $CLUSTER_NAME " Has been installed and is up and running" 2>&1 |tee -a $CLUSTER_LOG
 echo " Please check the $CLUSTER_LOG LOG file for useful information " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
@@ -281,7 +283,7 @@ rosa create admin --cluster=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "... done! " 2>&1 |tee -a $CLUSTER_LOG
+echo "Done!!! " 2>&1 |tee -a $CLUSTER_LOG
 echo " Cluster " $CLUSTER_NAME " Has been installed and is up and running" 2>&1 |tee -a $CLUSTER_LOG
 echo " Please check the $CLUSTER_LOG LOG file for useful information " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
