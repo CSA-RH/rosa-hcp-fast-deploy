@@ -14,9 +14,8 @@ The entire process to create/delete a ROSA with **HCP** cluster and all its reso
 - ROSA CLI[^1] and AWS CLI already installed and updated
 
 > [!IMPORTANT]
-> Follow this procedure to link the AWS and Red Hat accounts
-
-From the AWS Console look for the “Red Hat OpenShift Service on AWS (ROSA)” and click the “Get started” button (1), then locate and enable the “ROSA with HCP” service (2);
+> Enable the ROSA service in the AWS Console and link the AWS and Red Hat accounts by following this procedure:
+Sign in to your AWS account, from to the AWS Console look for the “Red Hat OpenShift Service on AWS (ROSA)” and click the “Get started” button (1), then locate and enable the “ROSA with HCP” service (2);
 ensure Service Quotas meet the requirements and Elastic Load Balancing (ELB) service-linked role already exists (3); click the “Continue to Red Hat” button (4); complete the connection by clicking the “Connect accounts” button (5).
 
 ![image](https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes/assets/148223511/7852a5bf-2b31-4673-8f58-1efd841a7b8d)
