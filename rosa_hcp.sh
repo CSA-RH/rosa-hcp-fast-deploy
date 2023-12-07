@@ -28,12 +28,11 @@
 ########################################################################################################################
 #
 #set -xe
-RETVAL=$?
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
-#
-PREFIX=TestManagedHCP
+set -u
+#RETVAL=$?
+#RED='\033[0;31m'
+#GREEN='\033[0;32m'
+#NC='\033[0m' # No Color
 #
 ############################################################
 # Single AZ                                                #
@@ -58,7 +57,6 @@ aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CL
 #rosa verify permissions 2>&1 >> $CLUSTER_LOG
 #rosa verify quota --region=$AWS_REGION
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-#
 #
 echo "Creating the VPC"  2>&1 |tee -a $CLUSTER_LOG
 VPC_ID_VALUE=`aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text`
@@ -91,7 +89,7 @@ aws ec2 create-tags --resources $PUBLIC_RT_ID --tags Key=Name,Value=$CLUSTER_NAM
 EIP_ADDRESS=`aws ec2 allocate-address --domain vpc --query AllocationId --output text`
 NAT_GATEWAY_ID=`aws ec2 create-nat-gateway --subnet-id $PUBLIC_SUB_2a --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text`
 echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 >> $CLUSTER_LOG
-echo "Waiting for NGW to warm up (2min)" 2>&1 |tee -a $CLUSTER_LOG
+echo "Waiting for NGW to warm up " 2>&1 |tee -a $CLUSTER_LOG
 sleep 120
 aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
 #
@@ -120,7 +118,7 @@ rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_I
 echo "Creating operator-roles" 2>&1 >> $CLUSTER_LOG
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
-echo "Creating ROSA HCP cluster" 2>&1 >> $CLUSTER_LOG
+echo "Creating ROSA HCP cluster " 2>&1 >> $CLUSTER_LOG
 echo "" 2>&1 >> $CLUSTER_LOG
 rosa create cluster --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 |tee -a $CLUSTER_LOG
 #
@@ -145,10 +143,6 @@ echo " " 2>&1 |tee -a $CLUSTER_LOG
 ############################################################
 # Single AZ Private                                        #
 ############################################################
-#
-############################################################
-# Single AZ Private                                        #
-############################################################
 Single-AZ-Priv()
 {
 NOW=`date +"%y%m%d%H%M"`
@@ -161,14 +155,13 @@ BILLING_ID=`rosa whoami|grep "AWS Account ID:"|awk '{print $4}'`
 PREFIX=TestManagedHCP
 #
 aws configure
-echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a $CLUSTER_LOG
+echo " Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a $CLUSTER_LOG
+#
 AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 echo "#"
 aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-#
-#
 #
 echo "Creating the VPC"  2>&1 |tee -a $CLUSTER_LOG
 VPC_ID_VALUE=`aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text`
@@ -201,7 +194,7 @@ aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAM
 #EIP_ADDRESS=`aws ec2 allocate-address --domain vpc --query AllocationId --output text`
 #NAT_GATEWAY_ID=`aws ec2 create-nat-gateway --subnet-id $PUBLIC_SUB_2a --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text`
 #echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 >> $CLUSTER_LOG
-#echo "Waiting for NGW to warm up (2min)" 2>&1 |tee -a $CLUSTER_LOG
+#echo "Waiting for NGW to warm up " 2>&1 |tee -a $CLUSTER_LOG
 #sleep 120
 #aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
 #
@@ -231,7 +224,7 @@ rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_I
 echo "Creating operator-roles" 2>&1 >> $CLUSTER_LOG
 SUBNET_IDS=$PRIV_SUB_2a
 #
-echo "Creating ROSA HCP cluster" 2>&1 >> $CLUSTER_LOG
+echo "Creating ROSA HCP cluster " 2>&1 >> $CLUSTER_LOG
 rosa create cluster --private --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 |tee -a $CLUSTER_LOG
 #
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
@@ -266,7 +259,7 @@ BILLING_ID=`rosa whoami|grep "AWS Account ID:"|awk '{print $4}'`
 PREFIX=TestManagedHCP
 #
 aws configure
-echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Multi-AZ ..." 2>&1 |tee -a $CLUSTER_LOG
+echo " Start installing ROSA HCP cluster $CLUSTER_NAME in a Multi-AZ ..." 2>&1 |tee -a $CLUSTER_LOG
 AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 echo "#"
 aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
@@ -327,7 +320,7 @@ echo "EIP_ADDRESS " $EIP_ADDRESS 2>&1 >> $CLUSTER_LOG
 NAT_GATEWAY_ID=`aws ec2 create-nat-gateway --subnet-id $PUBLIC_SUB_2a --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text`
 echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 >> $CLUSTER_LOG
 #
-echo "Waiting for NGW to warm up \(2min\)" 2>&1 >> $CLUSTER_LOG
+echo "Waiting for NGW to warm up " 2>&1 >> $CLUSTER_LOG
 sleep 120
 aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
 #
@@ -366,7 +359,7 @@ echo "OIDC_ID " $OIDC_ID 2>&1 >> $CLUSTER_LOG
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
 echo "Creating operator-roles" 2>&1 >> $CLUSTER_LOG
 #
-echo "Creating ROSA HCP cluster" 2>&1 >> $CLUSTER_LOG
+echo "Creating ROSA HCP cluster " 2>&1 >> $CLUSTER_LOG
 echo "" 2>&1 >> $CLUSTER_LOG
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
 #
@@ -402,14 +395,21 @@ AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a $CLUSTER_LOG
-echo "# Please note: you might get a warning while deleting the previously created VPC as you can not delete default resources \(eg. default SG, RT, etc.\)" 2>&1 |tee -a $CLUSTER_LOG
 echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "Cluster deleted !" 2>&1 |tee -a $CLUSTER_LOG
+#
+rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 >> $CLUSTER_LOG
+echo "Cluster deletion in progress " 2>&1 |tee -a $CLUSTER_LOG
+echo "INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall -c ${CLUSTER_NAME} --watch'" 2>&1 |tee -a $CLUSTER_LOG
+#
+rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
+rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
 echo "operator-roles deleted !" 2>&1 |tee -a $CLUSTER_LOG
+rosa delete oidc-provider --oidc-config-id $OIDC_ID --mode auto --yes 2>&1 >> $CLUSTER_LOG
 echo "oidc-provider deleted !" 2>&1 |tee -a $CLUSTER_LOG
 #
 VPC_ID=`cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}'`
+echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a $CLUSTER_LOG
 #
    while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways | jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
@@ -427,20 +427,23 @@ sleep 100
 aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
 echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a $CLUSTER_LOG
 #
+rosa delete account-roles --mode auto --prefix $PREFIX --yes 2>&1 |tee -a $CLUSTER_LOG
+echo "account-roles deleted !" 2>&1 |tee -a $CLUSTER_LOG
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "done! " 2>&1 |tee -a $CLUSTER_LOG
-echo " Cluster " $CLUSTER_NAME " has been deleted !" 2>&1 |tee -a $CLUSTER_LOG
-echo " The old LOG file ($CLUSTER_LOG) in is now moved to /tmp folder" 2>&1 |tee -a $CLUSTER_LOG
+echo "Cluster " $CLUSTER_NAME " has been deleted !" 2>&1 |tee -a $CLUSTER_LOG
+echo "The old LOG file ${CLUSTER_LOG} in is now moved to /tmp folder" 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 mv $CLUSTER_LOG /tmp
 }
 #
 mainmenu() {
+    clear
     echo -ne "
-Welcome to the ROSA HCP installation (Main Menu)
+Welcome to the ROSA HCP installation - Main Menu
 
 1) Single-AZ
 2) Single-AZ-Priv
@@ -478,7 +481,7 @@ Please enter your choice: "
 }
 
 fine() {
-    echo "Thank you for using this script, if you would like to leave your feedback (very welcome) please drop an email to gmollo@redhat.com"
+    echo "Thank you for using this script, I would very much appreciate if you could leave your feedback. In this case please drop an email to gmollo@redhat.com"
     exit 0
 }
 
