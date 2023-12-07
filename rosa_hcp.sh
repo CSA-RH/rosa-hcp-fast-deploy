@@ -1,23 +1,33 @@
-#!/bin/bash
+#!/usr/bin/env bash
 ######################################################################################################################
 #
-# This is a single shell script that will create all the resources needed to deploy a public HCP cluster via the CLI. In more depth the script will take care of:
+# This is a single shell script that will create all the resources needed to deploy a ROSA HCP cluster via the CLI. The script will take care of:
 #
 # - Set up your AWS account and roles (eg. the account-wide IAM roles and policies, cluster-specific Operator roles and policies, and OpenID Connect (OIDC) identity provider).
 # - Create the VPC;
 # - Create your ROSA HCP Cluster with a minimal configuration (2 workers/Single-AZ; 3 workers/Multi-AZ).
 #
-# Including its related VPC, it takes approximately 15 minutes to create/destroy an HCP cluster.
+# It takes approximately 15 minutes to create/destroy the cluster and its related VPC, AWS roles, etc.
 #
 #
 # Once you are ready to delete it, the script will perform the reverse deleting what was previously created.
-# It will look for the $CLUSTER_LOG file in order to be able to identify some resources (i.e. VPC Id, Subnets, ...).
+# It will look for the $CLUSTER_LOG file in order to be able to identify some resources (i.e. VPC_Id, Subnets, ...).
 #
 # Feel free to modify it in order to suits your needs.
 #
 ########################################################################################################################
 #
-#set -x
+# About the author:
+#
+# Owner: 	Gianfranco Mollo
+# GitHub: 	https://github.com/gmolloATredhat
+# 		https://github.com/joemolls
+# License: 	GNU GENERAL PUBLIC LICENSE (GPL)
+# 
+#
+########################################################################################################################
+#
+set -x
 RETVAL=$?
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -115,6 +125,10 @@ echo " " 2>&1 |tee -a $CLUSTER_LOG
 ############################################################
 # Single AZ Private                                        #
 ############################################################
+#
+############################################################
+# Single AZ Private                                        #
+############################################################
 Single-AZ-Priv()
 {
 NOW=`date +"%y%m%d%H%M"`
@@ -126,7 +140,7 @@ BILLING_ID=`rosa whoami|grep "AWS Account ID:"|awk '{print $4}'`
 #
 PREFIX=TestManagedHCP
 #
-aws configure 
+aws configure
 echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a $CLUSTER_LOG
 AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 echo "#"
@@ -175,7 +189,7 @@ SUPPORT_ARN=`rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "OIDC_ID " $OIDC_ID 2>&1 >> $CLUSTER_LOG
 #
-rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG 
+rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
 rosa create cluster --private --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$PRIV_SUB_2a -m auto -y 2>&1 |tee -a $CLUSTER_LOG
@@ -192,6 +206,7 @@ echo " " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 }
 #
+#
 ############################################################
 # Multi AZ                                                 #
 ############################################################
@@ -207,7 +222,7 @@ BILLING_ID=`rosa whoami|grep "AWS Account ID:"|awk '{print $4}'`
 PREFIX=TestManagedHCP
 #
 aws configure
-echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a $CLUSTER_LOG
+echo " Installing ROSA HCP cluster $CLUSTER_NAME in a Multi-AZ ..." 2>&1 |tee -a $CLUSTER_LOG
 AWS_REGION=`cat ~/.aws/config|grep region|awk '{print $3}'`
 echo "#"
 aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
@@ -343,32 +358,83 @@ mv $CLUSTER_LOG /tmp
 }
 #
 #
-echo "Welcome to the ROSA HCP installation menu"
-PS3='Please enter your choice: '
-options=("Single-AZ-Pub " "Single-AZ-Priv " "Multi-AZ-Pub " "Delete_HCP " "Quit")
-select opt in "${options[@]}"
-do
-    case $opt in
-        "Single-AZ-Pub ")
-          SingleAZ
-		break
-            ;;
-        "Single-AZ-Priv ")
-          Single-AZ-Priv
-		break
-            ;;
-        "Multi-AZ-Pub ")
-            MultiAZ
-		break
-            ;;
-        "Delete_HCP ")
-            Delete_HCP
-		break
-            ;;
-        "Quit")
-            break
-            ;;
-        *) echo "invalid option $REPLY"
-	    ;;
+#echo "Welcome to the ROSA HCP installation menu"
+#PS3='Please enter your choice: '
+#options=("Single-AZ-Pub " "Single-AZ-Priv " "Multi-AZ-Pub " "Delete_HCP " "Quit")
+#select opt in "${options[@]}"
+#do
+#    case $opt in
+#        "Single-AZ-Pub ")
+#          SingleAZ
+#		break
+#            ;;
+#        "Single-AZ-Priv ")
+#          Single-AZ-Priv
+#		break
+#            ;;
+#        "Multi-AZ-Pub ")
+#            MultiAZ
+#		break
+#            ;;
+#        "Delete_HCP ")
+#            Delete_HCP
+#		break
+#            ;;
+#        "Quit")
+#            break
+#            ;;
+#        *) echo "invalid option $REPLY"
+#	    ;;
+#    esac
+#done
+mainmenu() {
+    echo -ne "
+Welcome to the ROSA HCP installation (Main Menu)
+
+1) Single-AZ
+2) Single-AZ-Priv
+3) Multi-AZ
+4) Delete HCP
+0) Exit
+
+Please enter your choice: "
+    read -r ans
+    case $ans in
+    1)
+        SingleAZ
+        mainmenu
+        ;;
+    2)
+        Single-AZ-Priv
+        mainmenu
+        ;;
+    3)
+        MultiAZ
+        mainmenu
+        ;;
+    4)
+        Delete_HCP
+        mainmenu
+        ;;
+    0)
+        fine
+        ;;
+    *)
+        errore
+        mainmenu
+        ;;
     esac
-done
+}
+
+fine() {
+    echo "Thank you for using this script, if you would like to leave your feedback (very welcome) please drop an email to gmollo@redhat.com"
+    exit 0
+}
+
+errore() {
+    echo "Wrong option."
+    sleep 1
+    clear
+    mainmenu
+}
+mainmenu
