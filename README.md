@@ -67,6 +67,20 @@ AWS Access Key ID [****************OXCF]:
 AWS Secret Access Key [****************fCIn]: 
 Default region name [us-east-2]: 
 Default output format [json]:
+#
+#
+Start installing ROSA HCP cluster gm-2312111104 in a Single-AZ ...
+#
+#
+Creating the VPC
+Creating the Public Subnet:  subnet-074ab3b7b01a59a99
+Creating the Private Subnet:  subnet-04fff1d5c1917d7e3
+Creating the IGW:  igw-0545882580fcc129e
+Creating the Public Route Table:  rtb-050ad245b2152e67f
+Creating the NGW:  nat-08c847f619caed7c5
+...
+...
+
 ```
 > [!NOTE]
 > When creating the cluster, the **aws configure** command is called first:
@@ -94,24 +108,16 @@ Here is an example:
 ```
 $ tail -f gm-2310161718.log 
 
-INFO: Validating AWS credentials...
-INFO: AWS credentials are valid!
-INFO: Verifying permissions for non-STS clusters
-INFO: Validating SCP policies...
-INFO: AWS SCP policies ok
-INFO: Ensuring cluster administrator user 'osdCcsAdmin'...
-INFO: Admin user 'osdCcsAdmin' created successfully!
-INFO: Validating SCP policies for 'osdCcsAdmin'...
-INFO: AWS SCP policies ok
-INFO: Validating cluster creation...
-INFO: Cluster creation valid
-#
-Creating the VPC
-VPC_ID_VALUE  vpc-00c74df8b67f078c5
-Creating the Private Subnet:  subnet-09aa813462bdc903c
-#
-VPC creation ... done! going to create account and operator roles, then your ROSA HCP Cluster ...
-....
+Start installing ROSA HCP cluster gm-2312111104 in a Single-AZ ...
+...
+Going to create account and operator roles ...
+INFO: Creating hosted CP account roles using 'arn:aws:iam::099744512031:user/gmollo@redhat.com-cj2hc-admin'
+INFO: Created role 'TestManagedHCP-HCP-ROSA-Installer-Role' with ARN 'arn:aws:iam::099744512031:role/TestManagedHCP-HCP-ROSA-Installer-Role'
+INFO: Created role 'TestManagedHCP-HCP-ROSA-Support-Role' with ARN 'arn:aws:iam::099744512031:role/TestManagedHCP-HCP-ROSA-Support-Role'
+INFO: Created role 'TestManagedHCP-HCP-ROSA-Worker-Role' with ARN 'arn:aws:iam::099744512031:role/TestManagedHCP-HCP-ROSA-Worker-Role'
+Creating the OICD config
+...
+...
 ```
 > [!NOTE]
 > After a successful deployment a **cluster-admin** account is added to your cluster whose password will be recorded in the LOG file, feel free to change this to fit your security needs.
