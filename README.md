@@ -1,17 +1,17 @@
 # AWS ROSA Cluster with hosted control planes (HCP)
 The idea behind this shell script was to automatically create the necessary environment and deploy a ROSA with **HCP** cluster in a few minutes, using the CLI.<br />
-The initial setup includes the creation and configuration of
-   - the virtual private cloud (VPC), including Subnets, IGW, NGW, configuring Routes, etc.
-   - the Account-wide IAM roles and policies
-   - the cluster-specific Operator roles and policies
-   - the OIDC identity provider configuration
+The initial setup includes the creation and configuration of the
+   - Virtual Private Cloud (VPC), including Subnets, IGW, NGW, configuring Routes, etc.
+   - Account-wide IAM roles [^1] and policies
+   - Cluster-specific Operator roles [^1] and policies
+   - OIDC identity provider configuration
 
 The entire process to create/delete a ROSA with **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
 
 ## Script prerequisites
 - An AWS account (or an RHDP "AWS Blank Environment")
 - Your AWS Access Key and your AWS Secret Access Key
-- ROSA CLI[^1] and AWS CLI already installed and updated
+- ROSA CLI [^2] and AWS CLI already installed and updated
 
 > [!IMPORTANT]
 > Enable the ROSA service in the AWS Console and link the AWS and Red Hat accounts by following this procedure:
@@ -22,7 +22,8 @@ ensure Service Quotas meet the requirements and Elastic Load Balancing (ELB) ser
 
 Once done your AWS and Red Hat account are linked and you can start witht the installation process.
 
-[^1]: If you get an error like this: "_E: Failed to create cluster: Version 'X.Y.Z' is below minimum supported for Hosted Control Plane_", you'll probably have to update the ROSA CLI in order to be able to create the latest cluster version available.
+[^1]: PREFIX=TestManagedHCP
+[^2]: If you get an error like this: "_E: Failed to create cluster: Version 'X.Y.Z' is below minimum supported for Hosted Control Plane_", you'll probably have to update the ROSA CLI in order to be able to create the latest cluster version available.
 
 
 # Create your ROSA with HCP cluster
@@ -52,12 +53,13 @@ $ chmod +x rosa_hcp.sh
 ```
 $ ./rosa_hcp.sh 
 
-Welcome to the ROSA with HCP installation menu
-1) Single-AZ-Pub 
-2) Single-AZ-Priv 
-3) Multi-AZ-Pub 
-4) Delete_HCP 
-5) Quit
+Welcome to the ROSA HCP installation - Main Menu
+
+1) Single-AZ
+2) Single-AZ-Priv
+3) Multi-AZ
+4) Delete HCP
+0) Exit
 
 Please enter your choice: 1
 
@@ -127,18 +129,26 @@ Once you are done, feel free to destroy your ROSA **HCP** cluster by launching t
 ```
 $ ./rosa_hcp.sh 
 
-Welcome to the ROSA with HCP installation menu
-1) Single-AZ-Pub 
-2) Single-AZ-Priv 
-3) Multi-AZ-Pub 
-4) Delete_HCP 
-5) Quit
+Welcome to the ROSA HCP installation - Main Menu
+
+1) Single-AZ
+2) Single-AZ-Priv
+3) Multi-AZ
+4) Delete HCP
+0) Exit
 
 Please enter your choice: 4
 
-INFO: Cluster 'gm-2311282318' will start uninstalling now
-INFO: Your cluster 'gm-2311282318' will be deleted but the following objects may remain
-INFO: Operator IAM Roles: - arn:aws:iam::790553242681:role/ManagedOpenShift-openshift-image-registry-installer-cloud-creden
+#
+# Start deleting ROSA HCP cluster , VPC, roles, etc. 
+# Further details can be found in /home/gmollo/tools/cluster/svil/aws-rosa-cluster-with-hosted-control-planes/.log LOG file
+#
+Cluster deletion in progress 
+INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall -c gm-2312110919 --watch'
+operator-roles deleted !
+oidc-provider deleted !
+Start deleting VPC vpc-0841c3b77ebad7baf 
+waiting for the NAT-GW to die 
 ...
 ```
 It takes approximately 15 minutes to delete your cluster, including its VPCs, IAM roles, OIDCs, etc.<br />
