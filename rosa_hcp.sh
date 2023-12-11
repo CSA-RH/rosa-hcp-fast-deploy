@@ -140,6 +140,7 @@ sleep 5
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
+exit 0
 }
 #
 ############################################################
@@ -245,6 +246,7 @@ sleep 5
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
+exit 0
 }
 #
 ############################################################
@@ -382,6 +384,7 @@ sleep 5
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
+exit 0
 }
 #
 ############################################################
@@ -419,7 +422,7 @@ echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a $CLUSTER_LOG
    while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways | jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
 echo "waiting for the NAT-GW to die " 2>&1 |tee -a $CLUSTER_LOG
-sleep 100
+#sleep 100
 #
     while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
     while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
@@ -444,6 +447,7 @@ echo "The old LOG file ${CLUSTER_LOG} in is now moved to /tmp folder" 2>&1 |tee 
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 mv $CLUSTER_LOG /tmp
 Countdown
+exit 0
 }
 #
 mainmenu() {
@@ -493,7 +497,6 @@ Fine() {
 
 Errore() {
     echo "Wrong option."
-    sleep 1
     clear
 }
 
