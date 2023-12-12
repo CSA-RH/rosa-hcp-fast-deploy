@@ -275,6 +275,7 @@ Welcome to the ROSA HCP installation - Main Menu
 3) HCP-Public (Multi-AZ)
 4) Delete HCP
 5) Install/Update AWS_CLI
+6) Install/Update ROSA_CLI
 0) Exit
 
 Please enter your choice: "
@@ -299,6 +300,11 @@ Please enter your choice: "
     5)
         Install/Update AWS_CLI
         AWS_CLI
+        mainmenu
+        ;;
+    6)
+        Install/Update ROSA_CLI
+        ROSA_CLI
         mainmenu
         ;;
     0)
@@ -568,6 +574,50 @@ else
     aws --version
 
     echo "AWS CLI installation completed."
+fi
+Countdown
+}
+
+ROSA_CLI() {
+# Specify the installation directory
+INSTALL_DIR="/usr/local/bin"
+
+# Check if ROSA CLI is installed
+if command -v rosa &> /dev/null
+then
+    # ROSA CLI is installed, check for updates
+    echo "ROSA CLI is already installed. Checking for updates..."
+#    rosa version
+#
+    # Download and install ROSA CLI
+    curl https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz --output rosa-linux.tar.gz
+    tar xvf rosa-linux.tar.gz
+    sudo mv rosa /usr/local/bin/rosa
+
+    # Clean up
+    rm -rf rosa-linux.tar.gz
+
+    # Trigger the update
+    rosa version
+
+    echo "ROSA CLI update completed."
+else
+  # ROSA CLI is not installed, download and install
+    echo "ROSA CLI is not installed. Downloading and installing..."
+
+    # Download and install ROSA CLI
+    curl https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz --output rosa-linux.tar.gz
+    tar xvf rosa-linux.tar.gz
+    sudo mv rosa /usr/local/bin/rosa
+
+    # Clean up
+    rm -rf rosa-linux.tar.gz
+
+    # Verify the installation
+    echo "Verifying ROSA CLI installation..."
+    rosa version
+
+    echo "ROSA CLI installation completed."
 fi
 Countdown
 }
