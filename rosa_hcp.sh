@@ -330,7 +330,7 @@ Errore() {
 Countdown() {
  hour=0
  min=0
- sec=30
+ sec=20
         while [ $hour -ge 0 ]; do
                  while [ $min -ge 0 ]; do
                          while [ $sec -ge 0 ]; do
