@@ -11,7 +11,7 @@ The entire process to create/delete a ROSA with **HCP** cluster and all its reso
 ## Script prerequisites
 - An AWS account (or an RHDP "AWS Blank Environment")
 - Your AWS Access Key and your AWS Secret Access Key
-- ROSA CLI [^2] and AWS CLI already installed and updated
+- ROSA CLI [^2] and AWS CLI already installed and updated (the script will help automate this part too)
 
 > [!IMPORTANT]
 > Enable the ROSA service in the AWS Console and link the AWS and Red Hat accounts by following this procedure:
@@ -55,13 +55,15 @@ $ ./rosa_hcp.sh
 
 Welcome to the ROSA HCP installation - Main Menu
 
-1) Single-AZ
-2) Single-AZ-Priv
-3) Multi-AZ
+1) HCP-Public (Single-AZ)
+2) HCP-Private (Single-AZ)
+3) HCP-Public (Multi-AZ)
 4) Delete HCP
+5) Install/Update AWS_CLI
+6) Install/Update ROSA_CLI
 0) Exit
 
-Please enter your choice: 1
+Please enter your choice:  1
 
 AWS Access Key ID [****************OXCF]: 
 AWS Secret Access Key [****************fCIn]: 
@@ -137,10 +139,12 @@ $ ./rosa_hcp.sh
 
 Welcome to the ROSA HCP installation - Main Menu
 
-1) Single-AZ
-2) Single-AZ-Priv
-3) Multi-AZ
+1) HCP-Public (Single-AZ)
+2) HCP-Private (Single-AZ)
+3) HCP-Public (Multi-AZ)
 4) Delete HCP
+5) Install/Update AWS_CLI
+6) Install/Update ROSA_CLI
 0) Exit
 
 Please enter your choice: 4
