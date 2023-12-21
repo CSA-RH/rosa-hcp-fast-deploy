@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 ######################################################################################################################
 #
 # This is a single shell script that will create all the resources needed to deploy a ROSA HCP cluster via the CLI. The script will take care of:
@@ -588,7 +588,7 @@ Countdown
 ROSA_CLI() {
 INSTALL_DIR="/usr/local/bin"
 # Check if ROSA CLI is installed
-if [ -x "$(command -v rosa)" ]
+if [ -x "$(command -v $INSTALL_DIR/rosa)" ]
 then
     CHECK_IF_UPDATE_IS_NEEDED=`rosa version|grep "There is a newer release version"| awk -F\' '{print $1 ", going to install version --> " $2}'`
         if [ -z ${CHECK_IF_UPDATE_IS_NEEDED:+word} ]
@@ -615,6 +615,7 @@ then
         # Trigger the update
                 rosa version
                 echo "ROSA CLI update completed."
+		Countdown
         fi
 else
   # ROSA CLI is not installed, download and install
