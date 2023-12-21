@@ -28,7 +28,7 @@
 ########################################################################################################################
 #
 #set -xe
-set -u
+#set -u
 #RETVAL=$?
 #
 ############################################################
@@ -330,7 +330,7 @@ Errore() {
 Countdown() {
  hour=0
  min=0
- sec=20
+ sec=10
         while [ $hour -ge 0 ]; do
                  while [ $min -ge 0 ]; do
                          while [ $sec -ge 0 ]; do
@@ -529,12 +529,16 @@ echo "VPC creation ... done! " 2>&1 |tee -a $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 }
 
+#
+############################################################
+# AWS CLI                                                  #
+############################################################
 AWS_CLI() {
 # Specify the installation directory
 INSTALL_DIR="/usr/local/bin"
 
 # Check if AWS CLI is installed
-if command -v aws &> /dev/null
+if [ -x "$(command -v aws)" ]
 then
     # AWS CLI is installed, check for updates
     echo "AWS CLI is already installed. Checking for updates..."
@@ -577,33 +581,44 @@ else
 fi
 Countdown
 }
-
-ROSA_CLI() {
-# Specify the installation directory
-INSTALL_DIR="/usr/local/bin"
-
-# Check if ROSA CLI is installed
-if command -v rosa &> /dev/null
-then
-    # ROSA CLI is installed, check for updates
-    echo "ROSA CLI is already installed. Checking for updates..."
-#    rosa version
 #
-    # Download and install ROSA CLI
-    curl https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz --output rosa-linux.tar.gz
-    tar xvf rosa-linux.tar.gz
-    sudo mv rosa /usr/local/bin/rosa
-
-    # Clean up
-    rm -rf rosa-linux.tar.gz
-
-    # Trigger the update
-    rosa version
-
-    echo "ROSA CLI update completed."
+############################################################
+# ROSA CLI                                                 #
+############################################################
+ROSA_CLI() {
+INSTALL_DIR="/usr/local/bin"
+# Check if ROSA CLI is installed
+if [ -x "$(command -v rosa)" ]
+then
+    CHECK_IF_UPDATE_IS_NEEDED=`rosa version|grep "There is a newer release version"| awk -F\' '{print $1 ", going to install version --> " $2}'`
+        if [ -z ${CHECK_IF_UPDATE_IS_NEEDED:+word} ]
+        then
+                ROSA_VERSION=`rosa version`
+                echo $ROSA_VERSION " --> There is no need to update ROSA"
+		Countdown
+        else
+        # ROSA CLI is installed, checking for updates
+                echo "ROSA CLI is already installed. Checking for updates..."
+                ROSA_ACTUAL_V=`rosa version|awk -F. 'NR==1{print $1"."$2"."$3 }'`
+                echo "ROSA actual version is --> " $ROSA_ACTUAL_V
+                NEXT_V=`rosa version|grep "There is a newer release version"| awk -F\' 'NR==1{print $1 ", going to install version --> " $2}'`
+                echo $NEXT_V
+                echo "###############################"
+                echo "###############################"
+                echo "###############################"
+        # Download and install ROSA CLI
+                curl https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz --output rosa-linux.tar.gz
+                tar xvf rosa-linux.tar.gz
+                sudo mv rosa /usr/local/bin/rosa
+        # Clean up
+                rm -rf rosa-linux.tar.gz
+        # Trigger the update
+                rosa version
+                echo "ROSA CLI update completed."
+        fi
 else
   # ROSA CLI is not installed, download and install
-    echo "ROSA CLI is not installed. Downloading and installing..."
+    echo "ROSA CLI is not installed. Going to download and install the latest version ..."
 
     # Download and install ROSA CLI
     curl https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz --output rosa-linux.tar.gz
@@ -616,10 +631,6 @@ else
     # Verify the installation
     echo "Verifying ROSA CLI installation..."
     rosa version
-
-    echo "ROSA CLI installation completed."
 fi
-Countdown
 }
-
 mainmenu
