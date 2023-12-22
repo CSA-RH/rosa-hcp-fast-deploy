@@ -53,20 +53,26 @@ $ chmod +x rosa_hcp.sh
 ```
 $ ./rosa_hcp.sh 
 
-Welcome to the ROSA HCP installation - Main Menu
+*********************************************
 
-1) HCP-Public (Single-AZ)
-2) HCP-Private (Single-AZ)
-3) HCP-Public (Multi-AZ)
-4) Delete HCP
-5) Install/Update AWS_CLI
-6) Install/Update ROSA_CLI
-0) Exit
+*         ROSA HCP Installation Menu        *
 
-Please enter your choice:  1
-
-AWS Access Key ID [****************OXCF]: 
-AWS Secret Access Key [****************fCIn]: 
+*********************************************
+** 1) HCP Public (Single-AZ) 
+** 2) HCP Private (Single-AZ) 
+** 3) HCP Public (Multi-AZ) 
+** 4) Delete HCP 
+** 5) AWS_CLI 
+** 6) ROSA_CLI 
+*********************************************
+Please enter a menu option and enter or x to exit.
+```
+The first 3 options require AWS access keys to be entered or updated
+```
+Example:
+Option 1 Picked - Installing ROSA with HCP Public (Single-AZ)
+AWS Access Key ID [****************QX5V]: 
+AWS Secret Access Key [****************eh4c]: 
 Default region name [us-east-2]: 
 Default output format [json]:
 #
