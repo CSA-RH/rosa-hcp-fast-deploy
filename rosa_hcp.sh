@@ -84,7 +84,7 @@ echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "done! " 2>&1 |tee -a $CLUSTER_LOG
-echo "Cluster " $CLUSTER_NAME " has been deleted !" 2>&1 |tee -a $CLUSTER_LOG
+echo "Cluster " $CLUSTER_NAME " was deleted !" 2>&1 |tee -a $CLUSTER_LOG
 echo "The old LOG file ${CLUSTER_LOG} in is now moved to /tmp folder" 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 |tee -a $CLUSTER_LOG
 mv $CLUSTER_LOG /tmp
