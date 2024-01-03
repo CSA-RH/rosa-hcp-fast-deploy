@@ -29,9 +29,9 @@ Once done your AWS and Red Hat account are linked and you can start witht the in
 # Create your ROSA with HCP cluster
 1. Clone this repo
 ```
-$ git clone https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes
+$ git clone [https://github.com/CSA-RH/fast-rosa-hcp-depoly](https://github.com/CSA-RH/fast-rosa-hcp-depoly)
 
-Cloning into 'aws-rosa-cluster-with-hosted-control-planes'...
+Cloning into 'fast-rosa-hcp-depoly'...
 remote: Enumerating objects: 118, done.<br />
 remote: Counting objects: 100% (118/118), done.<br />
 remote: Compressing objects: 100% (112/112), done.<br />
@@ -41,7 +41,7 @@ Resolving deltas: 100% (43/43), done.<br />
 ```
 2. Go to path:
 ```
-$ cd aws-rosa-cluster-with-hosted-control-planes/
+$ cd fast-rosa-hcp-depoly/
 ```
 
 3. Add execution permissions
