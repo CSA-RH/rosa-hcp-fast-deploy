@@ -32,7 +32,7 @@
 ############################################################
 Delete_HCP()
 {
-set -x
+#set -x
 INSTALL_DIR=$(pwd)
 CLUSTER_NAME=$(ls $INSTALL_DIR|grep *.log| awk -F. '{print $1}')
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
