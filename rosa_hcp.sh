@@ -596,6 +596,13 @@ if [ -x "$(command -v /usr/local/bin/rosa)" ]
         fi
  else
    ROSA_CLI
+   echo " "
+   option_picked "Warning: Before to proceed you must login to OCM/ROSA !"
+   echo " "
+   echo "Please follow this link to download your token from the Red Hat OCM Portal"; echo -e '\e]8;;https://console.redhat.com/openshift/token/rosa/show\e\\https://console.redhat.com/openshift/token/rosa/show\e]8;;\e\\'	
+   echo " "
+   echo " "
+   Fine
 fi
 }
 ########################################################################################################################
