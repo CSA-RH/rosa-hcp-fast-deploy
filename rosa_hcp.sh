@@ -510,7 +510,7 @@ Fine
 ############################################################
 HCP-Public-MultiAZ()
 {
-set -x
+#set -x
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
