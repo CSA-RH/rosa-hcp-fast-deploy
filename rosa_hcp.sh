@@ -453,6 +453,9 @@ Fine
 }
 #
 # 
+############################################################
+# HCP Private Cluster                                      #
+############################################################
 # 
 function HCP-Private()
 { 
@@ -565,9 +568,40 @@ echo " " 2>&1 |tee -a $CLUSTER_LOG
 Fine
 }
 ########################################################################################################################
+# Checks
+########################################################################################################################
+various_checks(){
+#set -x
+# Check if ROSA CLI is installed
+if [ -x "$(command -v /usr/local/bin/rosa)" ]
+ then
+        if [[ "$(rosa whoami 2>&1)" =~ "User is not logged in to OCM" ]];
+                then 
+		echo " "
+		echo " "
+		echo " "
+		echo " "
+		echo " "
+		option_picked "Warning: Before to proceed you must login to OCM/ROSA !"
+		echo " "
+		echo "Please follow this link to download your token from the Red Hat OCM Portal"; echo -e '\e]8;;https://console.redhat.com/openshift/token/rosa\e\\https://console.redhat.com/openshift/token/rosa\e]8;;\e\\'
+		echo " "
+		echo " "
+		echo " "
+		echo " "
+                Fine
+        else
+                echo "You are logged to OCM/ROSA "
+        fi
+ else
+   ROSA_CLI
+fi
+}
+########################################################################################################################
 # Menu
 ########################################################################################################################
 show_menu(){
+various_checks
 clear
     normal=`echo "\033[m"`
     menu=`echo "\033[36m"` #Blue
@@ -644,6 +678,3 @@ while [ $opt != '' ]
       esac
     fi
 done
-Fine() {
-    echo "Thank you for using this script, I would very much appreciate if you could leave your feedback. In this case please drop an email to gmollo@redhat.com"
-    exit 0
