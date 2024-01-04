@@ -93,7 +93,7 @@ Fine
 }
 #######################################################################################################################################
 Fine() {
-    echo "Thank you for using this script, I would very much appreciate if you could leave your feedback. In this case please drop an email to gmollo@redhat.com"
+    echo "Thanks for using this script. Feedback is greatly appreciated, if you want you can leave yours by sending an email to gmollo@redhat.com"
     exit 0
 }
 
@@ -398,6 +398,7 @@ fi
 ############################################################
 HCP-Public()
 {
+#set -x 
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
