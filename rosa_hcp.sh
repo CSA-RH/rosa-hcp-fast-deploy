@@ -241,11 +241,11 @@ PUBLIC_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0
 echo "Creating the Public Subnet 2a: " $PUBLIC_SUB_2a 2>&1 |tee -a $CLUSTER_LOG
 aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-public 2>&1 >> $CLUSTER_LOG
 #
-PUBLIC_SUB_2b=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.16.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
+PUBLIC_SUB_2b=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.16.0/20 --availability-zone ${AWS_REGION}b --query Subnet.SubnetId --output text)
 echo "Creating the Public Subnet 2b: " $PUBLIC_SUB_2b 2>&1 |tee -a $CLUSTER_LOG
 aws ec2 create-tags --resources $PUBLIC_SUB_2b --tags Key=Name,Value=$CLUSTER_NAME-public 2>&1 >> $CLUSTER_LOG
 #
-PUBLIC_SUB_2c=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.32.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
+PUBLIC_SUB_2c=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.32.0/20 --availability-zone ${AWS_REGION}c --query Subnet.SubnetId --output text)
 echo "Creating the Public Subnet 2c: " $PUBLIC_SUB_2c 2>&1 |tee -a $CLUSTER_LOG
 aws ec2 create-tags --resources $PUBLIC_SUB_2c --tags Key=Name,Value=$CLUSTER_NAME-public 2>&1 >> $CLUSTER_LOG
 #
@@ -253,11 +253,11 @@ PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128
 echo "Creating the Private Subnet 2a: " $PRIV_SUB_2a 2>&1 |tee -a $CLUSTER_LOG
 aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
 #
-PRIV_SUB_2b=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.144.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
+PRIV_SUB_2b=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.144.0/20 --availability-zone ${AWS_REGION}b --query Subnet.SubnetId --output text)
 echo "Creating the Private Subnet 2b: " $PRIV_SUB_2b 2>&1 |tee -a $CLUSTER_LOG
 aws ec2 create-tags --resources  $PRIV_SUB_2b --tags Key=Name,Value=$CLUSTER_NAME-private
 #
-PRIV_SUB_2c=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.160.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
+PRIV_SUB_2c=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.160.0/20 --availability-zone ${AWS_REGION}c --query Subnet.SubnetId --output text)
 echo "Creating the Private Subnet 2c: " $PRIV_SUB_2c 2>&1 |tee -a $CLUSTER_LOG
 aws ec2 create-tags --resources  $PRIV_SUB_2c --tags Key=Name,Value=$CLUSTER_NAME-private
 #
@@ -510,6 +510,7 @@ Fine
 ############################################################
 HCP-Public-MultiAZ()
 {
+set -x
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
