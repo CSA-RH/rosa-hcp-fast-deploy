@@ -430,7 +430,7 @@ rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_I
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
 echo "Creating ROSA HCP cluster " 2>&1 |tee -a $CLUSTER_LOG
-rosa create cluster --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a $CLUSTER_LOG
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
@@ -454,11 +454,12 @@ Fine
 #
 # 
 ############################################################
-# HCP Private Cluster                                      #
+# HCP PrivateLink Cluster                                  #
 ############################################################
 # 
 function HCP-Private()
 { 
+set -x
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
@@ -489,7 +490,7 @@ SUBNET_IDS=$PRIV_SUB_2a
 #
 echo "Creating ROSA HCP cluster " 2>&1 |tee -a $CLUSTER_LOG
 echo " " 2>&1 >> $CLUSTER_LOG
-rosa create cluster --private --cluster-name=$CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private-link --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a $CLUSTER_LOG
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
@@ -620,8 +621,8 @@ clear
     printf "\n${menu}*         ROSA HCP Installation Menu        *${normal}\n"
     printf "\n${menu}*********************************************${normal}\n"
     printf "${menu}**${number} 1)${menu} HCP Public (Single-AZ) ${normal}\n"
-    printf "${menu}**${number} 2)${menu} HCP Private (Single-AZ) ${normal}\n"
-    printf "${menu}**${number} 3)${menu} HCP Public (Multi-AZ) ${normal}\n"
+    printf "${menu}**${number} 2)${menu} HCP Public (Multi-AZ) ${normal}\n"
+    printf "${menu}**${number} 3)${menu} HCP PrivateLink (Single-AZ) ${normal}\n"
     printf "${menu}**${number} 4)${menu} Delete HCP ${normal}\n"
     printf "${menu}**${number} 5)${menu} AWS_CLI ${normal}\n"
     printf "${menu}**${number} 6)${menu} ROSA_CLI ${normal}\n"
@@ -651,13 +652,13 @@ while [ $opt != '' ]
             show_menu;
         ;;
         2) clear;
-            option_picked "Option 2 Picked - Installing ROSA with HCP Private (Single-AZ)";
-            HCP-Private;
+            option_picked "Option 3 Picked - Installing ROSA with HCP Public (Multi-AZ)";
+            HCP-Public-MultiAZ;
             show_menu;
         ;;
         3) clear;
-            option_picked "Option 3 Picked - Installing ROSA with HCP Public (Multi-AZ)";
-            HCP-Public-MultiAZ;
+            option_picked "Option 2 Picked - Installing ROSA with HCP PrivateLink (Single-AZ)";
+            HCP-Private;
             show_menu;
         ;;
         4) clear;
