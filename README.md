@@ -1,17 +1,15 @@
 # AWS ROSA with hosted control planes cluster (ROSA HCP)
-The idea behind this shell script was to automatically create the necessary environment and deploy a ROSA **HCP** cluster in a few minutes, using the CLI.<br />
-The initial setup includes the creation and configuration of the
+The idea behind this shell script was to automatically create the necessary environment and deploy a ROSA **HCP** cluster in a few minutes, using the CLI. The initial setup includes the creation and configuration of the
    - Virtual Private Cloud (VPC), including Subnets, IGW, NGW, configuring Routes, etc.
-   - Account-wide IAM roles [^1] and policies
-   - Cluster-specific Operator roles [^1] and policies
+   - Account and Operator roles and policies
    - OIDC identity provider configuration
 
 The entire process to create/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
 
-## Script prerequisites
-- An AWS account (or an RHDP "AWS Blank Environment")
+#### Script prerequisites
+- An AWS account with enough quota value to meet the minimum requirements for ROSA (100)
 - Your AWS Access Key and your AWS Secret Access Key
-- ROSA CLI [^2] and AWS CLI already installed and updated (the script will help automate this part too)
+- ROSA CLI [^1] and AWS CLI already installed and updated (the script will help automate this part too)
 
 > [!IMPORTANT]
 > Enable the ROSA service in the AWS Console and link the AWS and Red Hat accounts by following this procedure:
@@ -22,8 +20,7 @@ ensure Service Quotas meet the requirements and Elastic Load Balancing (ELB) ser
 
 Once done your AWS and Red Hat account are linked and you can start witht the installation process.
 
-[^1]: PREFIX=TestManagedHCP
-[^2]: If you get an error like this: "_E: Failed to create cluster: Version 'X.Y.Z' is below minimum supported for Hosted Control Plane_", you'll probably have to update the ROSA CLI in order to be able to create the latest cluster version available.
+[^1]: If you get an error like this: "_E: Failed to create cluster: Version 'X.Y.Z' is below minimum supported for Hosted Control Plane_", you'll probably have to update the ROSA CLI in order to be able to create the latest cluster version available.
 
 
 # Create your ROSA with HCP cluster
@@ -88,63 +85,12 @@ Creating the Public Route Table:  rtb-050ad245b2152e67f
 Creating the NGW:  nat-08c847f619caed7c5
 ...
 ...
-
 ```
 > [!NOTE]
 > When creating the cluster, the **aws configure** command is called first:
-> please make sure you have both the **AWS Access Key** and the **AWS Secret Access Key** at hand to be able to start the process
-> Also the **aws configure** command will ask for the default AWS Region: the one specified there will be used as the target destination during the installation process.
+> please make sure you have both the **AWS Access Key** and the **AWS Secret Access Key** at hand to be able to start the process.
 
 The AWS CLI will now remember your inputs, no further action is required until the ROSA **HCP** cluster installation is complete.
-
-#### Additional notes around resources, deployment model, etc.
-ROSA with **HCP** clusters can be deployed in different versions (e.g. Public, PrivateLink, Single-AZ, Multi-AZ), the number and type of resources created by this script will vary depending on what you choose.
-Resource created includes:
-- 1 VPC
-- 1 or more Public subnets (only for ROSA public clusters)
-- 1 or more Private subnets
-- 1 NAT GW in 1 AZ
-- 1 Internet GW in 1 AZ, to allow the egress (NAT) traffic to the Internet
-- Enable DNS hostnames
-- Enable DNS resolution
-
-In the case of a PrivateLink ROSA with **HCP** cluster, it is assumed that it will be reachable through a VPN or a Direct Connect service, therefore the script does not include the creation of any Public Subnet, NGW, jump Hosts, etc..
-
-#workers:
-- Single-AZ: 2x worker nodes will be created within the same subnet<br />
-- Multi-AZ: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, one for each AZ. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes, which is one per AZ. <br />
-
-Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
-
-#### Installation Log File 
-During the implementation phase a LOG file is created in the same folder as the shell script, so you can follow all the intermediate steps.
-It is mandatory to keep this file in its original location to be able to automatically delete the cluster when done.
-
-Here is an example:
-```
-$ tail -f gm-2310161718.log 
-
-Start installing ROSA HCP cluster gm-2312111104 in a Single-AZ ...
-...
-Going to create account and operator roles ...
-INFO: Creating hosted CP account roles using 'arn:aws:iam::099744512031:user/gmollo@redhat.com-cj2hc-admin'
-INFO: Created role 'TestManagedHCP-HCP-ROSA-Installer-Role' with ARN 'arn:aws:iam::099744512031:role/TestManagedHCP-HCP-ROSA-Installer-Role'
-INFO: Created role 'TestManagedHCP-HCP-ROSA-Support-Role' with ARN 'arn:aws:iam::099744512031:role/TestManagedHCP-HCP-ROSA-Support-Role'
-INFO: Created role 'TestManagedHCP-HCP-ROSA-Worker-Role' with ARN 'arn:aws:iam::099744512031:role/TestManagedHCP-HCP-ROSA-Worker-Role'
-Creating the OICD config
-...
-...
-```
-> [!NOTE]
-> After a successful deployment a **cluster-admin** account is added to your cluster whose password will be recorded in the LOG file, feel free to change this to fit your security needs.
-
-```
-INFO: Admin account has been added to cluster 'gm-2310161718'.
-INFO: Please securely store this generated password. If you lose this password you can delete and recreate the cluster admin user.
-INFO: To login, run the following command:
-Example:
-   oc login https://api.gm-2310161718.wxyz.p9.openshiftapps.com:443 --username cluster-admin --password p5BiM-tbPPa-p5BiM-tbPPa
-```
 
 # Delete your cluster
 Once you are done, feel free to destroy your ROSA **HCP** cluster by launching the same shell script and choosing option 4) this time. 
@@ -162,21 +108,45 @@ Welcome to the ROSA HCP installation - Main Menu
 
 Please enter your choice: 4
 
+Option 4 Picked - Removing ROSA with HCP
 #
-# Start deleting ROSA HCP cluster , VPC, roles, etc. 
-# Further details can be found in /home/gmollo/tools/cluster/svil/aws-rosa-cluster-with-hosted-control-planes/.log LOG file
+# Start deleting ROSA HCP cluster gm-2401061517, VPC, roles, etc. 
+# Further details can be found in /home/gmollo/tools/cluster/svil/fast-rosa-hcp-depoly/gm-2401061517.log LOG file
 #
 Cluster deletion in progress 
-INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall -c gm-2312110919 --watch'
-operator-roles deleted !
-oidc-provider deleted !
-Start deleting VPC vpc-0841c3b77ebad7baf 
-waiting for the NAT-GW to die 
+INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall -c gm-2401061517 --watch'
 ...
 ```
 It takes approximately 15 minutes to delete your cluster, including its VPCs, IAM roles, OIDCs, etc.<br />
-Please note that after the deletion process is complete the LOG file will be moved from its current location to **/tmp**.
+
+# Additional notes around resources, deployment, etc.
+ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-AZ), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
+
+- AWS Resource created includes:
+  - 1 VPC with cidr-block 10.0.0.0/16
+  - 1 or more Public subnets - only for ROSA public clusters
+    - Single-AZ --> cidr-block 10.0.0.0/20
+    - Multi-AZ  --> cidr-blocks 10.0.0.0/20; 10.0.16.0/20; 10.0.32.0/20
+  - 1 or more Private subnets - In the case of a PrivateLink ROSA with **HCP** cluster, it is assumed that it will be reachable through a VPN or a Direct Connect service, therefore the script does not include the creation of any Public Subnet, NGW, jump Hosts, etc..
+    - Single-AZ --> cidr-block  10.0.128.0/20
+    - Multi-AZ  --> cidr-blocks 10.0.128.0/20; 10.0.144.0/20; 10.0.160.0/20
+  - 1 NAT GW in 1 AZ
+  - 1 Internet GW in 1 AZ, to allow the egress (NAT) traffic to the Internet
+  - Enable DNS hostnames
+  - Enable DNS resolution
+- Account / Operator Roles Prefix: default $PREFIX=TestManagedHCP
+- AWS Region: the aws configure command will ask for the default $AWS_Region which will be used as the target destination during the installation process.
+- Worker nodes:
+  - Single-AZ: 2x worker nodes will be created within the same subnet<br />
+  - Multi-AZ: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
+
+#### Log File 
+During the implementation phase a LOG file is created in the same folder as the shell script, so you can follow all the intermediate steps.
+After a successful deployment a **cluster-admin** account is added to your cluster whose password will be recorded in the LOG file, feel free to change this to fit your security needs. See 'rosa create idp --help' for more information. 
+
+> [!NOTE]
+> It is mandatory to keep this file in its original location so that the script can automatically delete the cluster when necessary.
+> Once the cluster deletion process is complete, the LOG file will be moved from its current location to **/tmp**.
 
 # Wrap up
-This script will make use of specific commands, options, and variables to successfully install the cluster for you in a few minutes but **feel free to make changes to suit your needs** as you may want to implement a specific cluster version, change the target $AWS_REGION, change the $PREFIX option; etc.
-
+This script will make use of specific commands, options, and variables to successfully install the cluster for you in a few minutes but **feel free to make changes to suit your needs**.
