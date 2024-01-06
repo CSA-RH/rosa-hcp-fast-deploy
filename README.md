@@ -1,12 +1,12 @@
-# AWS ROSA Cluster with hosted control planes (HCP)
-The idea behind this shell script was to automatically create the necessary environment and deploy a ROSA with **HCP** cluster in a few minutes, using the CLI.<br />
+# AWS ROSA with hosted control planes cluster (ROSA HCP)
+The idea behind this shell script was to automatically create the necessary environment and deploy a ROSA **HCP** cluster in a few minutes, using the CLI.<br />
 The initial setup includes the creation and configuration of the
    - Virtual Private Cloud (VPC), including Subnets, IGW, NGW, configuring Routes, etc.
    - Account-wide IAM roles [^1] and policies
    - Cluster-specific Operator roles [^1] and policies
    - OIDC identity provider configuration
 
-The entire process to create/delete a ROSA with **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
+The entire process to create/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
 
 ## Script prerequisites
 - An AWS account (or an RHDP "AWS Blank Environment")
@@ -59,8 +59,8 @@ $ ./rosa_hcp.sh
 
 *********************************************
 ** 1) HCP Public (Single-AZ) 
-** 2) HCP Private (Single-AZ) 
-** 3) HCP Public (Multi-AZ) 
+** 2) HCP Public (Multi-AZ) 
+** 3) HCP PrivateLink (Single-AZ)
 ** 4) Delete HCP 
 ** 5) AWS_CLI 
 ** 6) ROSA_CLI 
@@ -95,18 +95,26 @@ Creating the NGW:  nat-08c847f619caed7c5
 > please make sure you have both the **AWS Access Key** and the **AWS Secret Access Key** at hand to be able to start the process
 > Also the **aws configure** command will ask for the default AWS Region: the one specified there will be used as the target destination during the installation process.
 
-The AWS CLI will now remember your inputs, no further action is required until the ROSA with **HCP** cluster installation is complete.
+The AWS CLI will now remember your inputs, no further action is required until the ROSA **HCP** cluster installation is complete.
 
-#### A few notes around resources, deployment model, etc.
-ROSA with HCP clusters can be deployed in different versions (e.g. Public, Private, Single-AZ, Multi-AZ), the number and type of resources created by this script will vary depending on what you choose.
+#### Additional notes around resources, deployment model, etc.
+ROSA with **HCP** clusters can be deployed in different versions (e.g. Public, PrivateLink, Single-AZ, Multi-AZ), the number and type of resources created by this script will vary depending on what you choose.
+Resource created includes:
+- 1 VPC
+- 1 or more Public subnets (only for ROSA public clusters)
+- 1 or more Private subnets
+- 1 NAT GW in 1 AZ
+- 1 Internet GW in 1 AZ, to allow the egress (NAT) traffic to the Internet
+- Enable DNS hostnames
+- Enable DNS resolution
+
+In the case of a PrivateLink ROSA with **HCP** cluster, it is assumed that it will be reachable through a VPN or a Direct Connect service, therefore the script does not include the creation of any Public Subnet, NGW, jump Hosts, etc..
+
+#workers:
+- Single-AZ: 2x worker nodes will be created within the same subnet<br />
+- Multi-AZ: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, one for each AZ. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes, which is one per AZ. <br />
+
 Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
-
-Where public Subnets are expected, the script will create a minimal configuration with 1x NAT Gateway (NGW) in one single AZ, 1x Internet Gateway (IGW) to allow the egress (NAT) traffic to the Internet.
-In the case of a private ROSA with **HCP** cluster it is assumed that it will be reachable through a VPN or a Direct Connect service, therefore the script does not include the creation of any Public Subnet.
-
-Further information: <br />
-Single-AZ = 2 worker nodes will be created within the same subnet<br />
-Multi-AZ = 3 worker nodes will be created, one for each AZ <br />
 
 #### Installation Log File 
 During the implementation phase a LOG file is created in the same folder as the shell script, so you can follow all the intermediate steps.
@@ -145,13 +153,12 @@ $ ./rosa_hcp.sh
 
 Welcome to the ROSA HCP installation - Main Menu
 
-1) HCP-Public (Single-AZ)
-2) HCP-Private (Single-AZ)
-3) HCP-Public (Multi-AZ)
-4) Delete HCP
-5) Install/Update AWS_CLI
-6) Install/Update ROSA_CLI
-0) Exit
+** 1) HCP Public (Single-AZ) 
+** 2) HCP Public (Multi-AZ) 
+** 3) HCP PrivateLink (Single-AZ)
+** 4) Delete HCP 
+** 5) AWS_CLI 
+** 6) ROSA_CLI 
 
 Please enter your choice: 4
 
