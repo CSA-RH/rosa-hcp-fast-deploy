@@ -26,7 +26,12 @@
 # 
 #
 ########################################################################################################################
-#
+############################################################
+# Custom name                                              #
+############################################################
+NOW=$(date +"%y%m%d%H%M")
+CLUSTER_NAME=${1:-gm-$NOW}
+PREFIX=${2:-TestManagedHCP}
 ############################################################
 # Delete HCP                                               #
 ############################################################
@@ -40,7 +45,6 @@ CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 # start removing the NGW since it takes a lot of time
 while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways | jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
 #
-PREFIX=TestManagedHCP
 AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
 #
@@ -236,31 +240,59 @@ echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
+# Find out how many az are available based on chosen region
+AZ_ARRAY=($(aws ec2 describe-availability-zones --region $AWS_REGION|jq -r '.AvailabilityZones[].ZoneName'|tr '\n' ' '))
 #
-PUBLIC_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
+# Dynamically and randomly choose the destination AZs based on how many of them the user wants to use
+AZ_COUNTER={:-${#AZ_ARRAY[@]}}
+is_integer () {
+        [[ "$1" =~ ^[[:digit:]]+$ ]] && [[ "$1" -ge 2 ]]
+}
 
-echo "Creating the Public Subnet 2a: " $PUBLIC_SUB_2a 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-public 2>&1 >> $CLUSTER_LOG
+while ( ! is_integer "$AZ_COUNTER" );do
+read -r -p "Maximum number of az is ${#AZ_ARRAY[@]}, on how many availability zones you want to deploy your rosa cluster? (min: 2 max(default): ${#AZ_ARRAY[@]})[${#AZ_ARRAY[@]}]: " AZ_COUNTER
+done
+
+[[ -z "$AZ_COUNTER" || "$AZ_COUNTER" -gt ${#AZ_ARRAY[@]} ]] && AZ_COUNTER=${#AZ_ARRAY[@]}
+echo "AZ_COUNTER will be $AZ_COUNTER is less or equal than ${#AZ_ARRAY[@]}"
+
+DIFF=$(( ${#AZ_ARRAY[@]} - $AZ_COUNTER ))
+
+LOOPCOUNT=$DIFF
+while [ "$LOOPCOUNT" -gt 0 ]
+do
+        AZ_ARRAY=(${AZ_ARRAY[@]/${AZ_ARRAY[$RANDOM % ${#AZ_ARRAY[@]}]}})
+        LOOPCOUNT=$(($LOOPCOUNT-1))
+done
+
+
 #
-PUBLIC_SUB_2b=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.16.0/20 --availability-zone ${AWS_REGION}b --query Subnet.SubnetId --output text)
-echo "Creating the Public Subnet 2b: " $PUBLIC_SUB_2b 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-tags --resources $PUBLIC_SUB_2b --tags Key=Name,Value=$CLUSTER_NAME-public 2>&1 >> $CLUSTER_LOG
-#
-PUBLIC_SUB_2c=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.32.0/20 --availability-zone ${AWS_REGION}c --query Subnet.SubnetId --output text)
-echo "Creating the Public Subnet 2c: " $PUBLIC_SUB_2c 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-tags --resources $PUBLIC_SUB_2c --tags Key=Name,Value=$CLUSTER_NAME-public 2>&1 >> $CLUSTER_LOG
-#
-PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
-echo "Creating the Private Subnet 2a: " $PRIV_SUB_2a 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
-#
-PRIV_SUB_2b=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.144.0/20 --availability-zone ${AWS_REGION}b --query Subnet.SubnetId --output text)
-echo "Creating the Private Subnet 2b: " $PRIV_SUB_2b 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-tags --resources  $PRIV_SUB_2b --tags Key=Name,Value=$CLUSTER_NAME-private
-#
-PRIV_SUB_2c=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.160.0/20 --availability-zone ${AWS_REGION}c --query Subnet.SubnetId --output text)
-echo "Creating the Private Subnet 2c: " $PRIV_SUB_2c 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-tags --resources  $PRIV_SUB_2c --tags Key=Name,Value=$CLUSTER_NAME-private
+AZ_PUB_ARRAY=()
+AZ_PRIV_ARRAY=()
+#declare -A AZ_PAIRED_ARRAY - moved out of the function, otherwise it won't work if called elsewhere in the script
+x=0
+y=128
+echo "Listing all the availability zones inside the $AWS_REGION: ${AZ_ARRAY[@]}" 2>&1 >> $CLUSTER_LOG
+
+echo "Creating the Public and Private Subnets" 2>&1 |tee -a $CLUSTER_LOG
+for az in ${AZ_ARRAY[@]}
+        do
+        export AZP=$(echo $az| sed -e 's/\(.*\)/\U\1/g;s/-/_/g')
+        export PUBLIC_SUB_NAME=PUBLIC_SUB_${AZP}
+        export PRIV_SUB_NAME=PRIV_SUB_${AZP}
+        declare PUBLIC_SUB_${AZP}=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.${x}.0/20 --availability-zone ${az} --query Subnet.SubnetId --output text) 2>&1 >> $CLUSTER_LOG
+        echo "Creating the Public Subnet ${!PUBLIC_SUB_NAME} in availability zone $az" 2>&1 |tee -a $CLUSTER_LOG
+        aws ec2 create-tags --resources ${!PUBLIC_SUB_NAME} --tags Key=Name,Value=$CLUSTER_NAME-public 2>&1 >> $CLUSTER_LOG
+        x=$(($x ++16))
+        AZ_PUB_ARRAY+=(${!PUBLIC_SUB_NAME})
+        declare PRIV_SUB_${AZP}=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.${y}.0/20 --availability-zone ${az} --query Subnet.SubnetId --output text)
+        echo "Creating the Private Subnet ${!PRIV_SUB_NAME} in availability zone $az" 2>&1 |tee -a $CLUSTER_LOG
+        aws ec2 create-tags --resources ${!PRIV_SUB_NAME} --tags Key=Name,Value=$CLUSTER_NAME-private 2>&1 >> $CLUSTER_LOG
+        y=$(($y ++16))
+        AZ_PRIV_ARRAY+=(${!PRIV_SUB_NAME})
+        AZ_PAIRED_ARRAY+=([${!PUBLIC_SUB_NAME}]=${!PRIV_SUB_NAME})
+done
+
 #
 IGW=$(aws ec2 create-internet-gateway --query InternetGateway.InternetGatewayId --output text)
 
@@ -271,36 +303,27 @@ aws ec2 create-tags --resources $IGW --tags Key=Name,Value=$CLUSTER_NAME-IGW
 PUBLIC_RT_ID=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
 echo "Creating the Public Route Table: " $PUBLIC_RT_ID 2>&1 |tee -a $CLUSTER_LOG
 aws ec2 create-route --route-table-id $PUBLIC_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW 2>&1 >> $CLUSTER_LOG
-aws ec2 associate-route-table --subnet-id $PUBLIC_SUB_2a --route-table-id $PUBLIC_RT_ID 2>&1 >> $CLUSTER_LOG
-aws ec2 associate-route-table --subnet-id $PUBLIC_SUB_2b --route-table-id $PUBLIC_RT_ID 2>&1 >> $CLUSTER_LOG
-aws ec2 associate-route-table --subnet-id $PUBLIC_SUB_2c --route-table-id $PUBLIC_RT_ID 2>&1 >> $CLUSTER_LOG
 aws ec2 create-tags --resources $PUBLIC_RT_ID --tags Key=Name,Value=$CLUSTER_NAME-public-rtb
 #
-EIP_ADDRESS=$(aws ec2 allocate-address --domain vpc --query AllocationId --output text)
-NAT_GATEWAY_ID=$(aws ec2 create-nat-gateway --subnet-id $PUBLIC_SUB_2a --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text)
-echo "EIP_ADDRESS " $EIP_ADDRESS 2>&1 >> $CLUSTER_LOG
-echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 |tee -a $CLUSTER_LOG
-echo "Waiting for NGW to warm up " 2>&1 |tee -a $CLUSTER_LOG
-sleep 120
-aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
-#
-PRIVATE_RT_ID1=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
-echo "Creating the Private Route Table: " $PRIVATE_RT_ID1 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-route --route-table-id $PRIVATE_RT_ID1 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> $CLUSTER_LOG
-aws ec2 associate-route-table --subnet-id $PRIV_SUB_2a --route-table-id $PRIVATE_RT_ID1 2>&1 >> $CLUSTER_LOG 2>&1 >> $CLUSTER_LOG
-aws ec2 create-tags --resources $PRIVATE_RT_ID1 $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private2a-rtb 2>&1 >> $CLUSTER_LOG
-#
-PRIVATE_RT_ID2=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
-echo "Creating the Private Route Table: " $PRIVATE_RT_ID2 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-route --route-table-id $PRIVATE_RT_ID2 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> $CLUSTER_LOG
-aws ec2 associate-route-table --subnet-id $PRIV_SUB_2b --route-table-id $PRIVATE_RT_ID2 2>&1 >> $CLUSTER_LOG
-aws ec2 create-tags --resources $PRIVATE_RT_ID2 $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private2b-rtb
-#
-PRIVATE_RT_ID3=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
-echo "Creating the Private Route Table: " $PRIVATE_RT_ID3 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-route --route-table-id $PRIVATE_RT_ID3 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID
-aws ec2 associate-route-table --subnet-id $PRIV_SUB_2c --route-table-id $PRIVATE_RT_ID3 2>&1 >> $CLUSTER_LOG
-aws ec2 create-tags --resources $PRIVATE_RT_ID3 $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private2c-rtb
+i=1
+for pubsnt in ${!AZ_PAIRED_ARRAY[@]}
+        do
+        aws ec2 associate-route-table --subnet-id $pubsnt --route-table-id $PUBLIC_RT_ID 2>&1 >> $CLUSTER_LOG
+        EIP_ADDRESS=$(aws ec2 allocate-address --domain vpc --query AllocationId --output text)
+        NAT_GATEWAY_ID=$(aws ec2 create-nat-gateway --subnet-id $pubsnt --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text)
+        echo "EIP_ADDRESS " $EIP_ADDRESS 2>&1 >> $CLUSTER_LOG
+        echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 |tee -a $CLUSTER_LOG
+        echo "Waiting for 120 sec. NGW to warm up " 2>&1 |tee -a $CLUSTER_LOG
+        sleep 120 |pv -t
+        aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
+        PRIVATE_RT_ID=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
+        echo "Creating the Private Route Table: " $PRIVATE_RT_ID 2>&1 |tee -a $CLUSTER_LOG
+        aws ec2 create-route --route-table-id $PRIVATE_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> $CLUSTER_LOG
+        aws ec2 associate-route-table --subnet-id ${AZ_PAIRED_ARRAY[$pubsnt]} --route-table-id $PRIVATE_RT_ID 2>&1 >> $CLUSTER_LOG
+        aws ec2 create-tags --resources $PRIVATE_RT_ID $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private-rtb${i} 2>&1 >> $CLUSTER_LOG
+        i=$(($i++1))
+done
+unset i
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "VPC creation ... done! " 2>&1 |tee -a $CLUSTER_LOG
@@ -400,13 +423,10 @@ fi
 HCP-Public()
 {
 #set -x 
-NOW=$(date +"%y%m%d%H%M")
-CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
-PREFIX=TestManagedHCP
 #
 aws configure
 echo "#"
@@ -460,13 +480,10 @@ Fine
 function HCP-Private()
 { 
 set -x
-NOW=$(date +"%y%m%d%H%M")
-CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
-PREFIX=TestManagedHCP
 #
 aws configure
 echo "#"
@@ -516,14 +533,11 @@ Fine
 HCP-Public-MultiAZ()
 {
 #set -x
-NOW=$(date +"%y%m%d%H%M")
-CLUSTER_NAME=gm-$NOW
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
 #
-PREFIX=TestManagedHCP
 #
 aws configure
 echo "#"
