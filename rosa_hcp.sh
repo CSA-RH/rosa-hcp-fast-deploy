@@ -253,7 +253,9 @@ while ( ! is_integer "$AZ_COUNTER" );do
 read -r -p "Maximum number of az is ${#AZ_ARRAY[@]}, on how many availability zones you want to deploy your rosa cluster? (min: 2 max(default): ${#AZ_ARRAY[@]})[${#AZ_ARRAY[@]}]: " AZ_COUNTER
 done
 
-[[ -z "$AZ_COUNTER" || "$AZ_COUNTER" -gt ${#AZ_ARRAY[@]} ]] && AZ_COUNTER=${#AZ_ARRAY[@]}
+#[[ -z "$AZ_COUNTER" || "$AZ_COUNTER" -gt ${#AZ_ARRAY[@]} ]] && AZ_COUNTER=${#AZ_ARRAY[@]}
+[[ "$AZ_COUNTER" -gt ${#AZ_ARRAY[@]} ]] && AZ_COUNTER=${#AZ_ARRAY[@]}
+
 echo "AZ_COUNTER will be $AZ_COUNTER is less or equal than ${#AZ_ARRAY[@]}"
 
 DIFF=$(( ${#AZ_ARRAY[@]} - $AZ_COUNTER ))
