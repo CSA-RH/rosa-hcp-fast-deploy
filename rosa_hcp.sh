@@ -244,7 +244,8 @@ aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 AZ_ARRAY=($(aws ec2 describe-availability-zones --region $AWS_REGION|jq -r '.AvailabilityZones[].ZoneName'|tr '\n' ' '))
 #
 # Dynamically and randomly choose the destination AZs based on how many of them the user wants to use
-AZ_COUNTER={:-${#AZ_ARRAY[@]}}
+unset 1
+AZ_COUNTER=${1:-${#AZ_ARRAY[@]}}
 is_integer () {
         [[ "$1" =~ ^[[:digit:]]+$ ]] && [[ "$1" -ge 2 ]]
 }
@@ -265,11 +266,9 @@ do
         LOOPCOUNT=$(($LOOPCOUNT-1))
 done
 
-
 #
 AZ_PUB_ARRAY=()
 AZ_PRIV_ARRAY=()
-#declare -A AZ_PAIRED_ARRAY - moved out of the function, otherwise it won't work if called elsewhere in the script
 x=0
 y=128
 echo "Listing all the availability zones inside the $AWS_REGION: ${AZ_ARRAY[@]}" 2>&1 >> $CLUSTER_LOG
@@ -546,6 +545,8 @@ echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Multi-AZ ..." 2>&1 |t
 AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 echo "#"
 #
+declare -A AZ_PAIRED_ARRAY
+
 MultiAZ-VPC
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
@@ -559,7 +560,12 @@ echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a $CLUSTER_LOG
 echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> $CLUSTER_LOG
 echo "Creating operator-roles" 2>&1 >> $CLUSTER_LOG
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
-SUBNET_IDS=$PRIV_SUB_2a","$PRIV_SUB_2b","$PRIV_SUB_2c","$PUBLIC_SUB_2a","$PUBLIC_SUB_2b","$PUBLIC_SUB_2c
+# SUBNET_IDS variable will be populated based on private subnet array
+SUBNET_IDS=$(for privsub in ${AZ_PRIV_ARRAY[@]}
+                do
+                        printf '%s,' "$privsub"
+                done |sed -e 's/,$//g'
+)
 #
 echo "Creating ROSA HCP cluster " 2>&1 |tee -a $CLUSTER_LOG
 echo "" 2>&1 >> $CLUSTER_LOG
