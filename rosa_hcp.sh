@@ -170,7 +170,7 @@ EIP_ADDRESS=$(aws ec2 allocate-address --domain vpc --query AllocationId --outpu
 NAT_GATEWAY_ID=$(aws ec2 create-nat-gateway --subnet-id $PUBLIC_SUB_2a --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text)
 echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 |tee -a $CLUSTER_LOG
 echo "Waiting for NGW to warm up " 2>&1 |tee -a $CLUSTER_LOG
-sleep 120
+sleep 120 | pv -t
 aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
 #
 PRIVATE_RT_ID1=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
@@ -244,7 +244,6 @@ aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 AZ_ARRAY=($(aws ec2 describe-availability-zones --region $AWS_REGION|jq -r '.AvailabilityZones[].ZoneName'|tr '\n' ' '))
 #
 # Dynamically and randomly choose the destination AZs based on how many of them the user wants to use
-unset 1
 AZ_COUNTER=${1:-${#AZ_ARRAY[@]}}
 is_integer () {
         [[ "$1" =~ ^[[:digit:]]+$ ]] && [[ "$1" -ge 2 ]]
@@ -561,9 +560,9 @@ echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> $CLUSTER_LOG
 echo "Creating operator-roles" 2>&1 >> $CLUSTER_LOG
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
 # SUBNET_IDS variable will be populated based on private subnet array
-SUBNET_IDS=$(for privsub in "${AZ_PRIV_ARRAY[@]}"
+SUBNET_IDS=$(for subnet in "${AZ_PAIRED_ARRAY[@]}"
                 do
-                        printf '%s,' "$privsub"
+                        printf '%s,%s' "$subnet" "${AZ_PAIRED_ARRAY[$privsub]}"
                 done |sed -e 's/,$//g'
 )
 #
@@ -594,7 +593,7 @@ Fine
 various_checks(){
 #set -x
 # Check if ROSA CLI is installed
-if [ -x "$(command -v /usr/local/bin/rosa)" ]
+if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]	
  then
         if [[ "$(rosa whoami 2>&1)" =~ "User is not logged in to OCM" ]];
                 then 
