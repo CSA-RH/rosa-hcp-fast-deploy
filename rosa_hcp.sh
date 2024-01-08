@@ -271,10 +271,10 @@ AZ_PUB_ARRAY=()
 AZ_PRIV_ARRAY=()
 x=0
 y=128
-echo "Listing all the availability zones inside the $AWS_REGION: ${AZ_ARRAY[@]}" 2>&1 >> $CLUSTER_LOG
+echo "Listing all the availability zones inside the $AWS_REGION: ${AZ_ARRAY[*]}" 2>&1 >> $CLUSTER_LOG
 
 echo "Creating the Public and Private Subnets" 2>&1 |tee -a $CLUSTER_LOG
-for az in ${AZ_ARRAY[@]}
+for az in "${AZ_ARRAY[@]}"
         do
         export AZP=$(echo $az| sed -e 's/\(.*\)/\U\1/g;s/-/_/g')
         export PUBLIC_SUB_NAME=PUBLIC_SUB_${AZP}
@@ -282,12 +282,12 @@ for az in ${AZ_ARRAY[@]}
         declare PUBLIC_SUB_${AZP}=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.${x}.0/20 --availability-zone ${az} --query Subnet.SubnetId --output text) 2>&1 >> $CLUSTER_LOG
         echo "Creating the Public Subnet ${!PUBLIC_SUB_NAME} in availability zone $az" 2>&1 |tee -a $CLUSTER_LOG
         aws ec2 create-tags --resources ${!PUBLIC_SUB_NAME} --tags Key=Name,Value=$CLUSTER_NAME-public 2>&1 >> $CLUSTER_LOG
-        x=$(($x ++16))
+        x=$(($x+16))
         AZ_PUB_ARRAY+=(${!PUBLIC_SUB_NAME})
         declare PRIV_SUB_${AZP}=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.${y}.0/20 --availability-zone ${az} --query Subnet.SubnetId --output text)
         echo "Creating the Private Subnet ${!PRIV_SUB_NAME} in availability zone $az" 2>&1 |tee -a $CLUSTER_LOG
         aws ec2 create-tags --resources ${!PRIV_SUB_NAME} --tags Key=Name,Value=$CLUSTER_NAME-private 2>&1 >> $CLUSTER_LOG
-        y=$(($y ++16))
+        y=$(($y+16))
         AZ_PRIV_ARRAY+=(${!PRIV_SUB_NAME})
         AZ_PAIRED_ARRAY+=([${!PUBLIC_SUB_NAME}]=${!PRIV_SUB_NAME})
 done
@@ -305,7 +305,7 @@ aws ec2 create-route --route-table-id $PUBLIC_RT_ID --destination-cidr-block 0.0
 aws ec2 create-tags --resources $PUBLIC_RT_ID --tags Key=Name,Value=$CLUSTER_NAME-public-rtb
 #
 i=1
-for pubsnt in ${!AZ_PAIRED_ARRAY[@]}
+for pubsnt in "${!AZ_PAIRED_ARRAY[@]}"
         do
         aws ec2 associate-route-table --subnet-id $pubsnt --route-table-id $PUBLIC_RT_ID 2>&1 >> $CLUSTER_LOG
         EIP_ADDRESS=$(aws ec2 allocate-address --domain vpc --query AllocationId --output text)
@@ -320,7 +320,7 @@ for pubsnt in ${!AZ_PAIRED_ARRAY[@]}
         aws ec2 create-route --route-table-id $PRIVATE_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> $CLUSTER_LOG
         aws ec2 associate-route-table --subnet-id ${AZ_PAIRED_ARRAY[$pubsnt]} --route-table-id $PRIVATE_RT_ID 2>&1 >> $CLUSTER_LOG
         aws ec2 create-tags --resources $PRIVATE_RT_ID $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private-rtb${i} 2>&1 >> $CLUSTER_LOG
-        i=$(($i++1))
+        i=$(($i+1))
 done
 unset i
 #
@@ -561,7 +561,7 @@ echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> $CLUSTER_LOG
 echo "Creating operator-roles" 2>&1 >> $CLUSTER_LOG
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
 # SUBNET_IDS variable will be populated based on private subnet array
-SUBNET_IDS=$(for privsub in ${AZ_PRIV_ARRAY[@]}
+SUBNET_IDS=$(for privsub in "${AZ_PRIV_ARRAY[@]}"
                 do
                         printf '%s,' "$privsub"
                 done |sed -e 's/,$//g'
