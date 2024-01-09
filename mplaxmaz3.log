@@ -1,0 +1,298 @@
+Start installing ROSA HCP cluster mplaxmaz3 in a Multi-AZ ...
+
+#
+#
+Start installing ROSA HCP cluster mplaxmaz3 in a Multi-AZ ...
+{
+    "UserId": "AIDAYKHDSSEBTZKLMJBYA",
+    "Account": "571707920643",
+    "Arn": "arn:aws:iam::571707920643:user/open-environment-q56fd-admin"
+}
+{
+    "Role": {
+        "Path": "/aws-service-role/elasticloadbalancing.amazonaws.com/",
+        "RoleName": "AWSServiceRoleForElasticLoadBalancing",
+        "RoleId": "AROAYKHDSSEBSBUPDEVCY",
+        "Arn": "arn:aws:iam::571707920643:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing",
+        "CreateDate": "2022-10-29T16:59:38+00:00",
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "elasticloadbalancing.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                }
+            ]
+        },
+        "Description": "Allows ELB to call AWS services on your behalf.",
+        "MaxSessionDuration": 3600,
+        "RoleLastUsed": {
+            "LastUsedDate": "2024-01-09T13:48:59+00:00",
+            "Region": "us-east-2"
+        }
+    }
+}
+#
+#
+Creating the VPC  vpc-0b3eacd39d5c73e10
+VPC_ID_VALUE  vpc-0b3eacd39d5c73e10
+Listing all the availability zones inside the us-east-2: us-east-2a us-east-2b us-east-2c
+Creating the Public and Private Subnets
+Creating the Public Subnet subnet-0c48f3ff21c8d5f41 in availability zone us-east-2a
+Creating the Private Subnet subnet-07d6712e8dcd49cd1 in availability zone us-east-2a
+Creating the Public Subnet subnet-0b7c846a27c753138 in availability zone us-east-2b
+Creating the Private Subnet subnet-09c3560335c30f2f5 in availability zone us-east-2b
+Creating the Public Subnet subnet-0599914ef07d0b3b6 in availability zone us-east-2c
+Creating the Private Subnet subnet-00c8d80f117394060 in availability zone us-east-2c
+Creating the IGW:  igw-0ff774bc0a3a888c1
+Creating the Public Route Table:  rtb-0393bcefa65083394
+{
+    "Return": true
+}
+{
+    "AssociationId": "rtbassoc-00849d86774a8f1b9",
+    "AssociationState": {
+        "State": "associated"
+    }
+}
+EIP_ADDRESS  eipalloc-0b548307098a33ea9
+Creating the NGW:  nat-073a9bbfe96f458f4
+Waiting for 120 sec. NGW to warm up 
+Creating the Private Route Table:  rtb-0d5846903fa77b848
+{
+    "Return": true
+}
+{
+    "AssociationId": "rtbassoc-019889deb7a560e67",
+    "AssociationState": {
+        "State": "associated"
+    }
+}
+{
+    "AssociationId": "rtbassoc-011df472437c6c6a6",
+    "AssociationState": {
+        "State": "associated"
+    }
+}
+EIP_ADDRESS  eipalloc-0e947f72f5d67b9bc
+Creating the NGW:  nat-060e05c7148e3fa39
+Waiting for 120 sec. NGW to warm up 
+Creating the Private Route Table:  rtb-00e62f3286b2ae3e0
+{
+    "Return": true
+}
+{
+    "AssociationId": "rtbassoc-0f3582ffc28478d91",
+    "AssociationState": {
+        "State": "associated"
+    }
+}
+{
+    "AssociationId": "rtbassoc-05301aef38470d6bc",
+    "AssociationState": {
+        "State": "associated"
+    }
+}
+EIP_ADDRESS  eipalloc-0db49e46fc43b4f63
+Creating the NGW:  nat-0ed7a09cd96e3dc42
+Waiting for 120 sec. NGW to warm up 
+Creating the Private Route Table:  rtb-0dd630d01e5b938ff
+{
+    "Return": true
+}
+{
+    "AssociationId": "rtbassoc-0a60c3d51951632f7",
+    "AssociationState": {
+        "State": "associated"
+    }
+}
+#
+VPC creation ... done! 
+#
+#
+Going to create account and operator roles ...
+INFO: Creating hosted CP account roles using 'arn:aws:iam::571707920643:user/open-environment-q56fd-admin'
+INFO: Created role 'HCPMGDmaz3-HCP-ROSA-Installer-Role' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Installer-Role'
+INFO: Created role 'HCPMGDmaz3-HCP-ROSA-Support-Role' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Support-Role'
+INFO: Created role 'HCPMGDmaz3-HCP-ROSA-Worker-Role' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Worker-Role'
+Creating the OIDC config 28lhhdavmogonvssmidfm3eejr8fkp2o
+OIDC_ID  28lhhdavmogonvssmidfm3eejr8fkp2o
+Creating operator-roles
+INFO: Creating roles using 'arn:aws:iam::571707920643:user/open-environment-q56fd-admin'
+INFO: Created role 'HCPMGDmaz3-kube-system-kms-provider' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-kms-provider'
+INFO: Created role 'HCPMGDmaz3-kube-system-kube-controller-manager' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-kube-controller-manager'
+INFO: Created role 'HCPMGDmaz3-kube-system-capa-controller-manager' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-capa-controller-manager'
+INFO: Created role 'HCPMGDmaz3-openshift-image-registry-installer-cloud-credentials' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-image-registry-installer-cloud-credentials'
+INFO: Created role 'HCPMGDmaz3-openshift-ingress-operator-cloud-credentials' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-ingress-operator-cloud-credentials'
+INFO: Created role 'HCPMGDmaz3-openshift-cluster-csi-drivers-ebs-cloud-credentials' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-cluster-csi-drivers-ebs-cloud-credentials'
+INFO: Created role 'HCPMGDmaz3-openshift-cloud-network-config-controller-cloud-crede' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-cloud-network-config-controller-cloud-crede'
+INFO: Created role 'HCPMGDmaz3-kube-system-control-plane-operator' with ARN 'arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-control-plane-operator'
+Creating ROSA HCP cluster 
+
+rosa create cluster -c mplaxmaz3 --sts --hosted-cp --multi-az --region us-east-2 --role-arn arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Installer-Role --support-role-arn arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Support-Role --worker-iam-role arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Worker-Role --operator-roles-prefix HCPMGDmaz3 --oidc-config-id 28lhhdavmogonvssmidfm3eejr8fkp2o --billing-account 571707920643 --subnet-ids=subnet-0599914ef07d0b3b6,subnet-0b7c846a27c753138,subnet-0c48f3ff21c8d5f41,subnet-00c8d80f117394060,subnet-09c3560335c30f2f5,subnet-07d6712e8dcd49cd1 -m auto -y
+INFO: Creating cluster 'mplaxmaz3'
+INFO: To view a list of clusters and their status, run 'rosa list clusters'
+INFO: Cluster 'mplaxmaz3' has been created.
+INFO: Once the cluster is installed you will need to add an Identity Provider before you can login into the cluster. See 'rosa create idp --help' for more information.
+
+Name:                       mplaxmaz3
+ID:                         28lhhk66rif7ouc65g9a7cv6jko596a7
+External ID:                ef359d14-8421-47a6-b991-97c8d9cc05a8
+Control Plane:              ROSA Service Hosted
+OpenShift Version:          4.14.6
+Channel Group:              stable
+DNS:                        Not ready
+AWS Account:                571707920643
+AWS Billing Account:        571707920643
+API URL:                    
+Console URL:                
+Region:                     us-east-2
+Availability:
+ - Control Plane:           MultiAZ
+ - Data Plane:              MultiAZ
+Nodes:
+ - Compute (desired):       3
+ - Compute (current):       0
+Network:
+ - Type:                    OVNKubernetes
+ - Service CIDR:            172.30.0.0/16
+ - Machine CIDR:            10.0.0.0/16
+ - Pod CIDR:                10.128.0.0/14
+ - Host Prefix:             /23
+Workload Monitoring:        Enabled
+Ec2 Metadata Http Tokens:   optional
+STS Role ARN:               arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Installer-Role
+Support Role ARN:           arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Support-Role
+Instance IAM Roles:
+ - Worker:                  arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Worker-Role
+Operator IAM Roles:
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-capa-controller-manager
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-image-registry-installer-cloud-credentials
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-ingress-operator-cloud-credentials
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-cluster-csi-drivers-ebs-cloud-credentials
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-cloud-network-config-controller-cloud-crede
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-control-plane-operator
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-kms-provider
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-kube-controller-manager
+Managed Policies:           Yes
+State:                      waiting (Waiting for user action)
+Private:                    No
+Created:                    Jan  9 2024 15:31:32 UTC
+Details Page:               https://console.redhat.com/openshift/details/s/2aivcIu5ZOo5cx2L8uJyObfCaCQ
+OIDC Endpoint URL:          https://oidc.op1.openshiftapps.com/28lhhdavmogonvssmidfm3eejr8fkp2o (Managed)
+Audit Log Forwarding:       disabled
+
+INFO: Preparing to create operator roles.
+INFO: Cluster 'mplaxmaz3' is using reusable OIDC Config and operator roles already exist.
+INFO: Preparing to create OIDC Provider.
+INFO: Creating OIDC provider using 'arn:aws:iam::571707920643:user/open-environment-q56fd-admin'
+INFO: Created OIDC provider with ARN 'arn:aws:iam::571707920643:oidc-provider/oidc.op1.openshiftapps.com/28lhhdavmogonvssmidfm3eejr8fkp2o'
+INFO: To determine when your cluster is Ready, run 'rosa describe cluster -c mplaxmaz3'.
+INFO: To watch your cluster installation logs, run 'rosa logs install -c mplaxmaz3 --watch'.
+Appending rosa installation logs to /home/mplacidi/fast-rosa-hcp-depoly/mplaxmaz3.log 
+INFO: Cluster 'mplaxmaz3' is in waiting state waiting for installation to begin. Logs will show up within 5 minutes
+0001-01-01 00:00:00 +0000 UTC hostedclusters mplaxmaz3 Version 
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 failed to get clusterVersion: HostedControlPlane.hypershift.openshift.io "mplaxmaz3" not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 The hosted control plane is not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 failed to get clusterVersion: HostedControlPlane.hypershift.openshift.io "mplaxmaz3" not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 failed to get clusterVersion: HostedControlPlane.hypershift.openshift.io "mplaxmaz3" not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 failed to get clusterVersion: HostedControlPlane.hypershift.openshift.io "mplaxmaz3" not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 The hosted control plane is not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 The hosted control plane is not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 The hosted control plane is not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 failed to get clusterVersion: HostedControlPlane.hypershift.openshift.io "mplaxmaz3" not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 Waiting for hosted control plane to be healthy
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 The hosted control plane is not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 The hosted control plane is not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 The hosted control plane is not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 Ignition server deployment not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 Configuration passes validation
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 HostedCluster is supported by operator configuration
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 Release image is valid
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 ValidAWSIdentityProvider StatusUnknown
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 Reconciliation active on resource
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 failed to get referenced secret ocm-production-28lhhk66rif7ouc65g9a7cv6jko596a7/cluster-api-cert: Secret "cluster-api-cert" not found
+2024-01-09 15:34:35 +0000 UTC hostedclusters mplaxmaz3 HostedCluster is at expected version
+2024-01-09 15:36:28 +0000 UTC hostedclusters mplaxmaz3 OIDC configuration is valid
+2024-01-09 15:36:28 +0000 UTC hostedclusters mplaxmaz3 Reconciliation completed successfully
+2024-01-09 15:36:33 +0000 UTC hostedclusters mplaxmaz3 WebIdentityErr
+2024-01-09 15:36:34 +0000 UTC hostedclusters mplaxmaz3 All is well
+2024-01-09 15:36:34 +0000 UTC hostedclusters mplaxmaz3 lookup api.mplaxmaz3.nl31.p3.openshiftapps.com on 172.30.0.10:53: no such host
+2024-01-09 15:36:34 +0000 UTC hostedclusters mplaxmaz3 [capi-provider deployment has 1 unavailable replicas, cluster-api deployment has 1 unavailable replicas, control-plane-operator deployment has 1 unavailable replicas]
+2024-01-09 15:36:34 +0000 UTC hostedclusters mplaxmaz3 Configuration passes validation
+2024-01-09 15:36:34 +0000 UTC hostedclusters mplaxmaz3 AWS KMS is not configured
+2024-01-09 15:36:34 +0000 UTC hostedclusters mplaxmaz3 EtcdAvailable StatefulSetNotFound
+2024-01-09 15:36:34 +0000 UTC hostedclusters mplaxmaz3 Kube APIServer deployment not found
+2024-01-09 15:36:41 +0000 UTC hostedclusters mplaxmaz3 All is well
+2024-01-09 15:37:29 +0000 UTC hostedclusters mplaxmaz3 EtcdAvailable QuorumAvailable
+2024-01-09 15:38:35 +0000 UTC hostedclusters mplaxmaz3 Kube APIServer deployment is available
+2024-01-09 15:38:40 +0000 UTC hostedclusters mplaxmaz3 All is well
+2024-01-09 15:39:40 +0000 UTC hostedclusters mplaxmaz3 [catalog-operator deployment has 1 unavailable replicas, certified-operators-catalog deployment has 2 unavailable replicas, cluster-autoscaler deployment has 1 unavailable replicas, cluster-image-registry-operator deployment has 1 unavailable replicas, cluster-network-operator deployment has 1 unavailable replicas, cluster-storage-operator deployment has 1 unavailable replicas, community-operators-catalog deployment has 2 unavailable replicas, csi-snapshot-controller-operator deployment has 1 unavailable replicas, dns-operator deployment has 1 unavailable replicas, hosted-cluster-config-operator deployment has 1 unavailable replicas, ignition-server deployment has 3 unavailable replicas, ingress-operator deployment has 1 unavailable replicas, machine-approver deployment has 1 unavailable replicas, oauth-openshift deployment has 2 unavailable replicas, olm-operator deployment has 1 unavailable replicas, packageserver deployment has 3 unavailable replicas, redhat-marketplace-catalog deployment has 2 unavailable replicas, redhat-operators-catalog deployment has 2 unavailable replicas, router deployment has 1 unavailable replicas]
+2024-01-09 15:39:40 +0000 UTC hostedclusters mplaxmaz3 The hosted control plane is available
+INFO: Cluster 'mplaxmaz3' is now ready
+
+Name:                       mplaxmaz3
+ID:                         28lhhk66rif7ouc65g9a7cv6jko596a7
+External ID:                ef359d14-8421-47a6-b991-97c8d9cc05a8
+Control Plane:              ROSA Service Hosted
+OpenShift Version:          4.14.6
+Channel Group:              stable
+DNS:                        mplaxmaz3.nl31.p3.openshiftapps.com
+AWS Account:                571707920643
+AWS Billing Account:        571707920643
+API URL:                    https://api.mplaxmaz3.nl31.p3.openshiftapps.com:443
+Console URL:                
+Region:                     us-east-2
+Availability:
+ - Control Plane:           MultiAZ
+ - Data Plane:              MultiAZ
+Nodes:
+ - Compute (desired):       3
+ - Compute (current):       0
+Network:
+ - Type:                    OVNKubernetes
+ - Service CIDR:            172.30.0.0/16
+ - Machine CIDR:            10.0.0.0/16
+ - Pod CIDR:                10.128.0.0/14
+ - Host Prefix:             /23
+Workload Monitoring:        Enabled
+Ec2 Metadata Http Tokens:   optional
+STS Role ARN:               arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Installer-Role
+Support Role ARN:           arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Support-Role
+Instance IAM Roles:
+ - Worker:                  arn:aws:iam::571707920643:role/HCPMGDmaz3-HCP-ROSA-Worker-Role
+Operator IAM Roles:
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-capa-controller-manager
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-image-registry-installer-cloud-credentials
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-ingress-operator-cloud-credentials
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-cluster-csi-drivers-ebs-cloud-credentials
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-openshift-cloud-network-config-controller-cloud-crede
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-control-plane-operator
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-kms-provider
+ - arn:aws:iam::571707920643:role/HCPMGDmaz3-kube-system-kube-controller-manager
+Managed Policies:           Yes
+State:                      ready 
+Private:                    No
+Created:                    Jan  9 2024 15:31:32 UTC
+Details Page:               https://console.redhat.com/openshift/details/s/2aivcIu5ZOo5cx2L8uJyObfCaCQ
+OIDC Endpoint URL:          https://oidc.op1.openshiftapps.com/28lhhdavmogonvssmidfm3eejr8fkp2o (Managed)
+Audit Log Forwarding:       disabled
+
+Creating the cluster-admin user
+INFO: Admin account has been added to cluster 'mplaxmaz3'.
+INFO: Please securely store this generated password. If you lose this password you can delete and recreate the cluster admin user.
+INFO: To login, run the following command:
+
+   oc login https://api.mplaxmaz3.nl31.p3.openshiftapps.com:443 --username cluster-admin --password 88U4J-MoZGZ-WWgqw-iAmM5
+
+INFO: It may take several minutes for this access to become active.
+#
+Done!!! 
+Cluster  mplaxmaz3  has been installed and is up and running
+Please allow a few minutes before to login, for additional information check the /home/mplacidi/fast-rosa-hcp-depoly/mplaxmaz3.log file
+ 
+ 
+ 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 ######################################################################################################################
 #
 # This is a single shell script that will create all the resources needed to deploy a ROSA HCP cluster via the CLI. The script will take care of:
@@ -60,7 +60,7 @@ echo "INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall 
 rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
 rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
 echo "operator-roles deleted !" 2>&1 |tee -a $CLUSTER_LOG
-rosa delete oidc-provider --oidc-config-id $OIDC_ID --mode auto --yes 2>&1 >> $CLUSTER_LOG
+rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> $CLUSTER_LOG
 echo "oidc-provider deleted !" 2>&1 |tee -a $CLUSTER_LOG
 #
 VPC_ID=$(cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}')
@@ -243,6 +243,7 @@ aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 # Find out how many az are available based on chosen region
 AZ_ARRAY=($(aws ec2 describe-availability-zones --region $AWS_REGION|jq -r '.AvailabilityZones[].ZoneName'|tr '\n' ' '))
 #
+#set -x
 # Dynamically and randomly choose the destination AZs based on how many of them the user wants to use
 AZ_COUNTER=${1:-${#AZ_ARRAY[@]}}
 is_integer () {
@@ -292,6 +293,8 @@ for az in "${AZ_ARRAY[@]}"
         AZ_PRIV_ARRAY+=(${!PRIV_SUB_NAME})
         AZ_PAIRED_ARRAY+=([${!PUBLIC_SUB_NAME}]=${!PRIV_SUB_NAME})
 done
+#
+#set +x
 
 #
 IGW=$(aws ec2 create-internet-gateway --query InternetGateway.InternetGatewayId --output text)
@@ -547,7 +550,6 @@ AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 echo "#"
 #
 declare -A AZ_PAIRED_ARRAY
-
 MultiAZ-VPC
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
@@ -561,15 +563,13 @@ echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a $CLUSTER_LOG
 echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> $CLUSTER_LOG
 echo "Creating operator-roles" 2>&1 >> $CLUSTER_LOG
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
-# SUBNET_IDS variable will be populated based on private subnet array
-SUBNET_IDS=$(for subnet in "${AZ_PAIRED_ARRAY[@]}"
-                do
-                        printf '%s,%s' "$subnet" "${AZ_PAIRED_ARRAY[$privsub]}"
-                done |sed -e 's/,$//g'
-)
+# SUBNET_IDS variable will be populated based on combined subnet array
+printf -v joined '%s,%s,' "${!AZ_PAIRED_ARRAY[@]}" "${AZ_PAIRED_ARRAY[@]}"
+SUBNET_IDS=$(echo $joined | sed -e 's/,$//g')
 #
 echo "Creating ROSA HCP cluster " 2>&1 |tee -a $CLUSTER_LOG
 echo "" 2>&1 >> $CLUSTER_LOG
+echo "rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y" 2>&1 >> $CLUSTER_LOG
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a $CLUSTER_LOG
