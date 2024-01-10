@@ -41,9 +41,10 @@ Delete_HCP()
 INSTALL_DIR=$(pwd)
 CLUSTER_NAME=$(ls $INSTALL_DIR|grep *.log| awk -F. '{print $1}')
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+VPC_ID=$(cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}')
 #
 # start removing the NGW since it takes a lot of time
-while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways | jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
+while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
 #
 AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
@@ -69,14 +70,14 @@ echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a $CLUSTER_LOG
 #   while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways | jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
 echo "waiting for the NAT-GW to die " 2>&1 |tee -a $CLUSTER_LOG
-#sleep 100
+#sleep_120
 #
     while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
     while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
     while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
    while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
    while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
-   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
 #
 aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
@@ -105,6 +106,25 @@ Fine() {
 Errore() {
     echo "Wrong option."
     clear
+}
+
+sleep_120() {
+ hour=0
+ min=2
+ sec=0
+        while [ $hour -ge 0 ]; do
+                 while [ $min -ge 0 ]; do
+                         while [ $sec -ge 0 ]; do
+                                 echo -ne "$hour:$min:$sec\033[0K\r"
+                                 let "sec=sec-1"
+                                 sleep 1
+                         done
+                         sec=59
+                         let "min=min-1"
+                 done
+                 min=59
+                 let "hour=hour-1"
+         done
 }
 
 Countdown() {
@@ -170,7 +190,7 @@ EIP_ADDRESS=$(aws ec2 allocate-address --domain vpc --query AllocationId --outpu
 NAT_GATEWAY_ID=$(aws ec2 create-nat-gateway --subnet-id $PUBLIC_SUB_2a --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text)
 echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 |tee -a $CLUSTER_LOG
 echo "Waiting for NGW to warm up " 2>&1 |tee -a $CLUSTER_LOG
-sleep 120 | pv -t
+sleep_120
 aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
 #
 PRIVATE_RT_ID1=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
@@ -317,7 +337,7 @@ for pubsnt in "${!AZ_PAIRED_ARRAY[@]}"
         echo "EIP_ADDRESS " $EIP_ADDRESS 2>&1 >> $CLUSTER_LOG
         echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 |tee -a $CLUSTER_LOG
         echo "Waiting for 120 sec. NGW to warm up " 2>&1 |tee -a $CLUSTER_LOG
-        sleep 120 |pv -t
+        sleep_120
         aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
         PRIVATE_RT_ID=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
         echo "Creating the Private Route Table: " $PRIVATE_RT_ID 2>&1 |tee -a $CLUSTER_LOG
