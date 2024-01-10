@@ -1,11 +1,37 @@
 #!/usr/bin/env bash
 ######################################################################################################################
+##  +-----------------------------------+-----------------------------------+
+##  |                                                                       |
+##  | Copyright (c) 2023-2024, Gianfranco Mollo <gmollo@redhat.com>.        |
+##  |                                                                       |
+##  | This program is free software: you can redistribute it and/or modify  |
+##  | it under the terms of the GNU General Public License as published by  |
+##  | the Free Software Foundation, either version 3 of the License, or     |
+##  | (at your option) any later version.                                   |
+##  |                                                                       |
+##  | This program is distributed in the hope that it will be useful,       |
+##  | but WITHOUT ANY WARRANTY; without even the implied warranty of        |
+##  | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         |
+##  | GNU General Public License for more details.                          |
+##  |                                                                       |
+##  | You should have received a copy of the GNU General Public License     |
+##  | along with this program. If not, see <http://www.gnu.org/licenses/>.  |
+##  |                                                                       |
+#   |  About the author:                                                    |
+#   |                                                                       |
+#   |  Owner: 	Gianfranco Mollo                                            |
+#   |  GitHub: 	https://github.com/gmolloATredhat                           |
+#   |		https://github.com/joemolls                                 |
+##  |                                                                       |
+##  +-----------------------------------------------------------------------+
+##
+##  DESCRIPTION
 #
-# This is a single shell script that will create all the resources needed to deploy a ROSA HCP cluster via the CLI. The script will take care of:
+#   This is a single shell script that will create all the resources needed to deploy a ROSA HCP cluster via the CLI. The script will take care of:
 #
-# - Set up your AWS account and roles (eg. the account-wide IAM roles and policies, cluster-specific Operator roles and policies, and OpenID Connect (OIDC) identity provider).
-# - Create the VPC;
-# - Create your ROSA HCP Cluster with a minimal configuration (2 workers/Single-AZ; 3 workers/Multi-AZ).
+#   - Set up your AWS account and roles (eg. the account-wide IAM roles and policies, cluster-specific Operator roles and policies, and OpenID Connect (OIDC) identity provider).
+#   - Create the VPC;
+#   - Create your ROSA HCP Cluster with a minimal configuration (2 workers/Single-AZ; 3 workers/Multi-AZ).
 #
 # It takes approximately 15 minutes to create/destroy the cluster and its related VPC, AWS roles, etc.
 #
@@ -17,12 +43,6 @@
 #
 ########################################################################################################################
 #
-# About the author:
-#
-# Owner: 	Gianfranco Mollo
-# GitHub: 	https://github.com/gmolloATredhat
-# 		https://github.com/joemolls
-# License: 	GNU GENERAL PUBLIC LICENSE (GPL)
 # 
 #
 ########################################################################################################################
@@ -45,61 +65,61 @@ AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
 VPC_ID=$(cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}')
 #
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a $CLUSTER_LOG
-echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a $CLUSTER_LOG
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-rosa delete cluster -c $CLUSTER_NAME --yes &>> $CLUSTER_LOG
+rosa delete cluster -c $CLUSTER_NAME --yes &>> "$CLUSTER_LOG"
 if [ $? -eq 0 ]; then
 	# start removing the NGW since it takes a lot of time
-	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
-        echo "Cluster deletion in progress " 2>&1 |tee -a $CLUSTER_LOG
-        rosa logs uninstall -c $CLUSTER_NAME --watch &> $CLUSTER_LOG
-        rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
-        echo "operator-roles deleted !" 2>&1 |tee -a $CLUSTER_LOG
-        rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> $CLUSTER_LOG
-        echo "oidc-provider deleted !" 2>&1 |tee -a $CLUSTER_LOG
+	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
+        echo "Cluster deletion in progress " 2>&1 |tee -a "$CLUSTER_LOG"
+        rosa logs uninstall -c $CLUSTER_NAME --watch &> "$CLUSTER_LOG"
+        rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
+        echo "operator-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+        rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> "$CLUSTER_LOG"
+        echo "oidc-provider deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 	Delete_VPC
 else
-    	echo "Found NO clusters with name => " $CLUSTER_NAME
+    	echo "Found NO clusters with name => " "$CLUSTER_LOG"
 # 	NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
-	echo "waiting for the NAT-GW to die " 2>&1 |tee -a $CLUSTER_LOG
-        while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
+	echo "waiting for the NAT-GW to die " 2>&1 |tee -a "$CLUSTER_LOG"
+        while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
 	sleep_120
 	Delete_VPC
 fi
 #
-rosa delete account-roles --mode auto --prefix $PREFIX --yes &>> $CLUSTER_LOG
-echo "account-roles deleted !" 2>&1 |tee -a $CLUSTER_LOG
+rosa delete account-roles --mode auto --prefix $PREFIX --yes &>> "$CLUSTER_LOG"
+echo "account-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "done! " 2>&1 |tee -a $CLUSTER_LOG
-echo "Cluster " $CLUSTER_NAME " was deleted !" 2>&1 |tee -a $CLUSTER_LOG
-echo "The old LOG file ${CLUSTER_LOG} in is now moved to /tmp folder" 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-mv $CLUSTER_LOG /tmp
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "done! " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Cluster " $CLUSTER_NAME " was deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "The old LOG file ${CLUSTER_LOG} in is now moved to /tmp folder" 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+mv "$CLUSTER_LOG" /tmp
 Countdown
 Fine
 }
 #######################################################################################################################################
 Delete_VPC()
 {
-    echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a $CLUSTER_LOG
+    echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
 #
 #
-    while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
-    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
-    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
-   while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
-   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
-   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
-   while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
+    while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> "$CLUSTER_LOG"
+    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> "$CLUSTER_LOG"
+    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> "$CLUSTER_LOG"
+   while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> "$CLUSTER_LOG"
+   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
+   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
+   while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 #
 aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
-echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a $CLUSTER_LOG
+echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 }
 #######################################################################################################################################
 Fine() {
@@ -156,56 +176,56 @@ Countdown() {
 #
 SingleAZ-VPC() {
 echo "#"
-aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
-aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
-#rosa verify permissions 2>&1 >> $CLUSTER_LOG
+aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
+aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
+#rosa verify permissions 2>&1 >> "$CLUSTER_LOG"
 #rosa verify quota --region=$AWS_REGION
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
 VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text)
 
-echo "Creating the VPC " $VPC_ID_VALUE 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the VPC " $VPC_ID_VALUE 2>&1 |tee -a "$CLUSTER_LOG"
 #
-echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> $CLUSTER_LOG
-aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME 2>&1 |tee -a $CLUSTER_LOG
+echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> "$CLUSTER_LOG"
+aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 #
 PUBLIC_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
-echo "Creating the Public Subnet: " $PUBLIC_SUB_2a 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the Public Subnet: " $PUBLIC_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
 aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-public
 #
 PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
-echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
 aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
 #
 IGW=$(aws ec2 create-internet-gateway --query InternetGateway.InternetGatewayId --output text)
-echo "Creating the IGW: " $IGW 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 attach-internet-gateway --vpc-id $VPC_ID_VALUE --internet-gateway-id $IGW 2>&1 >> $CLUSTER_LOG
-aws ec2 create-tags --resources $IGW --tags Key=Name,Value=$CLUSTER_NAME-IGW 2>&1 >> $CLUSTER_LOG
+echo "Creating the IGW: " $IGW 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 attach-internet-gateway --vpc-id $VPC_ID_VALUE --internet-gateway-id $IGW 2>&1 >> "$CLUSTER_LOG"
+aws ec2 create-tags --resources $IGW --tags Key=Name,Value=$CLUSTER_NAME-IGW 2>&1 >> "$CLUSTER_LOG"
 #
 PUBLIC_RT_ID=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
-echo "Creating the Public Route Table: " $PUBLIC_RT_ID 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-route --route-table-id $PUBLIC_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW 2>&1 >> $CLUSTER_LOG
-aws ec2 associate-route-table --subnet-id $PUBLIC_SUB_2a --route-table-id $PUBLIC_RT_ID 2>&1 >> $CLUSTER_LOG
-aws ec2 create-tags --resources $PUBLIC_RT_ID --tags Key=Name,Value=$CLUSTER_NAME-public-rtb 2>&1 >> $CLUSTER_LOG
+echo "Creating the Public Route Table: " $PUBLIC_RT_ID 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 create-route --route-table-id $PUBLIC_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW 2>&1 >> "$CLUSTER_LOG"
+aws ec2 associate-route-table --subnet-id $PUBLIC_SUB_2a --route-table-id $PUBLIC_RT_ID 2>&1 >> "$CLUSTER_LOG"
+aws ec2 create-tags --resources $PUBLIC_RT_ID --tags Key=Name,Value=$CLUSTER_NAME-public-rtb 2>&1 >> "$CLUSTER_LOG"
 #
 EIP_ADDRESS=$(aws ec2 allocate-address --domain vpc --query AllocationId --output text)
 NAT_GATEWAY_ID=$(aws ec2 create-nat-gateway --subnet-id $PUBLIC_SUB_2a --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text)
-echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 |tee -a $CLUSTER_LOG
-echo "Waiting for NGW to warm up " 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Waiting for NGW to warm up " 2>&1 |tee -a "$CLUSTER_LOG"
 sleep_120
 aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
 #
 PRIVATE_RT_ID1=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
-echo "Creating the Private Route Table: " $PRIVATE_RT_ID1 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-route --route-table-id $PRIVATE_RT_ID1 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> $CLUSTER_LOG
-aws ec2 associate-route-table --subnet-id $PRIV_SUB_2a --route-table-id $PRIVATE_RT_ID1 2>&1 >> $CLUSTER_LOG
+echo "Creating the Private Route Table: " $PRIVATE_RT_ID1 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 create-route --route-table-id $PRIVATE_RT_ID1 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> "$CLUSTER_LOG"
+aws ec2 associate-route-table --subnet-id $PRIV_SUB_2a --route-table-id $PRIVATE_RT_ID1 2>&1 >> "$CLUSTER_LOG"
 aws ec2 create-tags --resources $PRIVATE_RT_ID1 $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private-rtb
 #
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "VPC creation ... done! " 2>&1 |tee -a $CLUSTER_LOG
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "VPC creation ... done! " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 }
 #
 ############################################################
@@ -214,35 +234,35 @@ echo "#" 2>&1 |tee -a $CLUSTER_LOG
 #
 SingleAZ-VPC-Priv() {
 echo "#" 
-aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
-aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
+aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
+aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
 VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text)
 
-echo "Creating the VPC " $VPC_ID_VALUE 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the VPC " $VPC_ID_VALUE 2>&1 |tee -a "$CLUSTER_LOG"
 #
 # 
-echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> $CLUSTER_LOG
-aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
+echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> "$CLUSTER_LOG"
+aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 #
 PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
 
-echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
 aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
 #
 PRIVATE_RT_ID1=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
 
-echo "Creating the Private Route Table: " $PRIVATE_RT_ID1 2>&1 |tee -a $CLUSTER_LOG
-#aws ec2 create-route --route-table-id $PRIVATE_RT_ID1 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> $CLUSTER_LOG
-aws ec2 associate-route-table --subnet-id $PRIV_SUB_2a --route-table-id $PRIVATE_RT_ID1 2>&1 >> $CLUSTER_LOG
+echo "Creating the Private Route Table: " $PRIVATE_RT_ID1 2>&1 |tee -a "$CLUSTER_LOG"
+#aws ec2 create-route --route-table-id $PRIVATE_RT_ID1 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> "$CLUSTER_LOG"
+aws ec2 associate-route-table --subnet-id $PRIV_SUB_2a --route-table-id $PRIVATE_RT_ID1 2>&1 >> "$CLUSTER_LOG"
 aws ec2 create-tags --resources $PRIVATE_RT_ID1 $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private-rtb
 #
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "VPC creation ... done! " 2>&1 |tee -a $CLUSTER_LOG
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "VPC creation ... done! " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 }
 #
 ############################################################
@@ -251,17 +271,17 @@ echo "#" 2>&1 |tee -a $CLUSTER_LOG
 #
 MultiAZ-VPC() {
 echo "#" 
-aws sts get-caller-identity 2>&1 >> $CLUSTER_LOG
-aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> $CLUSTER_LOG
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
+aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
+aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
 VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text)
 
-echo "Creating the VPC " $VPC_ID_VALUE 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the VPC " $VPC_ID_VALUE 2>&1 |tee -a "$CLUSTER_LOG"
 # 
-echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> $CLUSTER_LOG
-aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
+echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> "$CLUSTER_LOG"
+aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 # Find out how many az are available based on chosen region
@@ -301,23 +321,23 @@ AZ_PUB_ARRAY=()
 AZ_PRIV_ARRAY=()
 x=0
 y=128
-#echo "Listing all the availability zones inside the $AWS_REGION: ${AZ_ARRAY[*]}" 2>&1 >> $CLUSTER_LOG
-echo "Listing the availability zones that will be used from AWS region $AWS_REGION: ${AZ_ARRAY[*]}" 2>&1 |tee -a $CLUSTER_LOG
+#echo "Listing all the availability zones inside the $AWS_REGION: ${AZ_ARRAY[*]}" 2>&1 >> "$CLUSTER_LOG"
+echo "Listing the availability zones that will be used from AWS region $AWS_REGION: ${AZ_ARRAY[*]}" 2>&1 |tee -a "$CLUSTER_LOG"
 
-echo "Creating the Public and Private Subnets" 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the Public and Private Subnets" 2>&1 |tee -a "$CLUSTER_LOG"
 for az in "${AZ_ARRAY[@]}"
         do
         export AZP=$(echo $az| sed -e 's/\(.*\)/\U\1/g;s/-/_/g')
         export PUBLIC_SUB_NAME=PUBLIC_SUB_${AZP}
         export PRIV_SUB_NAME=PRIV_SUB_${AZP}
-        declare PUBLIC_SUB_${AZP}=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.${x}.0/20 --availability-zone ${az} --query Subnet.SubnetId --output text) 2>&1 >> $CLUSTER_LOG
-        echo "Creating the Public Subnet ${!PUBLIC_SUB_NAME} in availability zone $az" 2>&1 |tee -a $CLUSTER_LOG
-        aws ec2 create-tags --resources ${!PUBLIC_SUB_NAME} --tags Key=Name,Value=$CLUSTER_NAME-public 2>&1 >> $CLUSTER_LOG
+        declare PUBLIC_SUB_${AZP}=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.${x}.0/20 --availability-zone ${az} --query Subnet.SubnetId --output text) 2>&1 >> "$CLUSTER_LOG"
+        echo "Creating the Public Subnet ${!PUBLIC_SUB_NAME} in availability zone $az" 2>&1 |tee -a "$CLUSTER_LOG"
+        aws ec2 create-tags --resources ${!PUBLIC_SUB_NAME} --tags Key=Name,Value=$CLUSTER_NAME-public 2>&1 >> "$CLUSTER_LOG"
         x=$(($x+16))
         AZ_PUB_ARRAY+=(${!PUBLIC_SUB_NAME})
         declare PRIV_SUB_${AZP}=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.${y}.0/20 --availability-zone ${az} --query Subnet.SubnetId --output text)
-        echo "Creating the Private Subnet ${!PRIV_SUB_NAME} in availability zone $az" 2>&1 |tee -a $CLUSTER_LOG
-        aws ec2 create-tags --resources ${!PRIV_SUB_NAME} --tags Key=Name,Value=$CLUSTER_NAME-private 2>&1 >> $CLUSTER_LOG
+        echo "Creating the Private Subnet ${!PRIV_SUB_NAME} in availability zone $az" 2>&1 |tee -a "$CLUSTER_LOG"
+        aws ec2 create-tags --resources ${!PRIV_SUB_NAME} --tags Key=Name,Value=$CLUSTER_NAME-private 2>&1 >> "$CLUSTER_LOG"
         y=$(($y+16))
         AZ_PRIV_ARRAY+=(${!PRIV_SUB_NAME})
         AZ_PAIRED_ARRAY+=([${!PUBLIC_SUB_NAME}]=${!PRIV_SUB_NAME})
@@ -328,38 +348,38 @@ done
 #
 IGW=$(aws ec2 create-internet-gateway --query InternetGateway.InternetGatewayId --output text)
 
-echo "Creating the IGW: " $IGW 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the IGW: " $IGW 2>&1 |tee -a "$CLUSTER_LOG"
 aws ec2 attach-internet-gateway --vpc-id $VPC_ID_VALUE --internet-gateway-id $IGW
 aws ec2 create-tags --resources $IGW --tags Key=Name,Value=$CLUSTER_NAME-IGW
 #
 PUBLIC_RT_ID=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
-echo "Creating the Public Route Table: " $PUBLIC_RT_ID 2>&1 |tee -a $CLUSTER_LOG
-aws ec2 create-route --route-table-id $PUBLIC_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW 2>&1 >> $CLUSTER_LOG
+echo "Creating the Public Route Table: " $PUBLIC_RT_ID 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 create-route --route-table-id $PUBLIC_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW 2>&1 >> "$CLUSTER_LOG"
 aws ec2 create-tags --resources $PUBLIC_RT_ID --tags Key=Name,Value=$CLUSTER_NAME-public-rtb
 #
 i=1
 for pubsnt in "${!AZ_PAIRED_ARRAY[@]}"
         do
-        aws ec2 associate-route-table --subnet-id $pubsnt --route-table-id $PUBLIC_RT_ID 2>&1 >> $CLUSTER_LOG
+        aws ec2 associate-route-table --subnet-id $pubsnt --route-table-id $PUBLIC_RT_ID 2>&1 >> "$CLUSTER_LOG"
         EIP_ADDRESS=$(aws ec2 allocate-address --domain vpc --query AllocationId --output text)
         NAT_GATEWAY_ID=$(aws ec2 create-nat-gateway --subnet-id $pubsnt --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text)
-        echo "EIP_ADDRESS " $EIP_ADDRESS 2>&1 >> $CLUSTER_LOG
-        echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 |tee -a $CLUSTER_LOG
-        echo "Waiting for 120 sec. NGW to warm up " 2>&1 |tee -a $CLUSTER_LOG
+        echo "EIP_ADDRESS " $EIP_ADDRESS 2>&1 >> "$CLUSTER_LOG"
+        echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 |tee -a "$CLUSTER_LOG"
+        echo "Waiting for 120 sec. NGW to warm up " 2>&1 |tee -a "$CLUSTER_LOG"
         sleep_120
         aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
         PRIVATE_RT_ID=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
-        echo "Creating the Private Route Table: " $PRIVATE_RT_ID 2>&1 |tee -a $CLUSTER_LOG
-        aws ec2 create-route --route-table-id $PRIVATE_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> $CLUSTER_LOG
-        aws ec2 associate-route-table --subnet-id ${AZ_PAIRED_ARRAY[$pubsnt]} --route-table-id $PRIVATE_RT_ID 2>&1 >> $CLUSTER_LOG
-        aws ec2 create-tags --resources $PRIVATE_RT_ID $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private-rtb${i} 2>&1 >> $CLUSTER_LOG
+        echo "Creating the Private Route Table: " $PRIVATE_RT_ID 2>&1 |tee -a "$CLUSTER_LOG"
+        aws ec2 create-route --route-table-id $PRIVATE_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> "$CLUSTER_LOG"
+        aws ec2 associate-route-table --subnet-id ${AZ_PAIRED_ARRAY[$pubsnt]} --route-table-id $PRIVATE_RT_ID 2>&1 >> "$CLUSTER_LOG"
+        aws ec2 create-tags --resources $PRIVATE_RT_ID $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private-rtb${i} 2>&1 >> "$CLUSTER_LOG"
         i=$(($i+1))
 done
 unset i
 #
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "VPC creation ... done! " 2>&1 |tee -a $CLUSTER_LOG
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "VPC creation ... done! " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 }
 
 #
@@ -463,44 +483,44 @@ BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
 aws configure
 echo "#"
 echo "#"
-echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |tee -a $CLUSTER_LOG
+echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |tee -a "$CLUSTER_LOG"
 AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 echo "#"
 #
 SingleAZ-VPC
 #
-echo "Going to create account and operator roles ..." 2>&1 |tee -a $CLUSTER_LOG
-rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
+echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
 WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
 SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
-echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a $CLUSTER_LOG
-echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> $CLUSTER_LOG
-echo "Creating operator-roles" 2>&1 >> $CLUSTER_LOG
-rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
+echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
+echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> "$CLUSTER_LOG"
+echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
+rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
-echo "Creating ROSA HCP cluster " 2>&1 |tee -a $CLUSTER_LOG
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
+echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
-echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a $CLUSTER_LOG
-rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
+echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
+rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
 #
-rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
+rosa describe cluster -c $CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
 #
-echo "Creating the cluster-admin user" 2>&1 |tee -a $CLUSTER_LOG
-rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the cluster-admin user" 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
 #
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-echo "Done!!! " 2>&1 |tee -a $CLUSTER_LOG
-echo "Cluster " $CLUSTER_NAME " has been installed and is up and running" 2>&1 |tee -a $CLUSTER_LOG
-echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Cluster " $CLUSTER_NAME " has been installed and is up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 Fine
 }
 #
@@ -520,42 +540,42 @@ BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
 aws configure
 echo "#"
 echo "#"
-echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a $CLUSTER_LOG
+echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a "$CLUSTER_LOG"
 AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 #
 SingleAZ-VPC-Priv
 #
-echo "Going to create account and operator roles ..." 2>&1 |tee -a $CLUSTER_LOG
-rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
+echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
 WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
 SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
-echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a $CLUSTER_LOG
-echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> $CLUSTER_LOG
-echo "Creating operator-roles" 2>&1 >> $CLUSTER_LOG
-rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
+echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
+echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> "$CLUSTER_LOG"
+echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
+rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
 SUBNET_IDS=$PRIV_SUB_2a
 #
-echo "Creating ROSA HCP cluster " 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 >> $CLUSTER_LOG
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private-link --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
+echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 >> "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private-link --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
-echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a $CLUSTER_LOG
-rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
+echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
+rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
 #
-rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
+rosa describe cluster -c $CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
 #
-echo "Creating the cluster-admin user" 2>&1 |tee -a $CLUSTER_LOG
-rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the cluster-admin user" 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
 #   
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "Done!!! " 2>&1 |tee -a $CLUSTER_LOG
-echo "Cluster " $CLUSTER_NAME " has been installed and is up and running" 2>&1 |tee -a $CLUSTER_LOG
-echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Cluster " $CLUSTER_NAME " has been installed and is up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 Fine
 }
 #
@@ -574,48 +594,48 @@ BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
 aws configure
 echo "#"
 echo "#"
-echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Multi-AZ ..." 2>&1 |tee -a $CLUSTER_LOG
+echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Multi-AZ ..." 2>&1 |tee -a "$CLUSTER_LOG"
 AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 echo "#"
 #
 declare -A AZ_PAIRED_ARRAY
 MultiAZ-VPC
 #
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "Going to create account and operator roles ..." 2>&1 |tee -a $CLUSTER_LOG
-rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
 WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
 SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
-echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a $CLUSTER_LOG
-echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> $CLUSTER_LOG
-echo "Creating operator-roles" 2>&1 >> $CLUSTER_LOG
-rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> $CLUSTER_LOG
+echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
+echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> "$CLUSTER_LOG"
+echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
+rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
 # SUBNET_IDS variable will be populated based on combined subnet array
 printf -v joined '%s,%s,' "${!AZ_PAIRED_ARRAY[@]}" "${AZ_PAIRED_ARRAY[@]}"
 SUBNET_IDS=$(echo $joined | sed -e 's/,$//g')
 #
-echo "Creating ROSA HCP cluster " 2>&1 |tee -a $CLUSTER_LOG
-echo "" 2>&1 >> $CLUSTER_LOG
-echo "rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y" 2>&1 >> $CLUSTER_LOG
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> $CLUSTER_LOG
+echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "" 2>&1 >> "$CLUSTER_LOG"
+echo "rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y" 2>&1 >> "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
-echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a $CLUSTER_LOG
-rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
+echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
+rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
 #
-rosa describe cluster -c $CLUSTER_NAME 2>&1 >> $CLUSTER_LOG
+rosa describe cluster -c $CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
 #
-echo "Creating the cluster-admin user" 2>&1 |tee -a $CLUSTER_LOG
-rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a $CLUSTER_LOG
+echo "Creating the cluster-admin user" 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
 #
-echo "#" 2>&1 |tee -a $CLUSTER_LOG
-echo "Done!!! " 2>&1 |tee -a $CLUSTER_LOG
-echo "Cluster " $CLUSTER_NAME " has been installed and is up and running" 2>&1 |tee -a $CLUSTER_LOG
-echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
-echo " " 2>&1 |tee -a $CLUSTER_LOG
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Cluster " $CLUSTER_NAME " has been installed and is up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 Fine
 }
 ########################################################################################################################
@@ -662,11 +682,12 @@ fi
 show_menu(){
 various_checks
 clear
-    normal=`echo "\033[m"`
-    menu=`echo "\033[36m"` #Blue
-    number=`echo "\033[33m"` #yellow
-    bgred=`echo "\033[41m"`
-    fgred=`echo "\033[31m"`
+    normal=$(echo "\033[m")
+    menu=$(echo "\033[36m") #Blue
+    number=$(echo "\033[33m") #yellow
+    bgred=$(echo "\033[41m")
+#    fgred=`echo "\033[31m"`
+    fgred=$(echo "\033[31m")
     printf "\n${menu}*********************************************${normal}\n"
     printf "\n${menu}*         ROSA HCP Installation Menu        *${normal}\n"
     printf "\n${menu}*********************************************${normal}\n"
@@ -678,12 +699,14 @@ clear
     printf "${menu}**${number} 6)${menu} ROSA_CLI ${normal}\n"
     printf "${menu}*********************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
-    read opt
+    read -r opt
 }
 
 option_picked(){
-    msgcolor=`echo "\033[01;31m"` # bold red
-    normal=`echo "\033[00;00m"` # normal white
+#    msgcolor=`echo "\033[01;31m"` # bold red
+    msgcolor=$(echo "\033[01;31m") # bold red
+#    normal=`echo "\033[00;00m"` # normal white
+    normal=$(echo "\033[00;00m") # normal white
     message=${@:-"${normal}Error: No message passed"}
     printf "${msgcolor}${message}${normal}\n"
 }
