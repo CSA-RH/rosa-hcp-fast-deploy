@@ -41,49 +41,36 @@ Delete_HCP()
 INSTALL_DIR=$(pwd)
 CLUSTER_NAME=$(ls $INSTALL_DIR|grep *.log| awk -F. '{print $1}')
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
-VPC_ID=$(cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}')
-#
-# start removing the NGW since it takes a lot of time
-while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
-#
 AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
+VPC_ID=$(cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}')
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a $CLUSTER_LOG
 echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a $CLUSTER_LOG
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
 #
-rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 >> $CLUSTER_LOG
-echo "Cluster deletion in progress " 2>&1 |tee -a $CLUSTER_LOG
-echo "INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall -c ${CLUSTER_NAME} --watch'" 2>&1 |tee -a $CLUSTER_LOG
+rosa delete cluster -c $CLUSTER_NAME --yes &>> $CLUSTER_LOG
+if [ $? -eq 0 ]; then
+	# start removing the NGW since it takes a lot of time
+	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
+        echo "Cluster deletion in progress " 2>&1 |tee -a $CLUSTER_LOG
+        rosa logs uninstall -c $CLUSTER_NAME --watch &> $CLUSTER_LOG
+        rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
+        echo "operator-roles deleted !" 2>&1 |tee -a $CLUSTER_LOG
+        rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> $CLUSTER_LOG
+        echo "oidc-provider deleted !" 2>&1 |tee -a $CLUSTER_LOG
+	Delete_VPC
+else
+    	echo "Found NO clusters with name => " $CLUSTER_NAME
+# 	NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
+	echo "waiting for the NAT-GW to die " 2>&1 |tee -a $CLUSTER_LOG
+        while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
+	sleep_120
+	Delete_VPC
+fi
 #
-rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 >> $CLUSTER_LOG
-rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> $CLUSTER_LOG
-echo "operator-roles deleted !" 2>&1 |tee -a $CLUSTER_LOG
-rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> $CLUSTER_LOG
-echo "oidc-provider deleted !" 2>&1 |tee -a $CLUSTER_LOG
-#
-VPC_ID=$(cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}')
-echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a $CLUSTER_LOG
-#
-#   while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways | jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
-# NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
-echo "waiting for the NAT-GW to die " 2>&1 |tee -a $CLUSTER_LOG
-#sleep_120
-#
-    while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
-    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
-    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
-   while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
-   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
-   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
-   while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
-#
-aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
-echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a $CLUSTER_LOG
-#
-rosa delete account-roles --mode auto --prefix $PREFIX --yes 2>&1 >> $CLUSTER_LOG
+rosa delete account-roles --mode auto --prefix $PREFIX --yes &>> $CLUSTER_LOG
 echo "account-roles deleted !" 2>&1 |tee -a $CLUSTER_LOG
 #
 echo "#" 2>&1 |tee -a $CLUSTER_LOG
@@ -96,6 +83,23 @@ echo " " 2>&1 |tee -a $CLUSTER_LOG
 mv $CLUSTER_LOG /tmp
 Countdown
 Fine
+}
+#######################################################################################################################################
+Delete_VPC()
+{
+    echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a $CLUSTER_LOG
+#
+#
+    while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
+    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
+    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
+   while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
+   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+   while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
+#
+aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
+echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a $CLUSTER_LOG
 }
 #######################################################################################################################################
 Fine() {
@@ -507,7 +511,7 @@ Fine
 # 
 function HCP-Private()
 { 
-set -x
+#set -x
 INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
