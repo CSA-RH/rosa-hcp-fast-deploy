@@ -9,7 +9,7 @@ The entire process to create/delete a ROSA **HCP** cluster and all its resources
 #### Script prerequisites
 - An AWS account with enough quota value to meet the minimum requirements for ROSA (100)
 - Your AWS Access Key and your AWS Secret Access Key
-- ROSA CLI [^1] and AWS CLI already installed and updated (the script will help automate this part too)
+- ROSA CLI and AWS CLI already installed and updated (the script will help automate this part too)
 
 > [!IMPORTANT]
 > Enable the ROSA service in the AWS Console and link the AWS and Red Hat accounts by following this procedure:
@@ -19,9 +19,6 @@ ensure Service Quotas meet the requirements and Elastic Load Balancing (ELB) ser
 ![image](https://github.com/CSA-RH/aws-rosa-cluster-with-hosted-control-planes/assets/148223511/7852a5bf-2b31-4673-8f58-1efd841a7b8d)
 
 Once done your AWS and Red Hat account are linked and you can start witht the installation process.
-
-[^1]: If you get an error like this: "_E: Failed to create cluster: Version 'X.Y.Z' is below minimum supported for Hosted Control Plane_", you'll probably have to update the ROSA CLI in order to be able to create the latest cluster version available.
-
 
 # Create your ROSA with HCP cluster
 1. Clone this repo
@@ -146,7 +143,7 @@ After a successful deployment a **cluster-admin** account is added to your clust
 
 > [!NOTE]
 > It is mandatory to keep this file in its original location so that the script can automatically delete the cluster when necessary.
-> Once the cluster deletion process is complete, the LOG file will be moved from its current location to **/tmp**.
+> Once the cluster deletion process is complete, the LOG file will be moved from its current location to the **/tmp** folder.
 
 # Wrap up
 This script will make use of specific commands, options, and variables to successfully install the cluster for you in a few minutes but **feel free to make changes to suit your needs**.
