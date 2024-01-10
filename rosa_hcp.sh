@@ -264,20 +264,22 @@ aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 AZ_ARRAY=($(aws ec2 describe-availability-zones --region $AWS_REGION|jq -r '.AvailabilityZones[].ZoneName'|tr '\n' ' '))
 #
 #set -x
+# Asking user prompt to find how many az should be used for deployment, based on the maximum available within the region
 # Dynamically and randomly choose the destination AZs based on how many of them the user wants to use
-AZ_COUNTER=${1:-${#AZ_ARRAY[@]}}
+#AZ_COUNTER=${AZ_COUNTER:-${#AZ_ARRAY[@]}} Old option that gives the default
+AZ_COUNTER=""
 is_integer () {
         [[ "$1" =~ ^[[:digit:]]+$ ]] && [[ "$1" -ge 2 ]]
 }
 
 while ( ! is_integer "$AZ_COUNTER" );do
-read -r -p "Maximum number of az is ${#AZ_ARRAY[@]}, on how many availability zones you want to deploy your rosa cluster? (min: 2 max(default): ${#AZ_ARRAY[@]})[${#AZ_ARRAY[@]}]: " AZ_COUNTER
+	read -r -p "The maximum number of AZ(s) in AWS Region $AWS_REGION is ${#AZ_ARRAY[@]}, on how many availability zones you want to deploy your ROSA cluster? (min: 2 max: ${#AZ_ARRAY[@]}) [default: ${#AZ_ARRAY[@]}]: " AZ_COUNTER
 done
 
-#[[ -z "$AZ_COUNTER" || "$AZ_COUNTER" -gt ${#AZ_ARRAY[@]} ]] && AZ_COUNTER=${#AZ_ARRAY[@]}
+# control variable, if user inputs a number greater than the maximum number of az available, it will be reduced to this one.
 [[ "$AZ_COUNTER" -gt ${#AZ_ARRAY[@]} ]] && AZ_COUNTER=${#AZ_ARRAY[@]}
 
-echo "AZ_COUNTER will be $AZ_COUNTER is less or equal than ${#AZ_ARRAY[@]}"
+option_picked "The number of availability zones used will be $AZ_COUNTER which is less or equal than the maximum available of ${#AZ_ARRAY[@]}"
 
 DIFF=$(( ${#AZ_ARRAY[@]} - $AZ_COUNTER ))
 
@@ -288,12 +290,15 @@ do
         LOOPCOUNT=$(($LOOPCOUNT-1))
 done
 
+echo ${AZ_ARRAY[@]}
+
 #
 AZ_PUB_ARRAY=()
 AZ_PRIV_ARRAY=()
 x=0
 y=128
-echo "Listing all the availability zones inside the $AWS_REGION: ${AZ_ARRAY[*]}" 2>&1 >> $CLUSTER_LOG
+#echo "Listing all the availability zones inside the $AWS_REGION: ${AZ_ARRAY[*]}" 2>&1 >> $CLUSTER_LOG
+echo "Listing the availability zones that will be used from AWS region $AWS_REGION: ${AZ_ARRAY[*]}" 2>&1 |tee -a $CLUSTER_LOG
 
 echo "Creating the Public and Private Subnets" 2>&1 |tee -a $CLUSTER_LOG
 for az in "${AZ_ARRAY[@]}"
