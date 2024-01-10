@@ -75,7 +75,7 @@ if [ $? -eq 0 ]; then
 	# start removing the NGW since it takes a lot of time
 	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
         echo "Cluster deletion in progress " 2>&1 |tee -a "$CLUSTER_LOG"
-        rosa logs uninstall -c $CLUSTER_NAME --watch &> "$CLUSTER_LOG"
+        rosa logs uninstall -c $CLUSTER_NAME --watch &>> "$CLUSTER_LOG"
         rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
         echo "operator-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
         rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> "$CLUSTER_LOG"
