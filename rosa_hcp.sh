@@ -51,7 +51,7 @@
 ############################################################
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=${1:-gm-$NOW}
-PREFIX=${2:-TestManagedHCP}
+PREFIX=${2:-$CLUSTER_NAME-HCP}
 ############################################################
 # Delete HCP                                               #
 ############################################################
@@ -82,7 +82,7 @@ if [ $? -eq 0 ]; then
         echo "oidc-provider deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 	Delete_VPC
 else
-    	echo "Found NO clusters with name => " "$CLUSTER_LOG"
+    	echo "Found NO clusters with name => " "$CLUSTER_NAME"
 # 	NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
 	echo "waiting for the NAT-GW to die " 2>&1 |tee -a "$CLUSTER_LOG"
         while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
@@ -725,12 +725,12 @@ while [ $opt != '' ]
             show_menu;
         ;;
         2) clear;
-            option_picked "Option 3 Picked - Installing ROSA with HCP Public (Multi-AZ)";
+            option_picked "Option 2 Picked - Installing ROSA with HCP Public (Multi-AZ)";
             HCP-Public-MultiAZ;
             show_menu;
         ;;
         3) clear;
-            option_picked "Option 2 Picked - Installing ROSA with HCP PrivateLink (Single-AZ)";
+            option_picked "Option 3 Picked - Installing ROSA with HCP PrivateLink (Single-AZ)";
             HCP-Private;
             show_menu;
         ;;
