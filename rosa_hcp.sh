@@ -496,7 +496,7 @@ WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}
 SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
-echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> "$CLUSTER_LOG"
+echo "OIDC_ID " $OIDC_ID 2>&1 >> "$CLUSTER_LOG"
 echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
@@ -552,7 +552,7 @@ WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}
 SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
-echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> "$CLUSTER_LOG"
+echo "OIDC_ID " $OIDC_ID 2>&1 >> "$CLUSTER_LOG"
 echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
 SUBNET_IDS=$PRIV_SUB_2a
@@ -609,7 +609,7 @@ WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}
 SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
-echo "OIDC_ID " $OIDC_ID 2>&1 2>&1 >> "$CLUSTER_LOG"
+echo "OIDC_ID " $OIDC_ID 2>&1 >> "$CLUSTER_LOG"
 echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
 # SUBNET_IDS variable will be populated based on combined subnet array
