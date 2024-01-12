@@ -51,7 +51,7 @@
 ############################################################
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=${1:-gm-$NOW}
-PREFIX=${2:-$CLUSTER_NAME-HCP}
+PREFIX=${2:-$CLUSTER_NAME}
 ############################################################
 # Delete HCP                                               #
 ############################################################
@@ -105,6 +105,9 @@ Countdown
 Fine
 }
 #######################################################################################################################################
+#######################################################################################################################################
+#######################################################################################################################################
+#######################################################################################################################################
 Delete_VPC()
 {
     echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -122,13 +125,16 @@ aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
 echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 }
 #######################################################################################################################################
+#######################################################################################################################################
+#######################################################################################################################################
+#######################################################################################################################################
 Fine() {
     echo "Thanks for using this script. Feedback is greatly appreciated, if you want you can leave yours by sending an email to gmollo@redhat.com"
     exit 0
 }
 
 Errore() {
-    echo "Wrong option."
+    option_picked "Wrong option: pick an option from the menu";
     clear
 }
 
@@ -150,11 +156,33 @@ sleep_120() {
                  let "hour=hour-1"
          done
 }
-
+#######################################################################################################################################
+#######################################################################################################################################
+#######################################################################################################################################
 Countdown() {
  hour=0
  min=0
  sec=10
+        while [ $hour -ge 0 ]; do
+                 while [ $min -ge 0 ]; do
+                         while [ $sec -ge 0 ]; do
+                                 echo -ne "$hour:$min:$sec\033[0K\r"
+                                 let "sec=sec-1"
+                                 sleep 1
+                         done
+                         sec=59
+                         let "min=min-1"
+                 done
+                 min=59
+                 let "hour=hour-1"
+         done
+}
+#
+#######################################################################################################################################
+Countdown_20() {
+ hour=0
+ min=0
+ sec=20
         while [ $hour -ge 0 ]; do
                  while [ $min -ge 0 ]; do
                          while [ $sec -ge 0 ]; do
@@ -400,7 +428,17 @@ then
     echo "AWS CLI update completed."
     rm -rf aws awscliv2.zip
 else
-    echo "AWS CLI is not installed. Going to download and install it ..."
+   echo " "
+   echo " "
+   echo " "
+   echo " "
+   echo " "
+   echo " ###########################################################################"
+   echo " #                                                                         #"
+   echo " # Checking prerequisites: AWS CLI is NOT installed ...                     #"
+   echo " # going to download and install the latest version !                      #"
+   echo " #                                                                         #"
+   echo " ###########################################################################"
     dirname='/usr/local/aws-cli'
     if [ -d $dirname ]; then sudo rm -rf $dirname; fi
     # Download and install AWS CLI
@@ -415,8 +453,8 @@ else
     aws --version
     echo "AWS CLI installation completed."
 fi
-    Countdown
 }
+#
 #
 ############################################################
 # ROSA CLI                                                 #
@@ -432,42 +470,83 @@ then
                 ROSA_VERSION=$(/usr/local/bin/rosa version)
                 echo " "
                 echo " "
-                echo "ROSA CLI is already installed. Checking for updates..."
-                echo "There is no need to update ROSA CLI, installed version is --> " $ROSA_VERSION
+                echo "ROSA CLI is already installed."
+                echo "There is no need to update it, actual version is --> " $ROSA_VERSION
         else
-        # ROSA CLI is installed, checking for updates
-                echo "ROSA CLI is already installed. Checking for updates..."
+   		echo " "
+   		echo " "
+   		echo " "
+   		echo " "
+   		echo " "
+   		echo " ###########################################################################"
+   		echo " #                                                                         #"
+   		echo " # Checking prerequisites:                                                 #"
+   		echo " # ROSA CLI is already installed. Checking for updates.. :                 #"
+   		echo " #                                                                         #"
+   		echo " ###########################################################################"
                 ROSA_ACTUAL_V=$(rosa version|awk -F. 'NR==1{print $1"."$2"."$3 }')
                 echo "ROSA actual version is --> " $ROSA_ACTUAL_V
                 NEXT_V=$(rosa version|grep "There is a newer release version"| awk -F\' 'NR==1{print $1 ", going to install version --> " $2}')
                 echo $NEXT_V
-                echo "###############################"
-                echo "###############################"
-                echo "###############################"
-        # Download and install ROSA CLI
+        	# Download and install ROSA CLI
                 curl https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz --output rosa-linux.tar.gz
                 tar xvf rosa-linux.tar.gz
                 sudo mv rosa /usr/local/bin/rosa
-        # Clean up
+        	# Clean up
                 rm -rf rosa-linux.tar.gz
-        # Trigger the update
+        	# Trigger the update
                 rosa version
                 echo "ROSA CLI update completed."
         fi
 else
-  # ROSA CLI is not installed, download and install
-    echo "ROSA CLI is not installed. Going to download and install the latest version ..."
-    # Download and install ROSA CLI
-    curl https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz --output rosa-linux.tar.gz
-    tar xvf rosa-linux.tar.gz
-    sudo mv rosa /usr/local/bin/rosa
-    # Clean up
-    rm -rf rosa-linux.tar.gz
-    # Verify the installation
-    echo "Verifying ROSA CLI installation..."
-    rosa version
+   echo " "
+   echo " ###########################################################################"
+   echo " #                                                                         #"
+   echo " # Checking prerequisites: ROSA CLI is NOT installed ...                   #"
+   echo " # going to download and install the latest version !                      #"
+   echo " #                                                                         #"
+   echo " ###########################################################################"
+   curl https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz --output rosa-linux.tar.gz
+   tar xvf rosa-linux.tar.gz
+   sudo mv rosa /usr/local/bin/rosa
+   # Clean up
+   rm -rf rosa-linux.tar.gz
+   # Verify the installation
+   rosa version
 fi
-    Countdown
+}
+############################################################
+# OC CLI                                                   #
+############################################################
+OC_CLI() {
+#set -xe
+# Check if OC CLI is installed
+if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ] 
+ then 
+        echo "OC CLI already installed"
+ else 
+   echo " "
+   echo " "
+   echo " "
+   echo " "
+   echo " "
+   echo " ###########################################################################"
+   echo " #                                                                         #"
+   echo " # Checking prerequisites: OC CLI is NOT installed ...                     #"
+   echo " # going to download and install the latest version !                      #"
+   echo " #                                                                         #"
+   echo " ###########################################################################"
+        cd /tmp
+        rosa download oc
+        tar xvf openshift-client-linux.tar.gz
+        sudo mv oc /usr/local/bin/oc
+        # Clean up
+        rm -rf openshift-client-linux.tar.gz README.md kubectl
+        cd $INSTALL_DIR
+        # Trigger the update
+        rosa verify oc
+        echo "OC CLI installation/update completed."
+fi  
 }
 ############################################################
 # HCP Public Cluster                                       #
@@ -643,38 +722,113 @@ Fine
 ########################################################################################################################
 various_checks(){
 #set -x
-# Check if ROSA CLI is installed
-if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]	
+#
+# Check if AWS CLI is installed
+#
+if [ "$(which aws 2>&1 > /dev/null;echo $?)" == "0" ]
+        then
+                test_count=1
+        else
+		option_picked "WARNING: AWS CLI is NOT installed ! Please use Option 5 from the main MENU."
+fi
+#
+# Check if ROSA CLI is installed && rosa login
+#
+if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]
+	then
+                test_count=2
+ 	else
+		option_picked "WARNING: ROSA CLI is NOT installed ! Please use Option 6 from the main MENU."
+fi
+#
+# Check if OC CLI is installed
+#
+if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
+	then
+                test_count=3
+	else
+		option_picked "WARNING: OC CLI is NOT installed ! Please use Option 7 from the main MENU."
+fi
+#   echo " "
+#   echo " "
+#   echo " "
+#   echo " "
+#   read -p "Press enter to continue"
+}
+########################################################################################################################
+# Install/Update all CLIs
+########################################################################################################################
+various_checks2(){
+#set -x
+#
+# Check if AWS CLI is installed
+#
+echo -ne "Checking AWS CLI is installed ... "
+if [ "$(which aws 2>&1 > /dev/null;echo $?)" == "0" ]
+        then
+                echo "OK"
+        else
+                AWS_CLI
+fi
+#
+# Check if ROSA CLI is installed && rosa login
+#
+echo -ne "Checking ROSA CLI is installed ... "
+if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]
  then
         if [[ "$(rosa whoami 2>&1)" =~ "User is not logged in to OCM" ]];
-                then 
-		echo " "
-		echo " "
-		echo " "
-		echo " "
-		echo " "
-		option_picked "Warning: Before to proceed you must login to OCM/ROSA !"
-		echo " "
-		echo "Please follow this link to download your token from the Red Hat OCM Portal"; echo -e '\e]8;;https://console.redhat.com/openshift/token/rosa/show\e\\https://console.redhat.com/openshift/token/rosa/show\e]8;;\e\\'
-		echo " "
-		echo "Example:  "
-		echo "rosa login --token=\"RtidhhrkjLjhgLjkhUUvuhJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJhZDUyMjdhMy1iY2ZkLTRjZjAtYTdiNi0zOTk4MzVhMDg1NjYifQ.eyJpYXQiOjE3MDQzOTE4NzAsImp0aSI6ImJjZTY1ZjQxLThiZDctNGQ2Ni04MjBkLWFlMTdkZWYxMzJhNiIsImlzcyI6Imh0dHBzOi8vc3NvLnJlZGhhdC5jb20vYXV0aC9yZWFsbXMvcmVkaGF0LWV4dGVybmFsIiwiYXVkIjoiaHR0cHM6Ly9zc28ucmVkaGF0LmNvbS9hdXRoL3JlYWxtcy9yZWRoYXQtZXh0ZXJuYWwiLCJzdWIiOiJmOjUyOGQ3NmZmLWY3MDgtNDNlZC04Y2Q1LWZlMTZmNGZlMGNlNjpyaC1lZS1nbW9sbG8iLCJ0eXAiOiJPZmZsaW5lIiwiYXpwIjoiY2xvdWQtc2VydmljZXMiLCJub25jZSI6IjY1MGYzOGUzLTBhYjgtNGY3NC1hNTQ0LTFkMzZiMjJlYzNmNyIsInNlc3Npb25fc3RhdGUiOiI5MDM3MTAzMS1jOWJlLTRkYjEtYTZhZC1hZTRjNWNmYjZiNDUiLCJzY29wZSI6Im9wZW5pZCBhcGkuaWFtLnNlcnZpY2VfYWNjb3VudHMgb2ZmbGluZV9hY2Nlc3MiLCJzaWQiOiI5MDM3MTAzMS1jOWJlLTRkYjEtYTZhZC1hZTRjNWNmYjZiNDUifQ.Ne600xRwKwkQmjkSt_V6HnhnKTZCGwrubrWj4XkkK5I\"" 
-		echo " "
-		echo " "
-                Fine
+                then
+                  option_picked "Warm remind: before to proceed with the ROSA HCP cluster installation make sure you login to OCM/ROSA."
+                  echo "Please follow this link to download your token from the Red Hat OCM Portal"; echo -e '\e]8;;https://console.redhat.com/openshift/token/rosa/show\e\\https://console.redhat.com/openshift/token/rosa/show\e]8;;\e\\'
+                echo " "
+                echo "Example:  "
+                echo "rosa login --token=\"RtidhhrkjLjhgLjkhUUvuhJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJhZDUyMjdhMy1iY2ZkLTRjZjAtYTdiNi0zOTk4MzVhMDg1NjYifQ.eyJpYXQiOjE3MDQzOTE4NzAsImp0aSI6ImJjZTY1ZjQxLThiZDctNGQ2Ni04MjBkLWFlMTdkZWYxMzJhNiIsImlzcyI6Imh0dHBzOi8vc3NvLnJlZGhhdC5jb20vYXV0aC9yZWFsbXMvcmVkaGF0LWV4dGVybmFsIiwiYXVkIjoiaHR0cHM6Ly9zc28ucmVkaGF0LmNvbS9hdXRoL3JlYWxtcy9yZWRoYXQtZXh0ZXJuYWwiLCJzdWIiOiJmOjUyOGQ3NmZmLWY3MDgtNDNlZC04Y2Q1LWZlMTZmNGZlMGNlNjpyaC1lZS1nbW9sbG8iLCJ0eXAiOiJPZmZsaW5lIiwiYXpwIjoiY2xvdWQtc2VydmljZXMiLCJub25jZSI6IjY1MGYzOGUzLTBhYjgtNGY3NC1hNTQ0LTFkMzZiMjJlYzNmNyIsInNlc3Npb25fc3RhdGUiOiI5MDM3MTAzMS1jOWJlLTRkYjEtYTZhZC1hZTRjNWNmYjZiNDUiLCJzY29wZSI6Im9wZW5pZCBhcGkuaWFtLnNlcnZpY2VfYWNjb3VudHMgb2ZmbGluZV9hY2Nlc3MiLCJzaWQiOiI5MDM3MTAzMS1jOWJlLTRkYjEtYTZhZC1hZTRjNWNmYjZiNDUifQ.Ne600xRwKwkQmjkSt_V6HnhnKTZCGwrubrWj4XkkK5I\""
         else
-                echo "You are logged to OCM/ROSA "
+                echo "OK"
+                echo -ne "Connected to OCP/ROSA ... "
+                echo "OK"
+                #
+                # Check if OC CLI is installed
+                #
+                echo -ne "Checking OC CLI is installed ... "
+                if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
+                then
+                        echo "OK"
+                else
+                        OC_CLI
+                        echo " "
+                        echo " "
+                        echo " "
+                        echo " "
+                fi
         fi
  else
    ROSA_CLI
+                #
+                # Check if OC CLI is installed
+                #
+                echo -ne "Checking OC CLI is installed ..."
+                if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
+                then
+                        echo "OK"
+                else
+                        OC_CLI
+                        echo " "
+                        echo " "
+                        echo " "
+                        echo " "
+                fi
    echo " "
-   option_picked "Warning: Before to proceed you must login to OCM/ROSA !"
-   echo " "
-   echo "Please follow this link to download your token from the Red Hat OCM Portal"; echo -e '\e]8;;https://console.redhat.com/openshift/token/rosa/show\e\\https://console.redhat.com/openshift/token/rosa/show\e]8;;\e\\'	
    echo " "
    echo " "
-   Fine
+   option_picked "Warm remind: before to proceed with the ROSA HCP cluster installation make sure you login to OCM/ROSA."
+   echo "Please follow this link to download your token from the Red Hat OCM Portal"; echo -e '\e]8;;https://console.redhat.com/openshift/token/rosa/show\e\\https://console.redhat.com/openshift/token/rosa/show\e]8;;\e\\'
 fi
+   echo " "
+   echo " "
+   echo " "
+   echo " "
+   read -p "Press enter to continue"
 }
 ########################################################################################################################
 # Menu
@@ -688,16 +842,18 @@ clear
     bgred=$(echo "\033[41m")
 #    fgred=`echo "\033[31m"`
     fgred=$(echo "\033[31m")
-    printf "\n${menu}*********************************************${normal}\n"
-    printf "\n${menu}*         ROSA HCP Installation Menu        *${normal}\n"
-    printf "\n${menu}*********************************************${normal}\n"
+    printf "\n${menu}************************************************************${normal}\n"
+    printf "\n${menu}*               ROSA HCP Installation Menu                 *${normal}\n"
+    printf "\n${menu}************************************************************${normal}\n"
     printf "${menu}**${number} 1)${menu} HCP Public (Single-AZ) ${normal}\n"
     printf "${menu}**${number} 2)${menu} HCP Public (Multi-AZ) ${normal}\n"
     printf "${menu}**${number} 3)${menu} HCP PrivateLink (Single-AZ) ${normal}\n"
     printf "${menu}**${number} 4)${menu} Delete HCP ${normal}\n"
     printf "${menu}**${number} 5)${menu} AWS_CLI ${normal}\n"
     printf "${menu}**${number} 6)${menu} ROSA_CLI ${normal}\n"
-    printf "${menu}*********************************************${normal}\n"
+    printf "${menu}**${number} 7)${menu} OC CLI ${normal}\n"
+    printf "${menu}**${number} 8)${menu} Inst./Upd. all CLIs + some check more ${normal}\n"
+    printf "\n${menu}************************************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
     read -r opt
 }
@@ -711,12 +867,12 @@ option_picked(){
     printf "${msgcolor}${message}${normal}\n"
 }
 
-clear
+#clear
 show_menu
 while [ $opt != '' ]
     do
     if [ $opt = '' ]; then
-      exit;
+      Errore;
     else
       case $opt in
         1) clear;
@@ -746,7 +902,17 @@ while [ $opt != '' ]
         ;;
         6) clear;
             option_picked "Option 6 Picked - Installing/Updating ROSA CLI";
-            ROSA_CLI
+            ROSA_CLI;
+            show_menu;
+        ;;
+        7) clear;
+            option_picked "Option 7 Picked - Installing/Updating OC CLI";
+            OC_CLI;
+            show_menu;
+        ;;
+        8) clear;
+            option_picked "Option 8 Picked - Installing/Updating all CLIs plus some check more";
+            various_checks2;
             show_menu;
         ;;
         x)Fine;

@@ -117,22 +117,22 @@ INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall -c gm-
 It takes approximately 15 minutes to delete your cluster, including its VPCs, IAM roles, OIDCs, etc.<br />
 
 # Additional notes around resources, deployment, etc.
-ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-AZ), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly).
+ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-AZ), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly)
 
 - AWS Resource created includes:
   - 1 [VPC](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#rosa-vpc_prerequisites) with cidr-block 10.0.0.0/16
   - 1 or more Public subnets - only for ROSA public clusters
     - Single-AZ --> cidr-block 10.0.0.0/20
     - Multi-AZ  --> cidr-blocks 10.0.0.0/20; 10.0.16.0/20; 10.0.32.0/20
-  - 1 or more Private subnets - In the case of a PrivateLink ROSA with **HCP** cluster, it is assumed that it will be reachable through a VPN or a Direct Connect service, therefore the script does not include the creation of any Public Subnet, NGW, jump Hosts, etc.. If you are using a firewall to control egress traffic, you must configure your firewall to grant access to the domain and port combinations [here](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#osd-aws-privatelink-firewall-prerequisites_prerequisites).
+  - 1 or more Private subnets - In the case of a PrivateLink ROSA with **HCP** cluster, it is assumed that it will be reachable through a VPN or a Direct Connect service, therefore the script does not include the creation of any Public Subnet, NGW, jump Hosts, etc.. If you are using a firewall to control egress traffic, you must configure your firewall to grant access to the domain and port combinations [here](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#osd-aws-privatelink-firewall-prerequisites_prerequisites)
     - Single-AZ --> cidr-block  10.0.128.0/20
     - Multi-AZ  --> cidr-blocks 10.0.128.0/20; 10.0.144.0/20; 10.0.160.0/20
   - 1 NAT GW in 1 AZ
   - 1 Internet GW in 1 AZ, to allow the egress (NAT) traffic to the Internet
   - Enable DNS hostnames
   - Enable DNS resolution
-- AWS Region: the aws configure command will ask for the default $AWS_Region which will be used as the target destination during the installation process.
-- Default HCP installer role is '$CLUSTER_NAME-HCP' prefix
+- AWS Region: the aws configure command will ask for the default $AWS_Region which will be used as the target destination during the installation process
+- Default HCP installer role is '$CLUSTER_NAME' prefix
 - Worker nodes:
   - Single-AZ: 2x worker nodes will be created within the same subnet<br />
   - Multi-AZ: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
