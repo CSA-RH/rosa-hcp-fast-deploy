@@ -47,21 +47,24 @@ $ chmod +x rosa_hcp.sh
 ```
 $ ./rosa_hcp.sh 
 
-*********************************************
+************************************************************
 
-*         ROSA HCP Installation Menu        *
+*               ROSA HCP Installation Menu                 *
 
-*********************************************
+************************************************************
 ** 1) HCP Public (Single-AZ) 
 ** 2) HCP Public (Multi-AZ) 
-** 3) HCP PrivateLink (Single-AZ)
+** 3) HCP PrivateLink (Single-AZ) 
 ** 4) Delete HCP 
 ** 5) AWS_CLI 
 ** 6) ROSA_CLI 
-*********************************************
-Please enter a menu option and enter or x to exit.
+** 7) OC CLI 
+** 8) Inst./Upd. all CLIs + some check more 
+
+************************************************************
+Please enter a menu option and enter or x to exit. 3
 ```
-The first 3 options require AWS access keys to be entered or updated
+The first 3 options require entering or updating your AWS access keys
 ```
 Example:
 Option 1 Picked - Installing ROSA with HCP Public (Single-AZ)
@@ -94,16 +97,22 @@ Once you are done, feel free to destroy your ROSA **HCP** cluster by launching t
 ```
 $ ./rosa_hcp.sh 
 
-Welcome to the ROSA HCP installation - Main Menu
+************************************************************
 
+*               ROSA HCP Installation Menu                 *
+
+************************************************************
 ** 1) HCP Public (Single-AZ) 
 ** 2) HCP Public (Multi-AZ) 
-** 3) HCP PrivateLink (Single-AZ)
+** 3) HCP PrivateLink (Single-AZ) 
 ** 4) Delete HCP 
 ** 5) AWS_CLI 
 ** 6) ROSA_CLI 
+** 7) OC CLI 
+** 8) Inst./Upd. all CLIs + some check more 
 
-Please enter your choice: 4
+************************************************************
+Please enter a menu option and enter or x to exit. 4
 
 Option 4 Picked - Removing ROSA with HCP
 #
