@@ -131,8 +131,8 @@ ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, Priv
   - 1 Internet GW in 1 AZ, to allow the egress (NAT) traffic to the Internet
   - Enable DNS hostnames
   - Enable DNS resolution
-- Account / Operator Roles Prefix: default $PREFIX=TestManagedHCP
 - AWS Region: the aws configure command will ask for the default $AWS_Region which will be used as the target destination during the installation process.
+- Default HCP installer role is '$CLUSTER_NAME-HCP' prefix
 - Worker nodes:
   - Single-AZ: 2x worker nodes will be created within the same subnet<br />
   - Multi-AZ: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
