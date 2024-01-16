@@ -31,7 +31,7 @@
 #
 #   - Set up your AWS account and roles (eg. the account-wide IAM roles and policies, cluster-specific Operator roles and policies, and OpenID Connect (OIDC) identity provider).
 #   - Create the VPC;
-#   - Create your ROSA HCP Cluster with a minimal configuration (2 workers/Single-AZ; 3 workers/Multi-AZ).
+#   - Create your ROSA HCP Cluster with a minimal configuration (eg. 2 workers/Single-AZ; 3 workers/Multi-AZ).
 #
 # It takes approximately 15 minutes to create/destroy the cluster and its related VPC, AWS roles, etc.
 #
@@ -43,69 +43,268 @@
 #
 ########################################################################################################################
 #
-# 
+#
+SCRIPT_VERSION=$mango
+#
 #
 ########################################################################################################################
-############################################################
-# Custom name                                              #
-############################################################
+#set -x
+INSTALL_DIR=$(pwd)
+AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=${1:-gm-$NOW}
 PREFIX=${2:-$CLUSTER_NAME}
+OS=$(uname -s)
+ARC=$(uname -m)
 ############################################################
-# Delete HCP                                               #
+# Delete HCP (the LOG file is in place)                    #
 ############################################################
 Delete_HCP()
 {
-##set -x
-INSTALL_DIR=$(pwd)
-CLUSTER_NAME=$(ls $INSTALL_DIR|grep *.log| awk -F. '{print $1}')
-CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
-AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
-OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
-VPC_ID=$(cat $CLUSTER_LOG |grep VPC_ID_VALUE|awk '{print $2}')
+#set -x
+CLUSTER_COUNT=$(rosa list clusters|wc -l)
+if [ "$CLUSTER_COUNT" -gt 2 ]; then
+        option_picked "Found more than one clusterm with this Account, which is fine: please pick one HCP cluster from the following list"
+	Delete_One_HCP
+   	sub_menu_tools
+else
+  INSTALL_DIR=$(pwd)
+  CLUSTER_NAME=$(ls "$INSTALL_DIR" |grep *.log| awk -F. '{print $1}')
+  CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+  AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
+  OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
+  VPC_ID=$(cat "$CLUSTER_LOG" |grep VPC_ID_VALUE|awk '{print $2}')
+#
+  echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+  echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
+  echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+  echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+  rosa delete cluster -c "$CLUSTER_NAME" --yes &>> "$CLUSTER_LOG"
+	if [ $? -eq 0 ]; then
+	  # start removing the NGW since it takes a lot of time
+	  while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id "$instance_id"; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='"$VPC_ID"| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
+          echo "Cluster deletion in progress " 2>&1 |tee -a "$CLUSTER_LOG"
+          rosa logs uninstall -c "$CLUSTER_NAME" --watch &>> "$CLUSTER_LOG"
+          rosa delete operator-roles --prefix "$PREFIX" -m auto -y 2>&1 >> "$CLUSTER_LOG"
+          echo "operator-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+          rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
+          echo "oidc-provider deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+	  Delete_VPC
+	  rosa delete account-roles --mode auto --prefix "$PREFIX" --yes &>> "$CLUSTER_LOG"
+	  echo "account-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+	#
+	#
+	  echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+	  echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+	  echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+	  echo "done! " 2>&1 |tee -a "$CLUSTER_LOG"
+	  option_picked_green "Cluster " "$CLUSTER_NAME" " was deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+	  option_picked_green "The old LOG file ${CLUSTER_LOG} in is now moved to /tmp folder" 2>&1 |tee -a "$CLUSTER_LOG"
+	  echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+	  mv "$CLUSTER_LOG" /tmp
+	  Countdown
+	else
+    	  option_picked "Unfortunately there are no clusters with name => " "$CLUSTER_NAME"
+    	  echo "The VPC " $VPC_ID "will be deleted then"
+# 	  NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
+	  echo "waiting for the NAT-GW to die " 2>&1 |tee -a "$CLUSTER_LOG"
+          while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
+	  sleep_120
+	  Delete_VPC
+	fi
+fi
+#
+#
+}
+#
+#############################################################################################
+# Select and delete an HCP c. and the VPC it belongs to, for example when there are NO logs #
+#############################################################################################
+Delete_One_HCP() {
+#set -x
+CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|awk '{print $2}')
+echo ""
+echo ""
+if [ -n "$CLUSTER_LIST" ]; then
+   echo "Current HCP cluster List:"
+   echo "$CLUSTER_LIST"
+   echo ""
+   echo ""
+   echo -n  "Please pick one or hit ENTER to quit: "
+   read -r CLUSTER_NAME
+	for a in $CLUSTER_LIST
+    	do
+		if [ "$CLUSTER_NAME" == $a ]; then
+		option_picked_green "Let's get started with " "$CLUSTER_NAME" " cluster"
+		echo ""
+		echo ""
+		CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+		#############################################################################################################################################################
+                #############################################################################################################################################################
+                #############################################################################################################################################################
 #
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
 echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-rosa delete cluster -c $CLUSTER_NAME --yes &>> "$CLUSTER_LOG"
-if [ $? -eq 0 ]; then
-	# start removing the NGW since it takes a lot of time
-	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
-        echo "Cluster deletion in progress " 2>&1 |tee -a "$CLUSTER_LOG"
-        rosa logs uninstall -c $CLUSTER_NAME --watch &>> "$CLUSTER_LOG"
-        rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
-        echo "operator-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
-        rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> "$CLUSTER_LOG"
-        echo "oidc-provider deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
-	Delete_VPC
+		#
+		# Collecting a few details
+		#
+		rosa describe cluster -c $CLUSTER_NAME > $CLUSTER_NAME.txt
+		OIDC_ID=$(cat $CLUSTER_NAME.txt |grep OIDC| awk -F/ '{print $4}'|cut -c 1-32)
+		DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}')
+		DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}')
+		CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}')
+		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $2}')
+		#
+		# Find $VPC_ID and start deleting NGW
+		#
+		VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
+# # # # # # # # echo "VPC_ID_VALUE " $VPC_ID 2>&1 >> "$CLUSTER_LOG"
+		echo "Cluster " $CLUSTER_NAME "is a" $DEPLOYMENT "deployment with"$CURRENT_NODES"of "$DESIRED_NODES "nodes within the AWS VPC" $VPC_ID 2>&1 |tee -a "$CLUSTER_LOG"
+		# start removing the NGW since it takes a lot of time
+		echo "Removing the NGW since it takes a lot of time to get deleted"
+        	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
+		#
+		# Find $PREFIX
+		#
+		#PREFIX=$(cat $CLUSTER_NAME.txt |grep openshift-cluster-csi|awk -F- '{print $2}'|awk -F/ '{print $2}')
+		PREFIX=$CLUSTER_NAME
+		echo "Operator roles prefix: " $PREFIX
+		#
+		#Get started
+		#
+		echo "Running \"rosa delete cluster\"" 2>&1 |tee -a "$CLUSTER_LOG"
+		rosa delete cluster -c $CLUSTER_NAME --yes &>> "$CLUSTER_LOG"
+		echo "Running \"rosa logs unistall\"" 2>&1 |tee -a "$CLUSTER_LOG"
+		rosa logs uninstall -c $CLUSTER_NAME --watch &>> "$CLUSTER_LOG"
+		echo "Deleting operator-roles" 2>&1 |tee -a "$CLUSTER_LOG"
+		rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
+		echo "Deleting OIDC " $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
+		rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> "$CLUSTER_LOG"
+		#
+		echo "Deleting account-roles " 2>&1 |tee -a "$CLUSTER_LOG"
+		rosa delete account-roles --mode auto --prefix $PREFIX -m auto -y  &>> "$CLUSTER_LOG"
+		#
+		#################################################################################################################################
+		# Delete the VPC it belongs to
+		#
+		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $2}')
+		VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
+    		echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
+		#
+		#
+   		while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> "$CLUSTER_LOG"
+   		while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> "$CLUSTER_LOG"
+   		while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> "$CLUSTER_LOG"
+   		while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> "$CLUSTER_LOG"
+   		while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
+   		while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
+   		while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
+		#
+		aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
+		option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+		echo " "
+		option_picked_green "HCP Cluster $CLUSTER_NAME deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+		mv *.log /tmp
+	else
+		option_picked "This option doesn't match with $a or simply no HCP Cluster was chosen from the above list, returning to the Tools menu !"
+        fi
+	done
 else
-    	echo "Found NO clusters with name => " "$CLUSTER_NAME"
-# 	NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
-	echo "waiting for the NAT-GW to die " 2>&1 |tee -a "$CLUSTER_LOG"
-        while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
-	sleep_120
-	Delete_VPC
+echo " "
+echo " "
+option_picked "Unfortunately there are no HCP clusters in this accout"
 fi
+#################################################################################################################################
 #
-rosa delete account-roles --mode auto --prefix $PREFIX --yes &>> "$CLUSTER_LOG"
-echo "account-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-echo "done! " 2>&1 |tee -a "$CLUSTER_LOG"
-echo "Cluster " $CLUSTER_NAME " was deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
-echo "The old LOG file ${CLUSTER_LOG} in is now moved to /tmp folder" 2>&1 |tee -a "$CLUSTER_LOG"
-echo " " 2>&1 |tee -a "$CLUSTER_LOG"
-mv "$CLUSTER_LOG" /tmp
-Countdown
-Fine
+echo "" 
+echo ""
+echo "Press ENTER key to go back to the Menu"
+read -r ppp
 }
 #######################################################################################################################################
 #######################################################################################################################################
+#
+#
+#
+################################################
+# Delete almost everything
+################################################
+Delete_ALL() {
+set -x
+# how many clusters do we have ?
+#
+#set -x
+CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|awk '{print $2}')
+for a in $CLUSTER_LIST
+do
+  CLUSTER_NAME=$a
+  CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+#
+# Collecting a few details
+#
+  rosa describe cluster -c $a >$a.txt
+  OIDC_ID=$(cat $CLUSTER_NAME.txt |grep OIDC| awk -F/ '{print $4}'|cut -c 1-32)
+  DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}')
+  DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}')
+  CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}')
+# Find VPC_ID
+#  SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $2}')
+  SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $1}'|awk -F: '{print $2}')
+  VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
+  echo "Cluster " $a "is a " $DEPLOYMENT "deployment with "$CURRENT_NODES"of "$DESIRED_NODES "nodes in VPC "$VPC_ID
+# start removing the NGW since it takes a lot of time
+  while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
+#
+# Find $PREFIX
+#
+### PREFIX=$(rosa list account-roles| grep $a|grep Install|awk '{print $1}'| sed 's/.\{24\}$//')
+  #PREFIX=$(cat $a.txt |grep openshift-cluster-csi|awk -F- '{print $2}'|awk -F/ '{print $2}')
+  PREFIX="$CLUSTER_NAME"
+  echo "Operator roles prefix: " "$PREFIX"
+#
+#Get started 
+   option_picked "Going to delete the HCP cluster named " "$CLUSTER_NAME" " and the VPC " "$VPC_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+  echo "Deleting HCP Cluster" 2>&1 |tee -a "$CLUSTER_LOG"
+  rosa delete cluster -c $CLUSTER_NAME --yes &>> "$CLUSTER_LOG"
+  echo "You can watch logs with \"$ tail -f $CLUSTER_LOG\"" 2>&1 |tee -a "$CLUSTER_LOG"
+rosa logs uninstall -c $CLUSTER_NAME --watch &>> "$CLUSTER_LOG"
+echo "Deleting operator-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
+rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
+echo "Deleting OIDC " $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
+rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> "$CLUSTER_LOG"
+#
+echo "Deleting account-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
+rosa delete account-roles --mode auto --prefix $PREFIX --yes &>> "$CLUSTER_LOG"
+#
+
+#########################
+SUBN=$(cat $a.txt |grep -i "Subnets"|awk -F, '{print $2}')
+VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
+    echo "########### " 2>&1 |tee -a "$CLUSTER_LOG"
+    echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
+#
+#
+   while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> "$CLUSTER_LOG"
+   while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> "$CLUSTER_LOG"
+   while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> "$CLUSTER_LOG"
+   while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> "$CLUSTER_LOG"
+   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
+   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
+   while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
+#
+aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
+option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+mv *.log *.txt /tmp
+#########################
+#
+done
+}
 #######################################################################################################################################
 #######################################################################################################################################
 Delete_VPC()
@@ -118,7 +317,7 @@ Delete_VPC()
     while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> "$CLUSTER_LOG"
    while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> "$CLUSTER_LOG"
    while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
-   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
+   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 #
 aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
@@ -128,11 +327,80 @@ echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 #######################################################################################################################################
 #######################################################################################################################################
 #######################################################################################################################################
+#######################################################################################################################################
+Delete_1_VPC() {
+#
+#set -x
+CLUSTER_NAME=delete-vpc
+CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+#
+VPC_LIST=$(aws ec2 describe-vpcs |grep -i vpcid|awk  '{print $2}'|awk -F\"  '{print $2}')
+if [ -n "$VPC_LIST" ]; then
+   echo "Current VPCs:"
+   echo $VPC_LIST
+   echo ""
+   echo ""
+   echo -n  "Please pick one or hit ENTER to quit: "
+   read -r VPC_ID
+   for a in $VPC_LIST
+    do
+	if [ "$VPC_ID" == $a ]; then
+		echo  "Going to delete --> " "$VPC_ID"
+		#############################################################################################################################################################
+                #############################################################################################################################################################
+                #############################################################################################################################################################
+        	echo ""
+        	echo "#############################################################################"
+        	echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a $CLUSTER_LOG
+# NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
+        	echo "waiting for the NAT-GW to die " 2>&1 |tee -a $CLUSTER_LOG
+        	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
+		#sleep_120
+#
+        	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
+        	while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
+        	while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
+        	while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
+        	while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+        	while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+        	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
+#
+#
+        	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID &>> $CLUSTER_LOG
+        	echo ""
+        	echo ""
+        	echo "#############################################################################"
+        	echo ""
+        	echo ""
+        	option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a $CLUSTER_LOG
+		mv *.log *.txt /tmp
+                #############################################################################################################################################################
+                #############################################################################################################################################################
+                #############################################################################################################################################################
+	else
+   		option_picked "That doesn't match or no VPC was chosen, returning to the Tools Menu !"
+        fi
+	done
+else
+echo " "
+echo " "
+option_picked "Unfortunately there are No VPCs within this AWS accout"
+fi
+#
+#
+#
+echo ""
+echo ""
+echo "Press ENTER key to go back to the Menu"
+read -r ppp
+
+}
+#
 Fine() {
     echo "Thanks for using this script. Feedback is greatly appreciated, if you want you can leave yours by sending an email to gmollo@redhat.com"
     exit 0
 }
-
+#
 Errore() {
     option_picked "Wrong option: pick an option from the menu";
     clear
@@ -162,7 +430,7 @@ sleep_120() {
 Countdown() {
  hour=0
  min=0
- sec=10
+ sec=5
         while [ $hour -ge 0 ]; do
                  while [ $min -ge 0 ]; do
                          while [ $sec -ge 0 ]; do
@@ -416,16 +684,26 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 ############################################################
 AWS_CLI() {
 #set -x
+#AWS CLI
+AWS_Linux_x86_64=https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+AWS_Linux_aarch64=https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip
+AWS_MAC=https://awscli.amazonaws.com/AWSCLIV2.pkg
+#ROSA_Winzoz=https://awscli.amazonaws.com/AWSCLIV2.msi
+#
+VAR3="AWS_${OS}_${ARC}"
+[[ $OS == "Darwin" ]] && VAR3="AWS_${OS}"
+echo "-------------------------------------"
+echo $VAR3 "-->" ${!VAR3}
 # Check if AWS CLI is installed
 if [ -x "$(command -v /usr/local/bin/aws)" ]
 then
     # AWS CLI is installed, check for updates
-    echo "AWS CLI is already installed. Checking for updates..."
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    option_picked_green "AWS CLI is already installed. Checking for updates..."
+    curl ${!VAR3} -o "awscliv2.zip"
     unzip awscliv2.zip
     sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
     aws --version
-    echo "AWS CLI update completed."
+    option_picked_green "AWS CLI update completed."
     rm -rf aws awscliv2.zip
 else
    echo " "
@@ -442,7 +720,7 @@ else
     dirname='/usr/local/aws-cli'
     if [ -d $dirname ]; then sudo rm -rf $dirname; fi
     # Download and install AWS CLI
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    curl ${!VAR3} -o "awscliv2.zip"
     unzip -u awscliv2.zip
     sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
     #sudo ./aws/install
@@ -451,8 +729,9 @@ else
     # Verify the installation
     echo "Verifying AWS CLI installation..."
     aws --version
-    echo "AWS CLI installation completed."
+    option_picked_green "AWS CLI installation completed."
 fi
+Countdown
 }
 #
 #
@@ -461,16 +740,21 @@ fi
 ############################################################
 ROSA_CLI() {
 #set -xe
+ROSA_Linux=https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz
+ROSA_MAC=https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-macosx.tar.gz
+#ROSA_Winzoz=https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-windows.zip
+#
+VAR2="ROSA_${OS}"
 # Check if ROSA CLI is installed
 if [ -x "$(command -v /usr/local/bin/rosa)" ]
 then
-    CHECK_IF_UPDATE_IS_NEEDED=`rosa version|grep "There is a newer release version"| awk -F\' '{print $1 ", going to install version --> " $2}'`
+    CHECK_IF_UPDATE_IS_NEEDED=${rosa version|grep "There is a newer release version"| awk -F\ '{print $1 ", going to install version --> " $2}'}
         if [ -z ${CHECK_IF_UPDATE_IS_NEEDED:+word} ]
         then
                 ROSA_VERSION=$(/usr/local/bin/rosa version)
                 echo " "
                 echo " "
-                echo "ROSA CLI is already installed."
+                option_picked_green "ROSA CLI is already installed."
                 echo "There is no need to update it, actual version is --> " $ROSA_VERSION
         else
    		echo " "
@@ -486,17 +770,17 @@ then
    		echo " ###########################################################################"
                 ROSA_ACTUAL_V=$(rosa version|awk -F. 'NR==1{print $1"."$2"."$3 }')
                 echo "ROSA actual version is --> " $ROSA_ACTUAL_V
-                NEXT_V=$(rosa version|grep "There is a newer release version"| awk -F\' 'NR==1{print $1 ", going to install version --> " $2}')
+                NEXT_V=$(rosa version|grep "There is a newer release version"| awk -F\ 'NR==1{print $1 ", going to install version --> " $2}')
                 echo $NEXT_V
         	# Download and install ROSA CLI
-                curl https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz --output rosa-linux.tar.gz
+                curl ${!VAR2} --output rosa-linux.tar.gz
                 tar xvf rosa-linux.tar.gz
                 sudo mv rosa /usr/local/bin/rosa
         	# Clean up
                 rm -rf rosa-linux.tar.gz
         	# Trigger the update
                 rosa version
-                echo "ROSA CLI update completed."
+                option_picked_green "ROSA CLI update completed."
         fi
 else
    echo " "
@@ -506,24 +790,35 @@ else
    echo " # going to download and install the latest version !                      #"
    echo " #                                                                         #"
    echo " ###########################################################################"
-   curl https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz --output rosa-linux.tar.gz
+   curl ${!VAR2} --output rosa-linux.tar.gz
    tar xvf rosa-linux.tar.gz
    sudo mv rosa /usr/local/bin/rosa
    # Clean up
    rm -rf rosa-linux.tar.gz
    # Verify the installation
    rosa version
+   option_picked_green "ROSA CLI update completed."
 fi
+Countdown
 }
 ############################################################
 # OC CLI                                                   #
 ############################################################
 OC_CLI() {
 #set -xe
+#OC CLI
+OC_Linux_x86_64=https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-linux.tar.gz
+OC_Linux_aarch64=https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/stable/openshift-client-linux.tar.gz
+OC_Darwin_x86_64=https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-mac.tar.gz
+OC_Darwin_arm64=https://mirror.openshift.com/pub/openshift-v4/aarch64/clients/ocp/stable/openshift-client-mac-arm64.tar.gz
+#OC_Winzoz=https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-windows.zip
+#
+VAR1="OC_${OS}_${ARC}"
+#
 # Check if OC CLI is installed
 if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ] 
  then 
-        echo "OC CLI already installed"
+        option_picked_green "OC CLI already installed"
  else 
    echo " "
    echo " "
@@ -537,16 +832,59 @@ if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
    echo " #                                                                         #"
    echo " ###########################################################################"
         cd /tmp
-        rosa download oc
-        tar xvf openshift-client-linux.tar.gz
+        #rosa download oc
+        #tar xvf openshift-client-linux.tar.gz
+	curl ${!VAR1} --output openshift-client.tar.gz
+        tar xvf openshift-client.tar.gz
         sudo mv oc /usr/local/bin/oc
         # Clean up
-        rm -rf openshift-client-linux.tar.gz README.md kubectl
+        rm -rf openshift-client.tar.gz README.md kubectl
         cd $INSTALL_DIR
         # Trigger the update
         rosa verify oc
-        echo "OC CLI installation/update completed."
+        option_picked_green "OC CLI installation/update completed."
 fi  
+Countdown
+}
+############################################################
+# JQ command-line JSON processor                           #
+############################################################
+JQ_CLI() {
+#set -xe
+JQ_Linux_x86_64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+JQ_Linux_aarch64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-arm64
+JQ_Darwin_x86_64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-amd64
+JQ_Darwin_arm64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-arm64
+#
+VAR4="JQ_${OS}_${ARC}"
+#
+# Check if JQ CLI is installed
+if [ "$(which jq 2>&1 > /dev/null;echo $?)" == "0" ]
+ then
+        option_picked_green "JQ is already installed"
+ else
+   echo " "
+   echo " "
+   echo " "
+   echo " "
+   echo " "
+   echo " ###########################################################################"
+   echo " #                                                                         #"
+   echo " # Checking prerequisites: JQ is NOT installed ... 	                    #"
+   echo " # going to download and install the latest version !                      #"
+   echo " #                                                                         #"
+   echo " ###########################################################################"
+        cd /tmp
+	curl -L -o jq-1.7.1 ${!VAR4} && chmod +x jq-1.7.1
+        sudo mv jq-1.7.1 /usr/bin/jq
+        # Clean up
+        rm -rf jq-1.7.1
+        cd $INSTALL_DIR
+        # Trigger the update
+        jq --version
+        option_picked_green "JQ installation/update completed."
+fi
+Countdown
 }
 ############################################################
 # HCP Public Cluster                                       #
@@ -594,9 +932,11 @@ rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
-echo "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
-echo "Cluster " $CLUSTER_NAME " has been installed and is up and running" 2>&1 |tee -a "$CLUSTER_LOG"
-echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+option_picked_green "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+#
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -649,8 +989,11 @@ echo "Creating the cluster-admin user" 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
 #   
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+normal=$(echo "\033[m")
+menu=$(echo "\049[92m") #Green
 echo "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
-echo "Cluster " $CLUSTER_NAME " has been installed and is up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+printf "${menu} Cluster " $CLUSTER_NAME " has been installed and is now up and runningi${normal}\n" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -709,8 +1052,11 @@ echo "Creating the cluster-admin user" 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
 #
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+normal=$(echo "\033[m")
+menu=$(echo "\049[92m") #Green
 echo "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
-echo "Cluster " $CLUSTER_NAME " has been installed and is up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+printf "${menu} Cluster " $CLUSTER_NAME " has been installed and is now up and runningi${normal}\n" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -729,7 +1075,7 @@ if [ "$(which aws 2>&1 > /dev/null;echo $?)" == "0" ]
         then
                 test_count=1
         else
-		option_picked "WARNING: AWS CLI is NOT installed ! Please use Option 5 from the main MENU."
+		option_picked "WARNING: AWS CLI is NOT installed ! Please use Option 8 from the main MENU to install only this one, or Option 8 to install all CLIs needed by HCP."
 fi
 #
 # Check if ROSA CLI is installed && rosa login
@@ -738,7 +1084,7 @@ if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]
 	then
                 test_count=2
  	else
-		option_picked "WARNING: ROSA CLI is NOT installed ! Please use Option 6 from the main MENU."
+		option_picked "WARNING: ROSA CLI is NOT installed ! Please use Option 8 from the main MENU to install only this one, or Option 8 to install all CLIs needed by HCP."
 fi
 #
 # Check if OC CLI is installed
@@ -747,7 +1093,16 @@ if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
 	then
                 test_count=3
 	else
-		option_picked "WARNING: OC CLI is NOT installed ! Please use Option 7 from the main MENU."
+		option_picked "WARNING: OC CLI is NOT installed ! Please use Option 8 from the main Menu to install only this one, or Option 8 to install all CLIs needed by HCP"
+fi
+#
+# Check if JQ is installed
+#
+if [ "$(which jq 2>&1 > /dev/null;echo $?)" == "0" ]
+	then
+                test_count=4
+	else
+		option_picked "WARNING: JC CLI is NOT installed ! Please use Option 8 from the main Menu, this will install all CLIs needed by HCP."
 fi
 #   echo " "
 #   echo " "
@@ -757,23 +1112,35 @@ fi
 }
 ########################################################################################################################
 # Install/Update all CLIs
+# Supporting Linux OS, testing Mac OS
 ########################################################################################################################
 various_checks2(){
 #set -x
 #
+# Check if JQ CLI is installed
+#
+echo -ne "Checking JQ CLI ... "
+if [ "$(which jq 2>&1 > /dev/null;echo $?)" == "0" ]
+        then
+                option_picked_green "JQ CLI already installed"
+        else
+                JQ_CLI
+fi
+#
+#
 # Check if AWS CLI is installed
 #
-echo -ne "Checking AWS CLI is installed ... "
+echo -ne "Checking AWS CLI ... "
 if [ "$(which aws 2>&1 > /dev/null;echo $?)" == "0" ]
         then
-                echo "OK"
+                option_picked_green "AWS CLI already installed"
         else
                 AWS_CLI
 fi
 #
 # Check if ROSA CLI is installed && rosa login
 #
-echo -ne "Checking ROSA CLI is installed ... "
+echo -ne "Checking ROSA CLI ... "
 if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]
  then
         if [[ "$(rosa whoami 2>&1)" =~ "User is not logged in to OCM" ]];
@@ -784,16 +1151,16 @@ if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]
                 echo "Example:  "
                 echo "rosa login --token=\"RtidhhrkjLjhgLjkhUUvuhJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJhZDUyMjdhMy1iY2ZkLTRjZjAtYTdiNi0zOTk4MzVhMDg1NjYifQ.eyJpYXQiOjE3MDQzOTE4NzAsImp0aSI6ImJjZTY1ZjQxLThiZDctNGQ2Ni04MjBkLWFlMTdkZWYxMzJhNiIsImlzcyI6Imh0dHBzOi8vc3NvLnJlZGhhdC5jb20vYXV0aC9yZWFsbXMvcmVkaGF0LWV4dGVybmFsIiwiYXVkIjoiaHR0cHM6Ly9zc28ucmVkaGF0LmNvbS9hdXRoL3JlYWxtcy9yZWRoYXQtZXh0ZXJuYWwiLCJzdWIiOiJmOjUyOGQ3NmZmLWY3MDgtNDNlZC04Y2Q1LWZlMTZmNGZlMGNlNjpyaC1lZS1nbW9sbG8iLCJ0eXAiOiJPZmZsaW5lIiwiYXpwIjoiY2xvdWQtc2VydmljZXMiLCJub25jZSI6IjY1MGYzOGUzLTBhYjgtNGY3NC1hNTQ0LTFkMzZiMjJlYzNmNyIsInNlc3Npb25fc3RhdGUiOiI5MDM3MTAzMS1jOWJlLTRkYjEtYTZhZC1hZTRjNWNmYjZiNDUiLCJzY29wZSI6Im9wZW5pZCBhcGkuaWFtLnNlcnZpY2VfYWNjb3VudHMgb2ZmbGluZV9hY2Nlc3MiLCJzaWQiOiI5MDM3MTAzMS1jOWJlLTRkYjEtYTZhZC1hZTRjNWNmYjZiNDUifQ.Ne600xRwKwkQmjkSt_V6HnhnKTZCGwrubrWj4XkkK5I\""
         else
-                echo "OK"
+                option_picked_green "ROSA CLI is already installed"
                 echo -ne "Connected to OCP/ROSA ... "
-                echo "OK"
+                option_picked_green "OK"
                 #
                 # Check if OC CLI is installed
                 #
-                echo -ne "Checking OC CLI is installed ... "
+                echo -ne "Checking OC CLI ... "
                 if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
                 then
-                        echo "OK"
+			option_picked_green "OC CLI already installed"
                 else
                         OC_CLI
                         echo " "
@@ -807,10 +1174,10 @@ if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]
                 #
                 # Check if OC CLI is installed
                 #
-                echo -ne "Checking OC CLI is installed ..."
+                echo -ne "Checking OC CLI ..."
                 if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
                 then
-                        echo "OK"
+                	option_picked_green "OC CLI already installed"
                 else
                         OC_CLI
                         echo " "
@@ -834,47 +1201,38 @@ fi
 # Menu
 ########################################################################################################################
 show_menu(){
-various_checks
 clear
+various_checks
     normal=$(echo "\033[m")
     menu=$(echo "\033[36m") #Blue
     number=$(echo "\033[33m") #yellow
     bgred=$(echo "\033[41m")
-#    fgred=`echo "\033[31m"`
     fgred=$(echo "\033[31m")
+#
+    echo $SCRIPT_VERSION
+#
     printf "\n${menu}************************************************************${normal}\n"
     printf "\n${menu}*               ROSA HCP Installation Menu                 *${normal}\n"
     printf "\n${menu}************************************************************${normal}\n"
-    printf "${menu}**${number} 1)${menu} HCP Public (Single-AZ) ${normal}\n"
-    printf "${menu}**${number} 2)${menu} HCP Public (Multi-AZ) ${normal}\n"
-    printf "${menu}**${number} 3)${menu} HCP PrivateLink (Single-AZ) ${normal}\n"
+    printf "${menu}**${number} 1)${menu} HCP Public in Single-AZ                 ${normal}\n"
+    printf "${menu}**${number} 2)${menu} HCP Public in Multi-AZ                  ${normal}\n"
+    printf "${menu}**${number} 3)${menu} HCP PrivateLink in Single-AZ            ${normal}\n"
     printf "${menu}**${number} 4)${menu} Delete HCP ${normal}\n"
-    printf "${menu}**${number} 5)${menu} AWS_CLI ${normal}\n"
-    printf "${menu}**${number} 6)${menu} ROSA_CLI ${normal}\n"
-    printf "${menu}**${number} 7)${menu} OC CLI ${normal}\n"
-    printf "${menu}**${number} 8)${menu} Inst./Upd. all CLIs + some check more ${normal}\n"
+    printf "${menu}**${number} 5)${menu}  ${normal}\n"
+    printf "${menu}**${number} 6)${menu}  ${normal}\n"
+    printf "${menu}**${number} 7)${menu}  ${normal}\n"
+    printf "${menu}**${number} 8)${menu} Tools ${normal}\n"
     printf "\n${menu}************************************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
+    read="m"
     read -r opt
-}
 
-option_picked(){
-#    msgcolor=`echo "\033[01;31m"` # bold red
-    msgcolor=$(echo "\033[01;31m") # bold red
-#    normal=`echo "\033[00;00m"` # normal white
-    normal=$(echo "\033[00;00m") # normal white
-    message=${@:-"${normal}Error: No message passed"}
-    printf "${msgcolor}${message}${normal}\n"
-}
-
-#clear
-show_menu
-while [ $opt != '' ]
+while [ "$opt" != '' ]
     do
-    if [ $opt = '' ]; then
+    if [ "$opt" = '' ]; then
       Errore;
     else
-      case $opt in
+      case "$opt" in
         1) clear;
             option_picked "Option 1 Picked - Installing ROSA with HCP Public (Single-AZ)";
             HCP-Public;
@@ -895,24 +1253,9 @@ while [ $opt != '' ]
             Delete_HCP;
             show_menu;
         ;;
-        5) clear;
-            option_picked "Option 5 Picked - Installing/Updating AWS CLI ";
-            AWS_CLI;
-            show_menu;
-        ;;
-        6) clear;
-            option_picked "Option 6 Picked - Installing/Updating ROSA CLI";
-            ROSA_CLI;
-            show_menu;
-        ;;
-        7) clear;
-            option_picked "Option 7 Picked - Installing/Updating OC CLI";
-            OC_CLI;
-            show_menu;
-        ;;
         8) clear;
-            option_picked "Option 8 Picked - Installing/Updating all CLIs plus some check more";
-            various_checks2;
+            option_picked "Option 8 Picked - Tools Menu ";
+            sub_menu_tools;
             show_menu;
         ;;
         x)Fine;
@@ -926,3 +1269,102 @@ while [ $opt != '' ]
       esac
     fi
 done
+}
+########################################################################################################################
+# SubMenu Tools
+########################################################################################################################
+sub_menu_tools(){
+clear
+    normal=$(echo "\033[m")
+    menu=$(echo "\033[36m") #Blue
+    number=$(echo "\033[33m") #yellow
+    bgred=$(echo "\033[41m")
+    fgred=$(echo "\033[31m")
+#
+    echo $SCRIPT_VERSION
+#
+    printf "\n${menu}************************************************************${normal}\n"
+    printf "\n${menu}*               ROSA HCP TOOLS Menu                        *${normal}\n"
+    printf "\n${menu}************************************************************${normal}\n"
+    printf "${menu}**${number} 1)${menu} Delete a specific HCP Cluster (w/no LOGs) ${normal}\n"
+    printf "${menu}**${number} 2)${menu} Delete a specific VPC                     ${normal}\n"
+    printf "${menu}**${number} 3)${menu} Delete EVERYTHING (clean up the whole env)${normal}\n"
+    printf "${menu}**${number} 4)${menu}                                         ${normal}\n"
+    printf "${menu}**${number} 5)${menu} Inst./Upd. AWS CLI 	       	 	 ${normal}\n"
+    printf "${menu}**${number} 6)${menu} Inst./Upd. ROSA CLI 			 ${normal}\n"
+    printf "${menu}**${number} 7)${menu} Inst./Upd. OC CLI			 ${normal}\n"
+    printf "${menu}**${number} 8)${menu} Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)    ${normal}\n"
+    printf "\n${menu}************************************************************${normal}\n"
+    printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
+    read -r sub_tools
+while [[ "$sub_tools" != '' ]]
+    do
+ if [[ "$sub_tools" = '' ]]; then
+      Errore;
+    else
+      case "$sub_tools" in
+        1) clear;
+            option_picked "Option 1 Picked - Delete one Cluster (w/no LOGs)";
+            Delete_One_HCP;
+            sub_menu_tools;
+        ;;
+        2) clear;
+            option_picked "Option 2 Picked - Delete a VPC ";
+            Delete_1_VPC;
+            sub_menu_tools;
+        ;;
+        3) clear;
+            option_picked "Option 3 Picked - Delete ALL (Clusters, VPCs w/no LOGs)";
+            Delete_ALL;
+        ;;
+        5) clear;
+            option_picked "Option 5 Picked - Install/Update AWS CLI ";
+            AWS_CLI;
+            sub_menu_tools;
+        ;;
+        6) clear;
+            option_picked "Option 6 Picked - Install/Update ROSA CLI";
+            ROSA_CLI;
+            sub_menu_tools;
+        ;;
+        7) clear;
+            option_picked "Option 7 Picked - Install/Update OC CLI";
+            OC_CLI;
+            sub_menu_tools;
+        ;;
+        8) clear;
+            option_picked "Option 8 Picked - Install/Updat all CLIs (plus some additional check)";
+            various_checks2;
+            sub_menu_tools;
+        ;;
+        x)Fine;
+        ;;
+        \n)exit;
+        ;;
+        *)clear;
+            option_picked "Pick an option from the menu";
+            sub_menu_tools;
+        ;;
+      esac
+    fi
+done
+}
+#
+#
+option_picked_green(){
+    msgcolor=$(echo "\033[1;32m") # bold green
+###    msgcolor=$(echo "\033[102m") # bold green
+    normal=$(echo "\033[00;00m") # normal white
+    message=${@:-"${normal}Error: No message passed"}
+    printf "${msgcolor}${message}${normal}\n"
+}
+#
+option_picked(){
+    msgcolor=$(echo "\033[01;31m") # bold red
+    normal=$(echo "\033[00;00m") # normal white
+    message=${@:-"${normal}Error: No message passed"}
+    printf "${msgcolor}${message}${normal}\n"
+}
+############################################################################################################################################################
+#clear
+show_menu
