@@ -1075,7 +1075,7 @@ if [ "$(which aws 2>&1 > /dev/null;echo $?)" == "0" ]
         then
                 test_count=1
         else
-		option_picked "WARNING: AWS CLI is NOT installed ! Please use Option 8 from the main MENU to install only this one, or Option 8 to install all CLIs needed by HCP."
+		option_picked "WARNING: AWS CLI is NOT installed ! Please use Option 8 and then Option 5 from the MENU to install only this one, or Option 8 to install all CLIs needed by HCP."
 fi
 #
 # Check if ROSA CLI is installed && rosa login
@@ -1084,7 +1084,7 @@ if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]
 	then
                 test_count=2
  	else
-		option_picked "WARNING: ROSA CLI is NOT installed ! Please use Option 8 from the main MENU to install only this one, or Option 8 to install all CLIs needed by HCP."
+		option_picked "WARNING: ROSA CLI is NOT installed ! Please use Option 8 and then Option 6 from the MENU to install only this one, or Option 8 to install all CLIs needed by HCP."
 fi
 #
 # Check if OC CLI is installed
@@ -1093,7 +1093,7 @@ if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
 	then
                 test_count=3
 	else
-		option_picked "WARNING: OC CLI is NOT installed ! Please use Option 8 from the main Menu to install only this one, or Option 8 to install all CLIs needed by HCP"
+		option_picked "WARNING: OC CLI is NOT installed ! Please use Option 8 and then Option 7 from the MENU to install only this one, or Option 8 to install all CLIs needed by HCP."
 fi
 #
 # Check if JQ is installed
@@ -1103,6 +1103,7 @@ if [ "$(which jq 2>&1 > /dev/null;echo $?)" == "0" ]
                 test_count=4
 	else
 		option_picked "WARNING: JC CLI is NOT installed ! Please use Option 8 from the main Menu, this will install all CLIs needed by HCP."
+		option_picked "WARNING: JC CLI is NOT installed ! Please use Option 8 and then Option 8 from the MENU to install it."
 fi
 #   echo " "
 #   echo " "
