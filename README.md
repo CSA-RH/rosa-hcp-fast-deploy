@@ -52,14 +52,14 @@ $ ./rosa_hcp.sh
 *               ROSA HCP Installation Menu                 *
 
 ************************************************************
-** 1) HCP Public (Single-AZ) 
-** 2) HCP Public (Multi-AZ) 
-** 3) HCP PrivateLink (Single-AZ) 
+** 1) HCP Public in Single-AZ                 
+** 2) HCP Public in Multi-AZ                  
+** 3) HCP PrivateLink in Single-AZ            
 ** 4) Delete HCP 
-** 5) AWS_CLI 
-** 6) ROSA_CLI 
-** 7) OC CLI 
-** 8) Inst./Upd. all CLIs + some check more 
+** 5)  
+** 6)  
+** 7)  
+** 8) Tools 
 
 ************************************************************
 Please enter a menu option and enter or x to exit. 3
@@ -102,14 +102,14 @@ $ ./rosa_hcp.sh
 *               ROSA HCP Installation Menu                 *
 
 ************************************************************
-** 1) HCP Public (Single-AZ) 
-** 2) HCP Public (Multi-AZ) 
-** 3) HCP PrivateLink (Single-AZ) 
+** 1) HCP Public in Single-AZ                 
+** 2) HCP Public in Multi-AZ                  
+** 3) HCP PrivateLink in Single-AZ            
 ** 4) Delete HCP 
-** 5) AWS_CLI 
-** 6) ROSA_CLI 
-** 7) OC CLI 
-** 8) Inst./Upd. all CLIs + some check more 
+** 5)  
+** 6)  
+** 7)  
+** 8) Tools 
 
 ************************************************************
 Please enter a menu option and enter or x to exit. 4
