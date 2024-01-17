@@ -53,6 +53,7 @@ INSTALL_DIR=$(pwd)
 AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=${1:-gm-$NOW}
+CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 PREFIX=${2:-$CLUSTER_NAME}
 OS=$(uname -s)
 ARC=$(uname -m)
@@ -105,6 +106,8 @@ else
 	  mv "$CLUSTER_LOG" /tmp
 	  Countdown
 	else
+	  echo " "
+	  echo " "
     	  option_picked "Unfortunately there are no clusters with name => " "$CLUSTER_NAME"
     	  echo "The VPC " $VPC_ID "will be deleted then"
 # 	  NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
@@ -123,10 +126,12 @@ fi
 #############################################################################################
 Delete_One_HCP() {
 #set -x
-CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|awk '{print $2}')
+CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|grep -v uninstalling|awk '{print $2}')
 echo ""
 echo ""
+# if1 #########################################################################################################
 if [ -n "$CLUSTER_LIST" ]; then
+   COUNTER=""
    echo "Current HCP cluster List:"
    echo "$CLUSTER_LIST"
    echo ""
@@ -135,6 +140,8 @@ if [ -n "$CLUSTER_LIST" ]; then
    read -r CLUSTER_NAME
 	for a in $CLUSTER_LIST
     	do
+		COUNTER=$((COUNTER=+1))
+# if2 #########################################################################################################
 		if [ "$CLUSTER_NAME" == $a ]; then
 		option_picked_green "Let's get started with " "$CLUSTER_NAME" " cluster"
 		echo ""
@@ -210,12 +217,13 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		option_picked_green "HCP Cluster $CLUSTER_NAME deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 		mv *.log /tmp
 	else
-		option_picked "This option doesn't match with $a or simply no HCP Cluster was chosen from the above list, returning to the Tools menu !"
+		if [ $COUNTER = $VPC_COUNT ]; then option_picked "This option doesn't match with $a or simply no HCP Cluster was chosen from the above list, returning to the Tools menu !"
+                else
+                	echo ""
+                fi
         fi
 	done
 else
-echo " "
-echo " "
 option_picked "Unfortunately there are no HCP clusters in this accout"
 fi
 #################################################################################################################################
@@ -223,7 +231,7 @@ fi
 #
 echo "" 
 echo ""
-echo "Press ENTER key to go back to the Menu"
+echo "Press ENTER to go back to the Menu"
 read -r ppp
 }
 #######################################################################################################################################
@@ -235,59 +243,75 @@ read -r ppp
 # Delete almost everything
 ################################################
 Delete_ALL() {
-set -x
+#set -x
 # how many clusters do we have ?
 #
-#set -x
-CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|awk '{print $2}')
-for a in $CLUSTER_LIST
-do
+CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|grep -v uninstalling|awk '{print $2}')
+# if1 ##################################################################################################################################
+if [ -n "$CLUSTER_LIST" ]; then
+   echo "Current HCP cluster List:"
+   echo "$CLUSTER_LIST"
+   echo ""
+   echo ""
+	for a in $CLUSTER_LIST
+	do
+  VPC_ID=""
   CLUSTER_NAME=$a
   CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 #
 # Collecting a few details
 #
-  rosa describe cluster -c $a >$a.txt
+  rosa describe cluster -c "$CLUSTER_NAME" > $CLUSTER_NAME.txt
   OIDC_ID=$(cat $CLUSTER_NAME.txt |grep OIDC| awk -F/ '{print $4}'|cut -c 1-32)
   DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}')
   DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}')
   CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}')
 # Find VPC_ID
-#  SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $2}')
+# SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $2}')
   SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $1}'|awk -F: '{print $2}')
   VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
-  echo "Cluster " $a "is a " $DEPLOYMENT "deployment with "$CURRENT_NODES"of "$DESIRED_NODES "nodes in VPC "$VPC_ID
+#
+#
+  echo "#" 2>&1 >> "$CLUSTER_LOG"
+  echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. "  2>&1 >> "$CLUSTER_LOG"
+  echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 >> "$CLUSTER_LOG"
+  echo "#" 2>&1 >> "$CLUSTER_LOG"
+#
+#
+  echo "############################################################################################################# "
+  echo "# "
+  echo "#  Picked ==> " "$CLUSTER_NAME"
+  echo "#  Cluster " $a "is a " $DEPLOYMENT "deployment with "$CURRENT_NODES" of"$DESIRED_NODES "nodes in VPC "$VPC_ID
 # start removing the NGW since it takes a lot of time
   while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
 #
 # Find $PREFIX
 #
 ### PREFIX=$(rosa list account-roles| grep $a|grep Install|awk '{print $1}'| sed 's/.\{24\}$//')
-  #PREFIX=$(cat $a.txt |grep openshift-cluster-csi|awk -F- '{print $2}'|awk -F/ '{print $2}')
+  #PREFIX=$(cat $CLUSTER_NAME.txt |grep openshift-cluster-csi|awk -F- '{print $2}'|awk -F/ '{print $2}')
   PREFIX="$CLUSTER_NAME"
-  echo "Operator roles prefix: " "$PREFIX"
+#  echo "#  Operator roles prefix ==> " "$PREFIX"
 #
 #Get started 
-   option_picked "Going to delete the HCP cluster named " "$CLUSTER_NAME" " and the VPC " "$VPC_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+   option_picked "#  Going to delete the HCP cluster named " "$CLUSTER_NAME" " and the VPC " "$VPC_ID" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-  echo "Deleting HCP Cluster" 2>&1 |tee -a "$CLUSTER_LOG"
-  rosa delete cluster -c $CLUSTER_NAME --yes &>> "$CLUSTER_LOG"
-  echo "You can watch logs with \"$ tail -f $CLUSTER_LOG\"" 2>&1 |tee -a "$CLUSTER_LOG"
+rosa delete cluster -c $CLUSTER_NAME --yes &>> "$CLUSTER_LOG"
+  echo "#  You can watch logs with \"$ tail -f $CLUSTER_LOG\"" 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs uninstall -c $CLUSTER_NAME --watch &>> "$CLUSTER_LOG"
-echo "Deleting operator-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
+  echo "#  Deleting operator-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
 rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
-echo "Deleting OIDC " $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
+  echo "#  Deleting OIDC " $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
-echo "Deleting account-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
+  echo "#  Deleting account-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
 rosa delete account-roles --mode auto --prefix $PREFIX --yes &>> "$CLUSTER_LOG"
 #
 
 #########################
-SUBN=$(cat $a.txt |grep -i "Subnets"|awk -F, '{print $2}')
+SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $2}')
 VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
     echo "########### " 2>&1 |tee -a "$CLUSTER_LOG"
-    echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
+    echo "#  Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
 #
 #
    while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> "$CLUSTER_LOG"
@@ -299,11 +323,22 @@ VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{prin
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 #
 aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
-option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "#  VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+  echo "############################################################################################################# "
 mv *.log *.txt /tmp
 #########################
 #
 done
+else
+	echo "" 
+	echo "" 
+	option_picked "Unfortunately there are HCP clusters at the moment in this accout"
+	echo "" 
+	echo "" 
+	echo "Press ENTER to go back to the Menu"
+	read -r ppp
+fi
+# fi1 ##################################################################################################################################
 }
 #######################################################################################################################################
 #######################################################################################################################################
@@ -335,6 +370,7 @@ CLUSTER_NAME=delete-vpc
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 #
 VPC_LIST=$(aws ec2 describe-vpcs |grep -i vpcid|awk  '{print $2}'|awk -F\"  '{print $2}')
+VPC_COUNT=$(aws ec2 describe-vpcs |grep -i vpcid|wc -l)
 if [ -n "$VPC_LIST" ]; then
    echo "Current VPCs:"
    echo $VPC_LIST
@@ -344,6 +380,7 @@ if [ -n "$VPC_LIST" ]; then
    read -r VPC_ID
    for a in $VPC_LIST
     do
+	COUNTER=$((COUNTER=+1))
 	if [ "$VPC_ID" == $a ]; then
 		echo  "Going to delete --> " "$VPC_ID"
 		#############################################################################################################################################################
@@ -353,45 +390,54 @@ if [ -n "$VPC_LIST" ]; then
         	echo "#############################################################################"
         	echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a $CLUSTER_LOG
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
-        	echo "waiting for the NAT-GW to die " 2>&1 |tee -a $CLUSTER_LOG
-        	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
-		#sleep_120
+		echo "Waiting for NGW to die (~2 min) "
+        	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
+		sleep_120
 #
         	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
+#
         	while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
-        	while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
+#
+        	while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id" 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
+#
         	while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
+#
         	while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
-        	while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+#
+        	while read -r ig_id2 ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id2 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+#
         	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
 #
-#
         	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID &>> $CLUSTER_LOG
+#
         	echo ""
         	echo ""
         	echo "#############################################################################"
         	echo ""
         	echo ""
         	option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a $CLUSTER_LOG
-		mv *.log *.txt /tmp
+		mv *.log /tmp
                 #############################################################################################################################################################
                 #############################################################################################################################################################
                 #############################################################################################################################################################
 	else
-   		option_picked "That doesn't match or no VPC was chosen, returning to the Tools Menu !"
+		if [ $COUNTER = $VPC_COUNT ]; then option_picked "That doesn't match or no VPC was chosen, returning to the Tools Menu !"
+		else
+		echo ""
+		fi
         fi
 	done
 else
 echo " "
 echo " "
-option_picked "Unfortunately there are No VPCs within this AWS accout"
+option_picked "Unfortunately there are No VPCs in this AWS accout"
 fi
 #
 #
 #
 echo ""
 echo ""
-echo "Press ENTER key to go back to the Menu"
+echo "Press ENTER to go back to the Menu"
 read -r ppp
 
 }
@@ -472,6 +518,7 @@ Countdown_20() {
 #
 SingleAZ-VPC() {
 echo "#"
+touch $CLUSTER_LOG
 aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
 #rosa verify permissions 2>&1 >> "$CLUSTER_LOG"
@@ -480,7 +527,7 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
 VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text)
 
-echo "Creating the VPC " $VPC_ID_VALUE 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Creating the VPC: " $VPC_ID_VALUE 2>&1 |tee -a "$CLUSTER_LOG"
 #
 echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> "$CLUSTER_LOG"
 aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
@@ -991,10 +1038,11 @@ rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 normal=$(echo "\033[m")
 menu=$(echo "\049[92m") #Green
-echo "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
-echo "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
-printf "${menu} Cluster " $CLUSTER_NAME " has been installed and is now up and runningi${normal}\n" 2>&1 |tee -a "$CLUSTER_LOG"
-echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+option_picked_green "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+#
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -1054,10 +1102,11 @@ rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 normal=$(echo "\033[m")
 menu=$(echo "\049[92m") #Green
-echo "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
-echo "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
-printf "${menu} Cluster " $CLUSTER_NAME " has been installed and is now up and runningi${normal}\n" 2>&1 |tee -a "$CLUSTER_LOG"
-echo "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+option_picked_green "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+#
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -1109,7 +1158,7 @@ fi
 #   echo " "
 #   echo " "
 #   echo " "
-#   read -p "Press enter to continue"
+#   read -p "Press ENTER to continue"
 }
 ########################################################################################################################
 # Install/Update all CLIs
@@ -1196,7 +1245,7 @@ fi
    echo " "
    echo " "
    echo " "
-   read -p "Press enter to continue"
+   read -p "Press ENTER to continue"
 }
 ########################################################################################################################
 # Menu
@@ -1290,7 +1339,8 @@ clear
     printf "${menu}**${number} 1)${menu} Delete a specific HCP Cluster (w/no LOGs) ${normal}\n"
     printf "${menu}**${number} 2)${menu} Delete a specific VPC                     ${normal}\n"
     printf "${menu}**${number} 3)${menu} Delete EVERYTHING (clean up the whole env)${normal}\n"
-    printf "${menu}**${number} 4)${menu}                                         ${normal}\n"
+    printf "${menu}**${number} --${menu} ------------------------------------------${normal}\n"
+    printf "${menu}**${number} 4)${menu} Create a Public VPC                     ${normal}\n"
     printf "${menu}**${number} 5)${menu} Inst./Upd. AWS CLI 	       	 	 ${normal}\n"
     printf "${menu}**${number} 6)${menu} Inst./Upd. ROSA CLI 			 ${normal}\n"
     printf "${menu}**${number} 7)${menu} Inst./Upd. OC CLI			 ${normal}\n"
@@ -1317,6 +1367,12 @@ while [[ "$sub_tools" != '' ]]
         3) clear;
             option_picked "Option 3 Picked - Delete ALL (Clusters, VPCs w/no LOGs)";
             Delete_ALL;
+            sub_menu_tools;
+        ;;
+        4) clear;
+            option_picked "Option 4 Picked - Create a Public VPC ";
+            SingleAZ-VPC;
+            sub_menu_tools;
         ;;
         5) clear;
             option_picked "Option 5 Picked - Install/Update AWS CLI ";
