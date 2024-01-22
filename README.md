@@ -23,7 +23,7 @@ Once done your AWS and Red Hat account are linked and you can start witht the in
 # Create your ROSA with HCP cluster
 1. Clone this repo
 ```
-$ git clone https://github.com/CSA-RH/fast-rosa-hcp-depoly
+$ git clone https://github.com/CSA-RH/rosa-hcp-fast-deploy
 Cloning into 'fast-rosa-hcp-depoly'...
 remote: Enumerating objects: 290, done.
 remote: Counting objects: 100% (57/57), done.
@@ -35,7 +35,7 @@ Resolving deltas: 100% (121/121), done.
 ```
 2. Go to path:
 ```
-$ cd fast-rosa-hcp-depoly/
+$ cd rosa-hcp-fast-deploy/
 ```
 
 3. Add execution permissions
