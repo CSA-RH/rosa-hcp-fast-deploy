@@ -1,6 +1,6 @@
 # AWS ROSA with hosted control planes cluster (ROSA HCP) fast deploy
 The idea behind this shell script was to automatically create the necessary environment and deploy a ROSA **HCP** cluster in a few minutes, using the CLI. The initial setup includes the creation and configuration of the
-   - Virtual Private Cloud (VPC), including Subnets, IGW, NGW, configuring Routes, etc.
+   - Virtual Private Cloud (VPC), including Subnets, IGW, NGW, Routes, etc.
    - Account and Operator roles and policies
    - OIDC identity provider configuration
 
