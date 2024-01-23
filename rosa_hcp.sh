@@ -68,7 +68,7 @@ Delete_HCP()
 #set -x
 CLUSTER_COUNT=$(rosa list clusters|wc -l)
 if [ "$CLUSTER_COUNT" -gt 2 ]; then
-        option_picked "Found more than one clusterm with this Account, which is fine: please pick one HCP cluster from the following list"
+        option_picked "Found more than one clusterm with this Account Please pick one HCP cluster from the following list: "
 	Delete_One_HCP
    	sub_menu_tools
 else
@@ -1359,7 +1359,7 @@ clear
     printf "${menu}**${number} --${menu} ------------------------------------------${normal}\n"
     printf "${menu}**${number} 6)${menu} Delete a specific HCP Cluster (w/no LOGs) ${normal}\n"
     printf "${menu}**${number} 7)${menu} Delete a specific VPC                     ${normal}\n"
-    printf "${menu}**${number} 8)${menu} Delete EVERYTHING (clean up the whole env)${normal}\n"
+    printf "${menu}**${number} 8)${menu} Delete EVERYTHING ${fgred}(CAUTION: watch your step - THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT) ${normal}\n"
     printf "\n${menu}************************************************************${normal}\n"
 #
     echo "Current VPCs: " $CURRENT_VPC

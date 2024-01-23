@@ -1,0 +1,272 @@
+Start installing ROSA HCP cluster gm-2401231400 in a Single-AZ ...
+{
+    "UserId": "AIDAWTLTTXIA7XER7KFTI",
+    "Account": "453898385921",
+    "Arn": "arn:aws:iam::453898385921:user/open-environment-t2r78-admin"
+}
+{
+    "Role": {
+        "Path": "/aws-service-role/elasticloadbalancing.amazonaws.com/",
+        "RoleName": "AWSServiceRoleForElasticLoadBalancing",
+        "RoleId": "AROAJJU4BPWCDLW3UN5WM",
+        "Arn": "arn:aws:iam::453898385921:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing",
+        "CreateDate": "2019-03-13T14:56:16+00:00",
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "elasticloadbalancing.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                }
+            ]
+        },
+        "Description": "Allows ELB to call AWS services on your behalf.",
+        "MaxSessionDuration": 3600,
+        "RoleLastUsed": {
+            "LastUsedDate": "2024-01-19T15:37:35+00:00",
+            "Region": "us-east-2"
+        }
+    }
+}
+#
+Creating the VPC:  vpc-0093809c3c62636b8
+VPC_ID_VALUE  vpc-0093809c3c62636b8
+Creating the Public Subnet:  subnet-0865641927a811b15
+Creating the Private Subnet:  subnet-06bfcd2ecda662f48
+Creating the IGW:  igw-0aebd1e31d67bc06f
+Creating the Public Route Table:  rtb-0b1fde3a4974f5c69
+{
+    "Return": true
+}
+{
+    "AssociationId": "rtbassoc-0b2b1c1c16c315bb3",
+    "AssociationState": {
+        "State": "associated"
+    }
+}
+Creating the NGW:  nat-0eacc9df3ef8ef8b7
+Waiting for NGW to warm up 
+Creating the Private Route Table:  rtb-04d6e0184d57a9076
+{
+    "Return": true
+}
+{
+    "AssociationId": "rtbassoc-03c15b5aad8e6e610",
+    "AssociationState": {
+        "State": "associated"
+    }
+}
+#
+VPC creation ... done! 
+#
+Going to create account and operator roles ...
+INFO: Creating hosted CP account roles using 'arn:aws:iam::453898385921:user/open-environment-t2r78-admin'
+INFO: Created role 'gm-2401231400-HCP-ROSA-Installer-Role' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-HCP-ROSA-Installer-Role'
+INFO: Created role 'gm-2401231400-HCP-ROSA-Support-Role' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-HCP-ROSA-Support-Role'
+INFO: Created role 'gm-2401231400-HCP-ROSA-Worker-Role' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-HCP-ROSA-Worker-Role'
+Creating the OIDC config 28ummtqbcobrqui2bdv6mc5l5j2goe1l
+OIDC_ID  28ummtqbcobrqui2bdv6mc5l5j2goe1l
+Creating operator-roles
+INFO: Creating roles using 'arn:aws:iam::453898385921:user/open-environment-t2r78-admin'
+INFO: Created role 'gm-2401231400-openshift-cluster-csi-drivers-ebs-cloud-credential' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-openshift-cluster-csi-drivers-ebs-cloud-credential'
+INFO: Created role 'gm-2401231400-openshift-cloud-network-config-controller-cloud-cr' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-openshift-cloud-network-config-controller-cloud-cr'
+INFO: Created role 'gm-2401231400-kube-system-kube-controller-manager' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-kube-system-kube-controller-manager'
+INFO: Created role 'gm-2401231400-kube-system-capa-controller-manager' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-kube-system-capa-controller-manager'
+INFO: Created role 'gm-2401231400-kube-system-control-plane-operator' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-kube-system-control-plane-operator'
+INFO: Created role 'gm-2401231400-kube-system-kms-provider' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-kube-system-kms-provider'
+INFO: Created role 'gm-2401231400-openshift-image-registry-installer-cloud-credentia' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-openshift-image-registry-installer-cloud-credentia'
+INFO: Created role 'gm-2401231400-openshift-ingress-operator-cloud-credentials' with ARN 'arn:aws:iam::453898385921:role/gm-2401231400-openshift-ingress-operator-cloud-credentials'
+Creating ROSA HCP cluster 
+INFO: Creating cluster 'gm-2401231400'
+INFO: To view a list of clusters and their status, run 'rosa list clusters'
+INFO: Cluster 'gm-2401231400' has been created.
+INFO: Once the cluster is installed you will need to add an Identity Provider before you can login into the cluster. See 'rosa create idp --help' for more information.
+
+Name:                       gm-2401231400
+ID:                         28umn4evqtr0hs3lhhdp1vst5iql705l
+External ID:                51302c38-8a3d-4ec6-bb6b-9d84d2407fac
+Control Plane:              ROSA Service Hosted
+OpenShift Version:          4.14.8
+Channel Group:              stable
+DNS:                        Not ready
+AWS Account:                453898385921
+AWS Billing Account:        453898385921
+API URL:                    
+Console URL:                
+Region:                     us-east-2
+Availability:
+ - Control Plane:           MultiAZ
+ - Data Plane:              SingleAZ
+Nodes:
+ - Compute (desired):       2
+ - Compute (current):       0
+Network:
+ - Type:                    OVNKubernetes
+ - Service CIDR:            172.30.0.0/16
+ - Machine CIDR:            10.0.0.0/16
+ - Pod CIDR:                10.128.0.0/14
+ - Host Prefix:             /23
+ - Subnets:                 subnet-06bfcd2ecda662f48, subnet-0865641927a811b15
+EC2 Metadata Http Tokens:   optional
+STS Role ARN:               arn:aws:iam::453898385921:role/gm-2401231400-HCP-ROSA-Installer-Role
+Support Role ARN:           arn:aws:iam::453898385921:role/gm-2401231400-HCP-ROSA-Support-Role
+Instance IAM Roles:
+ - Worker:                  arn:aws:iam::453898385921:role/gm-2401231400-HCP-ROSA-Worker-Role
+Operator IAM Roles:
+ - arn:aws:iam::453898385921:role/gm-2401231400-kube-system-kube-controller-manager
+ - arn:aws:iam::453898385921:role/gm-2401231400-kube-system-capa-controller-manager
+ - arn:aws:iam::453898385921:role/gm-2401231400-kube-system-control-plane-operator
+ - arn:aws:iam::453898385921:role/gm-2401231400-kube-system-kms-provider
+ - arn:aws:iam::453898385921:role/gm-2401231400-openshift-cloud-network-config-controller-cloud-cr
+ - arn:aws:iam::453898385921:role/gm-2401231400-openshift-image-registry-installer-cloud-credentia
+ - arn:aws:iam::453898385921:role/gm-2401231400-openshift-ingress-operator-cloud-credentials
+ - arn:aws:iam::453898385921:role/gm-2401231400-openshift-cluster-csi-drivers-ebs-cloud-credential
+Managed Policies:           Yes
+State:                      waiting (Waiting for user action)
+Private:                    No
+Created:                    Jan 23 2024 13:05:26 UTC
+User Workload Monitoring:   Enabled
+Details Page:               https://console.redhat.com/openshift/details/s/2bMBZkfrXMySi4SWcgvcac1NIcF
+OIDC Endpoint URL:          https://oidc.op1.openshiftapps.com/28ummtqbcobrqui2bdv6mc5l5j2goe1l (Managed)
+Audit Log Forwarding:       Disabled
+
+INFO: Preparing to create operator roles.
+INFO: Cluster 'gm-2401231400' is using reusable OIDC Config and operator roles already exist.
+INFO: Preparing to create OIDC Provider.
+INFO: Creating OIDC provider using 'arn:aws:iam::453898385921:user/open-environment-t2r78-admin'
+INFO: Created OIDC provider with ARN 'arn:aws:iam::453898385921:oidc-provider/oidc.op1.openshiftapps.com/28ummtqbcobrqui2bdv6mc5l5j2goe1l'
+INFO: To determine when your cluster is Ready, run 'rosa describe cluster -c gm-2401231400'.
+INFO: To watch your cluster installation logs, run 'rosa logs install -c gm-2401231400 --watch'.
+Appending rosa installation logs to /home/gmollo/tools/cluster/svil/rosa-hcp-fast-deploy/gm-2401231400.log 
+INFO: Cluster 'gm-2401231400' is in waiting state waiting for installation to begin. Logs will show up within 5 minutes
+0001-01-01 00:00:00 +0000 UTC hostedclusters gm-2401231400 Version 
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 failed to get clusterVersion: HostedControlPlane.hypershift.openshift.io "gm-2401231400" not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 The hosted control plane is not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 failed to get clusterVersion: HostedControlPlane.hypershift.openshift.io "gm-2401231400" not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 failed to get clusterVersion: HostedControlPlane.hypershift.openshift.io "gm-2401231400" not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 failed to get clusterVersion: HostedControlPlane.hypershift.openshift.io "gm-2401231400" not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 The hosted control plane is not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 The hosted control plane is not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 The hosted control plane is not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 failed to get clusterVersion: HostedControlPlane.hypershift.openshift.io "gm-2401231400" not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Waiting for hosted control plane to be healthy
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 The hosted control plane is not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 The hosted control plane is not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 The hosted control plane is not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Ignition server deployment not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Configuration passes validation
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 HostedCluster is supported by operator configuration
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Release image is valid
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 ValidAWSIdentityProvider StatusUnknown
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Reconciliation active on resource
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 HostedCluster is at expected version
+2024-01-23 13:09:10 +0000 UTC hostedclusters gm-2401231400 failed to get referenced secret ocm-production-28umn4evqtr0hs3lhhdp1vst5iql705l/cluster-api-cert: Secret "cluster-api-cert" not found
+0001-01-01 00:00:00 +0000 UTC hostedclusters gm-2401231400 Version 
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the CVO.
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the HCP
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the CVO.
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the HCP
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the HCP
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the HCP
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the HCP
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the HCP
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the CVO.
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Waiting for hosted control plane to be healthy
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 HostedCluster is at expected version
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 The hosted control plane is not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the CVO.
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Ignition server deployment not found
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Configuration passes validation
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 HostedCluster is supported by operator configuration
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Condition not found in the CVO.
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Release image is valid
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 ValidAWSIdentityProvider StatusUnknown
+2024-01-23 13:09:09 +0000 UTC hostedclusters gm-2401231400 Reconciliation active on resource
+2024-01-23 13:11:02 +0000 UTC hostedclusters gm-2401231400 Reconciliation completed successfully
+2024-01-23 13:11:02 +0000 UTC hostedclusters gm-2401231400 OIDC configuration is valid
+2024-01-23 13:11:02 +0000 UTC hostedclusters gm-2401231400 Reconciliation completed successfully
+2024-01-23 13:11:08 +0000 UTC hostedclusters gm-2401231400 All is well
+2024-01-23 13:11:08 +0000 UTC hostedclusters gm-2401231400 lookup api.gm-2401231400.0otg.p3.openshiftapps.com on 172.30.0.10:53: no such host
+2024-01-23 13:11:08 +0000 UTC hostedclusters gm-2401231400 [capi-provider deployment has 1 unavailable replicas, cluster-api deployment has 1 unavailable replicas, control-plane-operator deployment has 1 unavailable replicas]
+2024-01-23 13:11:08 +0000 UTC hostedclusters gm-2401231400 Configuration passes validation
+2024-01-23 13:11:08 +0000 UTC hostedclusters gm-2401231400 WebIdentityErr
+2024-01-23 13:11:08 +0000 UTC hostedclusters gm-2401231400 AWS KMS is not configured
+2024-01-23 13:11:08 +0000 UTC hostedclusters gm-2401231400 EtcdAvailable StatefulSetNotFound
+2024-01-23 13:11:08 +0000 UTC hostedclusters gm-2401231400 Kube APIServer deployment not found
+2024-01-23 13:11:14 +0000 UTC hostedclusters gm-2401231400 All is well
+2024-01-23 13:12:07 +0000 UTC hostedclusters gm-2401231400 EtcdAvailable QuorumAvailable
+2024-01-23 13:13:12 +0000 UTC hostedclusters gm-2401231400 Kube APIServer deployment is available
+2024-01-23 13:13:14 +0000 UTC hostedclusters gm-2401231400 All is well
+2024-01-23 13:14:18 +0000 UTC hostedclusters gm-2401231400 [catalog-operator deployment has 1 unavailable replicas, certified-operators-catalog deployment has 2 unavailable replicas, cluster-autoscaler deployment has 1 unavailable replicas, cluster-image-registry-operator deployment has 1 unavailable replicas, cluster-network-operator deployment has 1 unavailable replicas, cluster-storage-operator deployment has 1 unavailable replicas, community-operators-catalog deployment has 2 unavailable replicas, csi-snapshot-controller-operator deployment has 1 unavailable replicas, dns-operator deployment has 1 unavailable replicas, hosted-cluster-config-operator deployment has 1 unavailable replicas, ignition-server deployment has 3 unavailable replicas, ingress-operator deployment has 1 unavailable replicas, machine-approver deployment has 1 unavailable replicas, oauth-openshift deployment has 2 unavailable replicas, olm-operator deployment has 1 unavailable replicas, packageserver deployment has 3 unavailable replicas, redhat-marketplace-catalog deployment has 2 unavailable replicas, redhat-operators-catalog deployment has 2 unavailable replicas, router deployment has 1 unavailable replicas]
+2024-01-23 13:14:18 +0000 UTC hostedclusters gm-2401231400 All is well
+2024-01-23 13:14:21 +0000 UTC hostedclusters gm-2401231400 The hosted control plane is available
+INFO: Cluster 'gm-2401231400' is now ready
+
+Name:                       gm-2401231400
+ID:                         28umn4evqtr0hs3lhhdp1vst5iql705l
+External ID:                51302c38-8a3d-4ec6-bb6b-9d84d2407fac
+Control Plane:              ROSA Service Hosted
+OpenShift Version:          4.14.8
+Channel Group:              stable
+DNS:                        gm-2401231400.0otg.p3.openshiftapps.com
+AWS Account:                453898385921
+AWS Billing Account:        453898385921
+API URL:                    https://api.gm-2401231400.0otg.p3.openshiftapps.com:443
+Console URL:                
+Region:                     us-east-2
+Availability:
+ - Control Plane:           MultiAZ
+ - Data Plane:              SingleAZ
+Nodes:
+ - Compute (desired):       2
+ - Compute (current):       0
+Network:
+ - Type:                    OVNKubernetes
+ - Service CIDR:            172.30.0.0/16
+ - Machine CIDR:            10.0.0.0/16
+ - Pod CIDR:                10.128.0.0/14
+ - Host Prefix:             /23
+ - Subnets:                 subnet-06bfcd2ecda662f48, subnet-0865641927a811b15
+EC2 Metadata Http Tokens:   optional
+STS Role ARN:               arn:aws:iam::453898385921:role/gm-2401231400-HCP-ROSA-Installer-Role
+Support Role ARN:           arn:aws:iam::453898385921:role/gm-2401231400-HCP-ROSA-Support-Role
+Instance IAM Roles:
+ - Worker:                  arn:aws:iam::453898385921:role/gm-2401231400-HCP-ROSA-Worker-Role
+Operator IAM Roles:
+ - arn:aws:iam::453898385921:role/gm-2401231400-kube-system-kube-controller-manager
+ - arn:aws:iam::453898385921:role/gm-2401231400-kube-system-capa-controller-manager
+ - arn:aws:iam::453898385921:role/gm-2401231400-kube-system-control-plane-operator
+ - arn:aws:iam::453898385921:role/gm-2401231400-kube-system-kms-provider
+ - arn:aws:iam::453898385921:role/gm-2401231400-openshift-cloud-network-config-controller-cloud-cr
+ - arn:aws:iam::453898385921:role/gm-2401231400-openshift-image-registry-installer-cloud-credentia
+ - arn:aws:iam::453898385921:role/gm-2401231400-openshift-ingress-operator-cloud-credentials
+ - arn:aws:iam::453898385921:role/gm-2401231400-openshift-cluster-csi-drivers-ebs-cloud-credential
+Managed Policies:           Yes
+State:                      ready 
+Private:                    No
+Created:                    Jan 23 2024 13:05:26 UTC
+User Workload Monitoring:   Enabled
+Details Page:               https://console.redhat.com/openshift/details/s/2bMBZkfrXMySi4SWcgvcac1NIcF
+OIDC Endpoint URL:          https://oidc.op1.openshiftapps.com/28ummtqbcobrqui2bdv6mc5l5j2goe1l (Managed)
+Audit Log Forwarding:       Disabled
+
+Creating the cluster-admin user
+INFO: Admin account has been added to cluster 'gm-2401231400'.
+INFO: Please securely store this generated password. If you lose this password you can delete and recreate the cluster admin user.
+INFO: To login, run the following command:
+
+   oc login https://api.gm-2401231400.0otg.p3.openshiftapps.com:443 --username cluster-admin --password XyZuB-TdID7-zGRIU-Kkmmd
+
+INFO: It may take several minutes for this access to become active.
+ 
+ 
+ 
+[1;32mDone!!! [00;00m
+[1;32mCluster  gm-2401231400  has been installed and is now up and running[00;00m
+[1;32mPlease allow a few minutes before to login, for additional information check the /home/gmollo/tools/cluster/svil/rosa-hcp-fast-deploy/gm-2401231400.log file[00;00m
+ 
+ 
+ 
