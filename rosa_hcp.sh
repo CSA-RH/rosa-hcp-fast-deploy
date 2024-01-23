@@ -57,6 +57,9 @@ CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 PREFIX=${2:-$CLUSTER_NAME}
 OS=$(uname -s)
 ARC=$(uname -m)
+CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
+#
 ############################################################
 # Delete HCP (the LOG file is in place)                    #
 ############################################################
@@ -115,6 +118,8 @@ else
           while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
 	  sleep_120
 	  Delete_VPC
+		CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+		CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 	fi
 fi
 #
@@ -216,8 +221,10 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		echo " "
 		option_picked_green "HCP Cluster $CLUSTER_NAME deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 		mv *.log /tmp
+		CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+		CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 	else
-		if [ $COUNTER = $VPC_COUNT ]; then option_picked "This option doesn't match with $a or simply no HCP Cluster was chosen from the above list, returning to the Tools menu !"
+		if [ $COUNTER = $CURRENT_VPC ]; then option_picked "This option doesn't match with $a or simply no HCP Cluster was chosen from the above list, returning to the Tools menu !"
                 else
                 	echo ""
                 fi
@@ -326,6 +333,8 @@ aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
 option_picked_green "#  VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
   echo "############################################################################################################# "
 mv *.log *.txt /tmp
+CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 #########################
 #
 done
@@ -370,7 +379,8 @@ CLUSTER_NAME=delete-vpc
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 #
 VPC_LIST=$(aws ec2 describe-vpcs |grep -i vpcid|awk  '{print $2}'|awk -F\"  '{print $2}')
-VPC_COUNT=$(aws ec2 describe-vpcs |grep -i vpcid|wc -l)
+#VPC_COUNT=$(aws ec2 describe-vpcs |grep -i vpcid|wc -l)
+
 if [ -n "$VPC_LIST" ]; then
    echo "Current VPCs:"
    echo $VPC_LIST
@@ -409,7 +419,6 @@ if [ -n "$VPC_LIST" ]; then
         	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
 #
         	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID &>> $CLUSTER_LOG
-#
         	echo ""
         	echo ""
         	echo "#############################################################################"
@@ -417,11 +426,12 @@ if [ -n "$VPC_LIST" ]; then
         	echo ""
         	option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a $CLUSTER_LOG
 		mv *.log /tmp
+		CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
                 #############################################################################################################################################################
                 #############################################################################################################################################################
                 #############################################################################################################################################################
 	else
-		if [ $COUNTER = $VPC_COUNT ]; then option_picked "That doesn't match or no VPC was chosen, returning to the Tools Menu !"
+		if [ $COUNTER = $CURRENT_VPC ]; then option_picked "That doesn't match or no VPC was chosen, returning to the Tools Menu !"
 		else
 		echo ""
 		fi
@@ -1273,6 +1283,11 @@ various_checks
     printf "${menu}**${number} 7)${menu}  ${normal}\n"
     printf "${menu}**${number} 8)${menu} Tools ${normal}\n"
     printf "\n${menu}************************************************************${normal}\n"
+#
+    echo "Current VPCs: " $CURRENT_VPC
+    echo "Current HCPs: " $CURRENT_HCP
+#
+    printf "\n${menu}************************************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
     read="m"
     read -r opt
@@ -1336,15 +1351,20 @@ clear
     printf "\n${menu}************************************************************${normal}\n"
     printf "\n${menu}*               ROSA HCP TOOLS Menu                        *${normal}\n"
     printf "\n${menu}************************************************************${normal}\n"
-    printf "${menu}**${number} 1)${menu} Delete a specific HCP Cluster (w/no LOGs) ${normal}\n"
-    printf "${menu}**${number} 2)${menu} Delete a specific VPC                     ${normal}\n"
-    printf "${menu}**${number} 3)${menu} Delete EVERYTHING (clean up the whole env)${normal}\n"
+    printf "${menu}**${number} 1)${menu} Create a SingleAZ Public VPC              ${normal}\n"
+    printf "${menu}**${number} 2)${menu} Inst./Upd. AWS CLI 	       	 	 ${normal}\n"
+    printf "${menu}**${number} 3)${menu} Inst./Upd. ROSA CLI 			 ${normal}\n"
+    printf "${menu}**${number} 4)${menu} Inst./Upd. OC CLI			 ${normal}\n"
+    printf "${menu}**${number} 5)${menu} Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)    ${normal}\n"
     printf "${menu}**${number} --${menu} ------------------------------------------${normal}\n"
-    printf "${menu}**${number} 4)${menu} Create a Public VPC                     ${normal}\n"
-    printf "${menu}**${number} 5)${menu} Inst./Upd. AWS CLI 	       	 	 ${normal}\n"
-    printf "${menu}**${number} 6)${menu} Inst./Upd. ROSA CLI 			 ${normal}\n"
-    printf "${menu}**${number} 7)${menu} Inst./Upd. OC CLI			 ${normal}\n"
-    printf "${menu}**${number} 8)${menu} Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)    ${normal}\n"
+    printf "${menu}**${number} 6)${menu} Delete a specific HCP Cluster (w/no LOGs) ${normal}\n"
+    printf "${menu}**${number} 7)${menu} Delete a specific VPC                     ${normal}\n"
+    printf "${menu}**${number} 8)${menu} Delete EVERYTHING (clean up the whole env)${normal}\n"
+    printf "\n${menu}************************************************************${normal}\n"
+#
+    echo "Current VPCs: " $CURRENT_VPC
+    echo "Current HCPs: " $CURRENT_HCP
+#
     printf "\n${menu}************************************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
     read -r sub_tools
@@ -1355,43 +1375,43 @@ while [[ "$sub_tools" != '' ]]
     else
       case "$sub_tools" in
         1) clear;
-            option_picked "Option 1 Picked - Delete one Cluster (w/no LOGs)";
-            Delete_One_HCP;
-            sub_menu_tools;
-        ;;
-        2) clear;
-            option_picked "Option 2 Picked - Delete a VPC ";
-            Delete_1_VPC;
-            sub_menu_tools;
-        ;;
-        3) clear;
-            option_picked "Option 3 Picked - Delete ALL (Clusters, VPCs w/no LOGs)";
-            Delete_ALL;
-            sub_menu_tools;
-        ;;
-        4) clear;
-            option_picked "Option 4 Picked - Create a Public VPC ";
+            option_picked "Option 1 Picked - Create a Public VPC ";
             SingleAZ-VPC;
             sub_menu_tools;
         ;;
-        5) clear;
-            option_picked "Option 5 Picked - Install/Update AWS CLI ";
+        2) clear;
+            option_picked "Option 2 Picked - Install/Update AWS CLI ";
             AWS_CLI;
             sub_menu_tools;
         ;;
-        6) clear;
-            option_picked "Option 6 Picked - Install/Update ROSA CLI";
+        3) clear;
+            option_picked "Option 3 Picked - Install/Update ROSA CLI";
             ROSA_CLI;
             sub_menu_tools;
         ;;
-        7) clear;
-            option_picked "Option 7 Picked - Install/Update OC CLI";
+        4) clear;
+            option_picked "Option 4 Picked - Install/Update OC CLI";
             OC_CLI;
             sub_menu_tools;
         ;;
-        8) clear;
-            option_picked "Option 8 Picked - Install/Updat all CLIs (plus some additional check)";
+        5) clear;
+            option_picked "Option 5 Picked - Install/Updat all CLIs (plus some additional check)";
             various_checks2;
+            sub_menu_tools;
+        ;;
+        6) clear;
+            option_picked "Option 6 Picked - Delete one Cluster (w/no LOGs)";
+            Delete_One_HCP;
+            sub_menu_tools;
+        ;;
+        7) clear;
+            option_picked "Option 7 Picked - Delete a VPC ";
+            Delete_1_VPC;
+            sub_menu_tools;
+        ;;
+        8) clear;
+            option_picked "Option 8 Picked - Delete ALL (Clusters, VPCs w/no LOGs)";
+            Delete_ALL;
             sub_menu_tools;
         ;;
         x)Fine;
