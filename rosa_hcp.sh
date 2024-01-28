@@ -67,18 +67,24 @@ Delete_HCP()
 {
 #set -x
 CLUSTER_COUNT=$(rosa list clusters|wc -l)
+CLUSTER_NAME=$(ls "$INSTALL_DIR" |grep *.log| awk -F. '{print $1}')
+CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+PREFIX=$(grep "INFO: Cluster" $CLUSTER_LOG |grep "is now ready"|awk -F\' '{print $2}')
+####### PREFIX=$(rosa list account-roles| grep Install|awk '{print $1}'| sed 's/.\{24\}$//')
+#OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
+OIDC_ID=$(cat "$CLUSTER_LOG" |grep OIDC_ID |awk '{print $2}'|sort -u)
+VPC_ID=$(cat "$CLUSTER_LOG" |grep VPC_ID_VALUE|awk '{print $2}')
+JUMP_HOST_STAT=$(cat "$CLUSTER_LOG" |grep JUMP_HOST|awk '{print $2}')
 if [ "$CLUSTER_COUNT" -gt 2 ]; then
         option_picked "Found more than one clusterm with this Account Please pick one HCP cluster from the following list: "
 	Delete_One_HCP
    	sub_menu_tools
 else
-  INSTALL_DIR=$(pwd)
-  CLUSTER_NAME=$(ls "$INSTALL_DIR" |grep *.log| awk -F. '{print $1}')
-  CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
-  AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
-  OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
-  VPC_ID=$(cat "$CLUSTER_LOG" |grep VPC_ID_VALUE|awk '{print $2}')
-#
+  if [[ "$JUMP_HOST_STAT" =~ "ON" ]];
+  then
+	Delete_Jump_Host
+  fi
+  #
   echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
   echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
   echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
@@ -107,21 +113,25 @@ else
 	  option_picked_green "The old LOG file ${CLUSTER_LOG} in is now moved to /tmp folder" 2>&1 |tee -a "$CLUSTER_LOG"
 	  echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 	  mv "$CLUSTER_LOG" /tmp
+	  CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+	  CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 	  Countdown
 	else
 	  echo " "
 	  echo " "
     	  option_picked "Unfortunately there are no clusters with name => " "$CLUSTER_NAME"
+	  rosa delete operator-roles --prefix "$PREFIX" -m auto -y 2>&1 >> "$CLUSTER_LOG"
+          rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
+          rosa delete account-roles --mode auto --prefix "$PREFIX" --yes &>> "$CLUSTER_LOG"
     	  echo "The VPC " $VPC_ID "will be deleted then"
 # 	  NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
 	  echo "waiting for the NAT-GW to die " 2>&1 |tee -a "$CLUSTER_LOG"
           while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
 	  sleep_120
 	  Delete_VPC
-		CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
-		CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 	fi
 fi
+Fine
 #
 #
 }
@@ -137,7 +147,7 @@ echo ""
 # if1 #########################################################################################################
 if [ -n "$CLUSTER_LIST" ]; then
    COUNTER=""
-   echo "Current HCP cluster List:"
+   echo "Current HCP cluster list:"
    echo "$CLUSTER_LIST"
    echo ""
    echo ""
@@ -153,8 +163,8 @@ if [ -n "$CLUSTER_LIST" ]; then
 		echo ""
 		CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 		#############################################################################################################################################################
-                #############################################################################################################################################################
-                #############################################################################################################################################################
+    #############################################################################################################################################################
+    #############################################################################################################################################################
 #
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -195,10 +205,10 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		echo "Deleting operator-roles" 2>&1 |tee -a "$CLUSTER_LOG"
 		rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
 		echo "Deleting OIDC " $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
-		rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> "$CLUSTER_LOG"
+		rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
 		#
 		echo "Deleting account-roles " 2>&1 |tee -a "$CLUSTER_LOG"
-		rosa delete account-roles --mode auto --prefix $PREFIX -m auto -y  &>> "$CLUSTER_LOG"
+		rosa delete account-roles --prefix $PREFIX -m auto -y  &>> "$CLUSTER_LOG"
 		#
 		#################################################################################################################################
 		# Delete the VPC it belongs to
@@ -212,8 +222,13 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
    		while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> "$CLUSTER_LOG"
    		while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> "$CLUSTER_LOG"
    		while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> "$CLUSTER_LOG"
-   		while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
-   		while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
+#
+# Detach and delete IGW
+#
+IG_2B_DELETED=$(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId")
+aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID 2>&1 >> "$CLUSTER_LOG"
+aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED 2>&1 >> "$CLUSTER_LOG"
+#
    		while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 		#
 		aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
@@ -256,7 +271,7 @@ Delete_ALL() {
 CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|grep -v uninstalling|awk '{print $2}')
 # if1 ##################################################################################################################################
 if [ -n "$CLUSTER_LIST" ]; then
-   echo "Current HCP cluster List:"
+   echo "Current HCP cluster list:"
    echo "$CLUSTER_LIST"
    echo ""
    echo ""
@@ -269,7 +284,7 @@ if [ -n "$CLUSTER_LIST" ]; then
 # Collecting a few details
 #
   rosa describe cluster -c "$CLUSTER_NAME" > $CLUSTER_NAME.txt
-  OIDC_ID=$(cat $CLUSTER_NAME.txt |grep OIDC| awk -F/ '{print $4}'|cut -c 1-32)
+  OIDC_ID=$(cat $CLUSTER_NAME.txt |grep OIDC| awk -F/ '{print $4}'|cut -c 1-32 )
   DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}')
   DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}')
   CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}')
@@ -308,7 +323,7 @@ rosa logs uninstall -c $CLUSTER_NAME --watch &>> "$CLUSTER_LOG"
   echo "#  Deleting operator-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
 rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
   echo "#  Deleting OIDC " $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
-rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y 2>&1 >> "$CLUSTER_LOG"
+rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
   echo "#  Deleting account-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
 rosa delete account-roles --mode auto --prefix $PREFIX --yes &>> "$CLUSTER_LOG"
@@ -325,8 +340,14 @@ VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{prin
    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> "$CLUSTER_LOG"
    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> "$CLUSTER_LOG"
    while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> "$CLUSTER_LOG"
-   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
-   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
+#
+#
+# Detach and delete IGW
+#
+IG_2B_DELETED=$(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId")
+aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID 2>&1 >> "$CLUSTER_LOG"
+aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED 2>&1 >> "$CLUSTER_LOG"
+#
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 #
 aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
@@ -350,27 +371,41 @@ fi
 # fi1 ##################################################################################################################################
 }
 #######################################################################################################################################
+#
+#############################################################################################
+# Delete VPC                                                                                #
+#############################################################################################
 #######################################################################################################################################
 Delete_VPC()
 {
     echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
 #
 #
-    while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> "$CLUSTER_LOG"
-    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> "$CLUSTER_LOG"
-    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> "$CLUSTER_LOG"
+   while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> "$CLUSTER_LOG"
+   while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> "$CLUSTER_LOG"
+   while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> "$CLUSTER_LOG"
    while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> "$CLUSTER_LOG"
-   while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
-   while read -r ig_id ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> "$CLUSTER_LOG"
+#
+# Detach and delete IGW
+#
+IG_2B_DELETED=$(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId")
+aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID 2>&1 >> "$CLUSTER_LOG"
+aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED 2>&1 >> "$CLUSTER_LOG"
+#
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 #
 aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
+CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 }
 #######################################################################################################################################
 #######################################################################################################################################
 #######################################################################################################################################
 #######################################################################################################################################
+#
+#############################################################################################
+# Delete 1 VPC                                                                              #
+#############################################################################################
 #######################################################################################################################################
 Delete_1_VPC() {
 #
@@ -405,29 +440,27 @@ if [ -n "$VPC_LIST" ]; then
 		sleep_120
 #
         	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
-#
         	while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
-#
         	while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id" 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
-#
         	while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
 #
-        	while read -r ig_id ; do aws ec2 detach-internet-gateway --internet-gateway-id $ig_id --vpc-id $VPC_ID; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+# Detach and delete IGW
 #
-        	while read -r ig_id2 ; do aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $ig_id2 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='VPC_ID | jq -r ".InternetGateways[].InternetGatewayId") 2>&1 >> $CLUSTER_LOG
+IG_2B_DELETED=$(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId")
+aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID 2>&1 >> "$CLUSTER_LOG"
+aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED 2>&1 >> "$CLUSTER_LOG"
 #
         	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
-#
         	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID &>> $CLUSTER_LOG
-        	echo ""
+          	echo ""
         	echo ""
         	echo "#############################################################################"
         	echo ""
         	echo ""
+        	CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
         	option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a $CLUSTER_LOG
 		mv *.log /tmp
-		CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
-                #############################################################################################################################################################
+		            #############################################################################################################################################################
                 #############################################################################################################################################################
                 #############################################################################################################################################################
 	else
@@ -526,7 +559,7 @@ Countdown_20() {
 # Single AZ VPC                                            #
 ############################################################
 #
-SingleAZ-VPC() {
+SingleAZ_VPC() {
 echo "#"
 touch $CLUSTER_LOG
 aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
@@ -582,10 +615,10 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 }
 #
 ############################################################
-# Single AZ (Private)                                      #
+# Single AZ (Private) - no NGW, no IGW                     #
 ############################################################
 #
-SingleAZ-VPC-Priv() {
+SingleAZ_VPC_Priv() {
 echo "#" 
 aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
@@ -622,7 +655,7 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 # Multi AZ                                                 #
 ############################################################
 #
-MultiAZ-VPC() {
+MultiAZ_VPC() {
 echo "#" 
 aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
@@ -946,10 +979,9 @@ Countdown
 ############################################################
 # HCP Public Cluster                                       #
 ############################################################
-HCP-Public()
+HCP_Public()
 {
 #set -x 
-INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
@@ -958,10 +990,9 @@ aws configure
 echo "#"
 echo "#"
 echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |tee -a "$CLUSTER_LOG"
-AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 echo "#"
 #
-SingleAZ-VPC
+SingleAZ_VPC
 #
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
@@ -1005,10 +1036,9 @@ Fine
 # HCP PrivateLink Cluster                                  #
 ############################################################
 # 
-function HCP-Private()
+function HCP_Private()
 { 
 #set -x
-INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
@@ -1017,9 +1047,8 @@ aws configure
 echo "#"
 echo "#"
 echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a "$CLUSTER_LOG"
-AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 #
-SingleAZ-VPC-Priv
+SingleAZ_VPC_Priv
 #
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
@@ -1033,7 +1062,7 @@ echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
 SUBNET_IDS=$PRIV_SUB_2a
 #
-echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Creating ROSA HCP cluster with PrivateLink " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 >> "$CLUSTER_LOG"
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private-link --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
@@ -1059,13 +1088,74 @@ echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 Fine
 }
 #
+# 
+############################################################
+# HCP PrivateLink Cluster 2 (with Jump Host)               #
+############################################################
+# 
+function HCP_Private2()
+{ 
+#set -x
+CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+touch $CLUSTER_LOG
+BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
+#
+aws configure
+echo "#"
+echo "#"
+echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) with JUMP HOST ..." 2>&1 |tee -a "$CLUSTER_LOG"
+JUMP_HOST_STAT="ON"
+echo "JUMP_HOST " $JUMP_HOST_STAT 2>&1 "$CLUSTER_LOG"
+#
+SingleAZ_VPC
+#
+echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
+INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
+WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
+SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
+OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
+echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
+echo "OIDC_ID " $OIDC_ID 2>&1 >> "$CLUSTER_LOG"
+echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
+rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
+SUBNET_IDS=$PRIV_SUB_2a
+#
+echo "Creating ROSA HCP cluster with PrivateLink " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 >> "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private-link --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+#
+echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
+rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
+#
+rosa describe cluster -c $CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
+#
+echo "Creating the cluster-admin user" 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
+#
+echo "going to create the JUMP HOST instance" 2>&1 >> "$CLUSTER_LOG"
+Create_Jump_Host
+#
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+normal=$(echo "\033[m")
+menu=$(echo "\049[92m") #Green
+#
+option_picked_green "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+Fine
+}
+#
 ############################################################
 # HCP Public Cluster (Multi AZ)                            #
 ############################################################
-HCP-Public-MultiAZ()
+HCP_Public_MultiAZ()
 {
 #set -x
-INSTALL_DIR=$(pwd)
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
@@ -1075,11 +1165,10 @@ aws configure
 echo "#"
 echo "#"
 echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Multi-AZ ..." 2>&1 |tee -a "$CLUSTER_LOG"
-AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 echo "#"
 #
 declare -A AZ_PAIRED_ARRAY
-MultiAZ-VPC
+MultiAZ_VPC
 #
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
@@ -1277,15 +1366,15 @@ various_checks
     printf "${menu}**${number} 1)${menu} HCP Public in Single-AZ                 ${normal}\n"
     printf "${menu}**${number} 2)${menu} HCP Public in Multi-AZ                  ${normal}\n"
     printf "${menu}**${number} 3)${menu} HCP PrivateLink in Single-AZ            ${normal}\n"
-    printf "${menu}**${number} 4)${menu} Delete HCP ${normal}\n"
-    printf "${menu}**${number} 5)${menu}  ${normal}\n"
+    printf "${menu}**${number} 4)${menu} HCP PrivateLink in Single-AZ with Jump Host ${normal}\n"
+    printf "${menu}**${number} 5)${menu} Delete HCP ${normal}\n"
     printf "${menu}**${number} 6)${menu}  ${normal}\n"
     printf "${menu}**${number} 7)${menu}  ${normal}\n"
     printf "${menu}**${number} 8)${menu} Tools ${normal}\n"
     printf "\n${menu}************************************************************${normal}\n"
 #
     echo "Current VPCs: " $CURRENT_VPC
-    echo "Current HCPs: " $CURRENT_HCP
+    echo "Current HCP clusters: " $CURRENT_HCP
 #
     printf "\n${menu}************************************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
@@ -1300,25 +1389,30 @@ while [ "$opt" != '' ]
       case "$opt" in
         1) clear;
             option_picked "Option 1 Picked - Installing ROSA with HCP Public (Single-AZ)";
-            HCP-Public;
+            HCP_Public;
             show_menu;
         ;;
         2) clear;
             option_picked "Option 2 Picked - Installing ROSA with HCP Public (Multi-AZ)";
-            HCP-Public-MultiAZ;
+            HCP_Public_MultiAZ;
             show_menu;
         ;;
         3) clear;
             option_picked "Option 3 Picked - Installing ROSA with HCP PrivateLink (Single-AZ)";
-            HCP-Private;
+            HCP_Private;
             show_menu;
         ;;
         4) clear;
-            option_picked "Option 4 Picked - Removing ROSA with HCP";
+            option_picked "Option 4 Picked - Installing ROSA with HCP PrivateLink (Single-AZ) with Jump Host ";
+            HCP_Private2;
+            show_menu;
+        ;;
+        5) clear;
+            option_picked "Option 5 Picked - Removing ROSA with HCP";
             Delete_HCP;
             show_menu;
         ;;
-        8) clear;
+        8) #clear;
             option_picked "Option 8 Picked - Tools Menu ";
             sub_menu_tools;
             show_menu;
@@ -1363,7 +1457,7 @@ clear
     printf "\n${menu}************************************************************${normal}\n"
 #
     echo "Current VPCs: " $CURRENT_VPC
-    echo "Current HCPs: " $CURRENT_HCP
+    echo "Current HCP clusters: " $CURRENT_HCP
 #
     printf "\n${menu}************************************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
@@ -1376,7 +1470,8 @@ while [[ "$sub_tools" != '' ]]
       case "$sub_tools" in
         1) clear;
             option_picked "Option 1 Picked - Create a Public VPC ";
-            SingleAZ-VPC;
+            SingleAZ_VPC;
+	    CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
             sub_menu_tools;
         ;;
         2) clear;
@@ -1441,6 +1536,120 @@ option_picked(){
     normal=$(echo "\033[00;00m") # normal white
     message=${@:-"${normal}Error: No message passed"}
     printf "${msgcolor}${message}${normal}\n"
+}
+#
+############################################################
+# Create Jump Host                                         #
+############################################################
+##
+Create_Jump_Host() {
+#set -x
+# https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami.html#finding-an-ami-aws-cli
+# the EC2-provided parameter /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2 is available in all Regions and always points to the latest version of the Amazon Linux 2 AMI in a given Region.
+#
+#
+#
+# create a SG just for this and enable ssh
+echo "Creating the SG for the Jump host and allowing SSH " 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 create-security-group --description "SG created for the HCP cluster named ${CLUSTER_NAME}" --group-name ${CLUSTER_NAME}-SG --vpc-id ${VPC_ID_VALUE}
+SG_ID=$(aws ec2 describe-security-groups --filters Name=group-name,Values=${CLUSTER_NAME}-SG | jq -r '.SecurityGroups[0].GroupId')
+aws ec2 authorize-security-group-ingress --group-id "$SG_ID" --protocol tcp --port 22 --cidr 0.0.0.0/0
+#
+# create a key-pair just for this scope, it will be delete once done
+#
+echo "Creating a key-pair if any " 2>&1 |tee -a "$CLUSTER_LOG"
+touch  "$CLUSTER_NAME"_KEY
+aws ec2 create-key-pair \
+    --key-name  "$CLUSTER_NAME"_KEY \
+    --key-type rsa \
+    --key-format pem \
+    --query "KeyMaterial" \
+    --output text >> "$CLUSTER_NAME"_KEY
+chmod 400 "$CLUSTER_NAME"_KEY
+#
+# create the jump host
+#
+JUMP_HOST=${CLUSTER_NAME}-jump-host
+echo "Creating the Jump host " "$JUMP_HOST" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+aws ec2 run-instances --image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 --instance-type t2.micro --region "$AWS_REGION" --subnet-id "$PUBLIC_SUB_2a" --key-name "$CLUSTER_NAME"_KEY --associate-public-ip-address --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$JUMP_HOST}]" --no-paginate --security-group-ids "$SG_ID" --count 1 &>> "$CLUSTER_LOG"
+#  
+#aws ec2 run-instances 
+#--image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 \
+#--instance-type t2.micro \
+#--region "$AWS_REGION" \
+#--subnet-id "$PUBLIC_SUB_2a" \
+#--key-name "$CLUSTER_NAME"_KEY \
+#--associate-public-ip-address \
+#--tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$JUMP_HOST}]" \
+#--no-paginate \
+#--security-group-ids "$SG_ID" \
+#--count 1
+#
+ROSA_DNS=$(rosa describe cluster -c $CLUSTER_NAME|grep -i dns| awk -F: '{print $2}'| xargs)
+JH_PUB_IP=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST| jq -r '.Reservations[0].Instances[0].PublicIpAddress')
+echo "Jump Host public IP is " "$JH_PUB_IP" 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+#clear
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+clear
+echo "Please take a few notes:
+1) login to your newly created jump host like this: " 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "
+sudo ssh -i "$CLUSTER_NAME"_KEY -L 6443:api.$ROSA_DNS:6443 -L 443:console-openshift-console.apps.rosa.$ROSA_DNS:443 -L 80:console-openshift-console.apps.rosa.$ROSA_DNS:80 ec2-user@$JH_PUB_IP" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+echo " "
+echo "2) from the jump host, download the OC CLI " 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+gunzip openshift-client-linux.tar.gz
+tar -xvf openshift-client-linux.tar
+sudo mv oc /usr/local/bin
+" 2>&1 |tee -a "$CLUSTER_LOG"
+echo " "
+HOW_TO_LOG=$(grep "oc login" "$CLUSTER_LOG" |grep -v example)
+echo " 
+3) login to your HCP PrivateLink cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green $HOW_TO_LOG 2>&1 |tee -a "$CLUSTER_LOG"
+#
+# update /etc/hosts
+#
+echo  "
+Also, update your /etc/hosts with the following info:
+127.0.0.1 api.$ROSA_DNS
+127.0.0.1 console-openshift-console.apps.rosa.$ROSA_DNS
+127.0.0.1 oauth.$ROSA_DNS
+" 2>&1 |tee -a "$CLUSTER_LOG"
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+#############################################################################################################################################################################
+}
+
+
+#
+############################################################
+# Delete Jump Host                                         #
+############################################################
+##
+Delete_Jump_Host() {
+#set -x
+JUMP_HOST=${CLUSTER_NAME}-jump-host
+ISTANCE_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST| jq -r '.Reservations[0].Instances[0].InstanceId')
+aws ec2 terminate-instances --instance-ids "$ISTANCE_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+# delete SG - nothing to do here, SG are deleted during VPC deletion
+#
+# delete key-pair
+echo "Deleting the key-pair named " "$CLUSTER_NAME"_KEY 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 delete-key-pair --key-name "$CLUSTER_NAME"_KEY 2>&1 |tee -a "$CLUSTER_LOG"
+mv "$CLUSTER_NAME"_KEY /tmp
+#
+# terminate the jump host
+#
+ISTANCE_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST| jq -r '.Reservations[0].Instances[0].InstanceId')
+aws ec2 terminate-instances --instance-ids "$ISTANCE_ID"
 }
 ############################################################################################################################################################
 #clear
