@@ -148,19 +148,6 @@ Fine
 # Select and delete an HCP c. and the VPC it belongs to, for example when there are NO logs #
 #############################################################################################
 Delete_One_HCP() {
-#
-JUMP_HOST="$CLUSTER_NAME"-jump-host
-JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
-	if [[ $JUMP_HOST_ID ]]
-	then
-        aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
-        JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
-        echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-        aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-	mv "$JUMP_HOST_KEY" /tmp
-	else
-      	echo ""
-	fi
 #set -x
 CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|grep -v uninstalling|awk '{print $2}')
 echo ""
@@ -184,6 +171,19 @@ if [ -n "$CLUSTER_LIST" ]; then
 		echo ""
 		CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 		#############################################################################################################################################################
+#
+		JUMP_HOST="$CLUSTER_NAME"-jump-host
+		JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
+        		if [[ $JUMP_HOST_ID ]]
+        		then
+        		aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+        		JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
+        		echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+        		aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+        		mv "$JUMP_HOST_KEY" /tmp
+        		else
+        		echo ""
+        		fi
     #############################################################################################################################################################
     #############################################################################################################################################################
 #
@@ -200,7 +200,7 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}')
 		DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}')
 		CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}')
-		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $2}')
+		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}')
 		#
 		# Find $VPC_ID and start deleting NGW
 		#
@@ -209,11 +209,10 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		echo "Cluster " $CLUSTER_NAME "is a" $DEPLOYMENT "deployment with"$CURRENT_NODES"of "$DESIRED_NODES "nodes within the AWS VPC" $VPC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 		# start removing the NGW since it takes a lot of time
 		echo "Removing the NGW since it takes a lot of time to get deleted"
-        	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
+        	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
 		#
 		# Find $PREFIX
 		#
-		#PREFIX=$(cat $CLUSTER_NAME.txt |grep openshift-cluster-csi|awk -F- '{print $2}'|awk -F/ '{print $2}')
 		PREFIX=$CLUSTER_NAME
 		echo "Operator roles prefix: " $PREFIX
 		#
@@ -223,6 +222,7 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		rosa delete cluster -c $CLUSTER_NAME --yes &>> "$CLUSTER_LOG"
 		echo "Running \"rosa logs unistall\"" 2>&1 |tee -a "$CLUSTER_LOG"
 		rosa logs uninstall -c $CLUSTER_NAME --watch &>> "$CLUSTER_LOG"
+#
 		echo "Deleting operator-roles" 2>&1 |tee -a "$CLUSTER_LOG"
 		rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
 		echo "Deleting OIDC " $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
@@ -234,7 +234,7 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		#################################################################################################################################
 		# Delete the VPC it belongs to
 		#
-		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $2}')
+		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}')
 		VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
     		echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
 		#
@@ -256,7 +256,8 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
 		option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 		echo " "
 		option_picked_green "HCP Cluster $CLUSTER_NAME deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
-		mv *.log /tmp
+		mv "$CLUSTER_LOG" /tmp
+		mv "$CLUSTER_NAME".txt /tmp
 		CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 		CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 	else
@@ -286,12 +287,13 @@ read -r ppp
 # Delete almost everything
 ################################################
 Delete_ALL() {
-#set -x
+set -x
 #
 #
 # how many clusters do we have ?
 #
 CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|grep -v uninstalling|awk '{print $2}')
+#CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|awk '{print $2}')
 # if1 ##################################################################################################################################
 if [ -n "$CLUSTER_LIST" ]; then
    echo "Current HCP cluster list:"
@@ -304,8 +306,8 @@ if [ -n "$CLUSTER_LIST" ]; then
   CLUSTER_NAME=$a
   CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 #
-JUMP_HOST="$CLUSTER_NAME"-jump-host
-JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
+	JUMP_HOST="$CLUSTER_NAME"-jump-host
+	JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
 	if [[ $JUMP_HOST_ID ]]
 	then
         aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
@@ -325,9 +327,8 @@ JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_H
   DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}')
   CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}')
 # Find VPC_ID
-# SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $2}')
-  SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $1}'|awk -F: '{print $2}')
-  VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
+  SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}')
+  VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}'|xargs)
 #
 #
   echo "#" 2>&1 >> "$CLUSTER_LOG"
@@ -366,7 +367,7 @@ rosa delete account-roles --mode auto --prefix $PREFIX --yes &>> "$CLUSTER_LOG"
 #
 
 #########################
-SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F, '{print $2}')
+SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}')
 VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
     echo "########### " 2>&1 |tee -a "$CLUSTER_LOG"
     echo "#  Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -389,7 +390,8 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
 aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
 option_picked_green "#  VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
   echo "############################################################################################################# "
-mv *.log *.txt /tmp
+mv "$CLUSTER_LOG" /tmp
+mv "$CLUSTER_NAME".txt /tmp
 CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 #########################
@@ -495,7 +497,8 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
         	echo ""
         	CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
         	option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a $CLUSTER_LOG
-		mv *.log /tmp
+		#mv *.log /tmp
+		mv "$CLUSTER_LOG" /tmp
 		            #############################################################################################################################################################
                 #############################################################################################################################################################
                 #############################################################################################################################################################
