@@ -63,8 +63,7 @@ CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 ############################################################
 # Delete HCP (the LOG file is in place)                    #
 ############################################################
-Delete_HCP()
-{
+Delete_HCP() {
 #set -x
 CLUSTER_COUNT=$(rosa list clusters|wc -l)
 CLUSTER_NAME=$(ls "$INSTALL_DIR" |grep *.log| awk -F. '{print $1}')
@@ -74,16 +73,26 @@ PREFIX=$(grep "INFO: Cluster" $CLUSTER_LOG |grep "is now ready"|awk -F\' '{print
 #OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
 OIDC_ID=$(cat "$CLUSTER_LOG" |grep OIDC_ID |awk '{print $2}'|sort -u)
 VPC_ID=$(cat "$CLUSTER_LOG" |grep VPC_ID_VALUE|awk '{print $2}')
-JUMP_HOST_STAT=$(cat "$CLUSTER_LOG" |grep JUMP_HOST|awk '{print $2}')
 if [ "$CLUSTER_COUNT" -gt 2 ]; then
         option_picked "Found more than one clusterm with this Account Please pick one HCP cluster from the following list: "
 	Delete_One_HCP
    	sub_menu_tools
 else
-  if [[ "$JUMP_HOST_STAT" =~ "ON" ]];
-  then
-	Delete_Jump_Host
-  fi
+	echo ""
+fi
+#
+JUMP_HOST="$CLUSTER_NAME"-jump-host
+JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
+	if [[ $JUMP_HOST_ID ]]
+	then
+        aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+        JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
+        echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+        aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+	mv "$JUMP_HOST_KEY" /tmp
+	else
+      	echo ""
+	fi
   #
   echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
   echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -130,7 +139,6 @@ else
 	  sleep_120
 	  Delete_VPC
 	fi
-fi
 Fine
 #
 #
@@ -140,6 +148,19 @@ Fine
 # Select and delete an HCP c. and the VPC it belongs to, for example when there are NO logs #
 #############################################################################################
 Delete_One_HCP() {
+#
+JUMP_HOST="$CLUSTER_NAME"-jump-host
+JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
+	if [[ $JUMP_HOST_ID ]]
+	then
+        aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+        JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
+        echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+        aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+	mv "$JUMP_HOST_KEY" /tmp
+	else
+      	echo ""
+	fi
 #set -x
 CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|grep -v uninstalling|awk '{print $2}')
 echo ""
@@ -266,6 +287,8 @@ read -r ppp
 ################################################
 Delete_ALL() {
 #set -x
+#
+#
 # how many clusters do we have ?
 #
 CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|grep -v uninstalling|awk '{print $2}')
@@ -280,6 +303,19 @@ if [ -n "$CLUSTER_LIST" ]; then
   VPC_ID=""
   CLUSTER_NAME=$a
   CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+#
+JUMP_HOST="$CLUSTER_NAME"-jump-host
+JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
+	if [[ $JUMP_HOST_ID ]]
+	then
+        aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+        JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
+        echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+        aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+	mv "$JUMP_HOST_KEY" /tmp
+	else
+      	echo ""
+	fi
 #
 # Collecting a few details
 #
@@ -312,7 +348,7 @@ if [ -n "$CLUSTER_LIST" ]; then
 ### PREFIX=$(rosa list account-roles| grep $a|grep Install|awk '{print $1}'| sed 's/.\{24\}$//')
   #PREFIX=$(cat $CLUSTER_NAME.txt |grep openshift-cluster-csi|awk -F- '{print $2}'|awk -F/ '{print $2}')
   PREFIX="$CLUSTER_NAME"
-#  echo "#  Operator roles prefix ==> " "$PREFIX"
+# echo "#  Operator roles prefix ==> " "$PREFIX"
 #
 #Get started 
    option_picked "#  Going to delete the HCP cluster named " "$CLUSTER_NAME" " and the VPC " "$VPC_ID" 2>&1 |tee -a "$CLUSTER_LOG"
@@ -1104,8 +1140,8 @@ aws configure
 echo "#"
 echo "#"
 echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) with JUMP HOST ..." 2>&1 |tee -a "$CLUSTER_LOG"
-JUMP_HOST_STAT="ON"
-echo "JUMP_HOST " $JUMP_HOST_STAT 2>&1 "$CLUSTER_LOG"
+#JUMP_HOST_STAT="ON"
+echo "JUMP_HOST ON" 2>&1 "$CLUSTER_LOG"
 #
 SingleAZ_VPC
 #
@@ -1627,30 +1663,6 @@ Also, update your /etc/hosts with the following info:
 #############################################################################################################################################################################
 }
 
-
-#
-############################################################
-# Delete Jump Host                                         #
-############################################################
-##
-Delete_Jump_Host() {
-#set -x
-JUMP_HOST=${CLUSTER_NAME}-jump-host
-ISTANCE_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST| jq -r '.Reservations[0].Instances[0].InstanceId')
-aws ec2 terminate-instances --instance-ids "$ISTANCE_ID" 2>&1 |tee -a "$CLUSTER_LOG"
-#
-# delete SG - nothing to do here, SG are deleted during VPC deletion
-#
-# delete key-pair
-echo "Deleting the key-pair named " "$CLUSTER_NAME"_KEY 2>&1 |tee -a "$CLUSTER_LOG"
-aws ec2 delete-key-pair --key-name "$CLUSTER_NAME"_KEY 2>&1 |tee -a "$CLUSTER_LOG"
-mv "$CLUSTER_NAME"_KEY /tmp
-#
-# terminate the jump host
-#
-ISTANCE_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST| jq -r '.Reservations[0].Instances[0].InstanceId')
-aws ec2 terminate-instances --instance-ids "$ISTANCE_ID"
-}
 ############################################################################################################################################################
 #clear
 show_menu
