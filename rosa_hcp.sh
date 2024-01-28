@@ -288,7 +288,7 @@ read -r ppp
 # Delete almost everything
 ################################################
 Delete_ALL() {
-set -x
+# set -x
 #
 #
 # how many clusters do we have ?
