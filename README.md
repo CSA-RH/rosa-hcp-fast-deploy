@@ -55,11 +55,15 @@ $ ./rosa_hcp.sh
 ** 1) HCP Public in Single-AZ                 
 ** 2) HCP Public in Multi-AZ                  
 ** 3) HCP PrivateLink in Single-AZ            
-** 4) Delete HCP 
-** 5)  
+** 4) HCP PrivateLink in Single-AZ with Jump Host 
+** 5) Delete HCP 
 ** 6)  
 ** 7)  
 ** 8) Tools 
+
+************************************************************
+Current VPCs:  0
+Current HCP clusters:  0
 
 ************************************************************
 Please enter a menu option and enter or x to exit. 3
@@ -105,16 +109,20 @@ $ ./rosa_hcp.sh
 ** 1) HCP Public in Single-AZ                 
 ** 2) HCP Public in Multi-AZ                  
 ** 3) HCP PrivateLink in Single-AZ            
-** 4) Delete HCP 
-** 5)  
+** 4) HCP PrivateLink in Single-AZ with Jump Host 
+** 5) Delete HCP 
 ** 6)  
 ** 7)  
 ** 8) Tools 
 
 ************************************************************
-Please enter a menu option and enter or x to exit. 4
+Current VPCs:  1
+Current HCP clusters:  1
 
-Option 4 Picked - Removing ROSA with HCP
+************************************************************
+Please enter a menu option and enter or x to exit. 5
+
+Option 5 Picked - Removing ROSA with HCP
 #
 # Start deleting ROSA HCP cluster gm-2401061517, VPC, roles, etc. 
 # Further details can be found in /home/gmollo/tools/cluster/svil/fast-rosa-hcp-depoly/gm-2401061517.log LOG file
@@ -130,14 +138,14 @@ ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, Priv
 
 - AWS Resource created includes:
   - 1 [VPC](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#rosa-vpc_prerequisites) with cidr-block 10.0.0.0/16
-  - 1 or more Public subnets - only for ROSA public clusters
+  - 1 or more Public subnets
     - Single-AZ --> cidr-block 10.0.0.0/20
     - Multi-AZ  --> cidr-blocks 10.0.0.0/20; 10.0.16.0/20; 10.0.32.0/20
-  - 1 or more Private subnets - In the case of a PrivateLink ROSA with **HCP** cluster, it is assumed that it will be reachable through a VPN or a Direct Connect service, therefore the script does not include the creation of any Public Subnet, NGW, jump Hosts, etc.. If you are using a firewall to control egress traffic, you must configure your firewall to grant access to the domain and port combinations [here](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#osd-aws-privatelink-firewall-prerequisites_prerequisites)
+  - 1 or more Private subnets - In the case of Option 3 (HCP PrivateLink in Single-AZ), it is assumed that the cluster will be reachable via a VPN or a Direct Connect service, therefore the script does not provide for the creation of any subnet Public Subnet, NGW, jump host, etc. In the case of Option 4 (HCP PrivateLink in Single-AZ with Jump Host), a public subnet is included to allow egress via IGW+NGW and enable creation of a jump host to allow access to the cluster's private network via SSH. If you are using a firewall to control egress traffic, you must configure your firewall to grant access to the domain and port combinations [here](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#osd-aws-privatelink-firewall-prerequisites_prerequisites)
     - Single-AZ --> cidr-block  10.0.128.0/20
     - Multi-AZ  --> cidr-blocks 10.0.128.0/20; 10.0.144.0/20; 10.0.160.0/20
-  - 1 NAT GW in 1 AZ
-  - 1 Internet GW in 1 AZ, to allow the egress (NAT) traffic to the Internet
+  - 1 NAT GW per AZ
+  - 1 Internet GW in just one AZ, to allow the egress (NAT) traffic to the Internet
   - Enable DNS hostnames
   - Enable DNS resolution
 - AWS Region: the aws configure command will ask for the default $AWS_Region which will be used as the target destination during the installation process
