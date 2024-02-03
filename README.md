@@ -4,7 +4,8 @@ The idea behind this shell script was to automatically create the necessary envi
    - Account and Operator roles and policies
    - OIDC identity provider configuration
 
-The entire process to create/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
+This is not intended to replace the [Red Hat official documentation](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html), but rather to practice creating your own test environments in such a short time: the entire process to create/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
+
 
 #### Script prerequisites
 - An AWS account with enough quota value to meet the minimum requirements for ROSA (100)
