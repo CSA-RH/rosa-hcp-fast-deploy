@@ -1584,7 +1584,7 @@ sub_tools=x
     printf "${menu}**${number} --${menu} ------------------------------------------${normal}\n"
     printf "${menu}**${number} 6)${menu} Delete a specific HCP Cluster (w/no LOGs) ${normal}\n"
     printf "${menu}**${number} 7)${menu} Delete a specific VPC                     ${normal}\n"
-    printf "${menu}**${number} 8)${menu} Delete EVERYTHING ${fgred}(CAUTION: watch your step - THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT) ${normal}\n"
+    printf "${menu}**${number} 8)${menu} Delete EVERYTHING ${fgred}(CAUTION: THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT) ${normal}\n"
     printf "\n${menu}************************************************************${normal}\n"
 #
     echo "Current VPCs: " $CURRENT_VPC
