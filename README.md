@@ -134,7 +134,15 @@ INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall -c gm-
 ```
 It takes approximately 15 minutes to delete your cluster, including its VPCs, IAM roles, OIDCs, etc.<br />
 
-# Additional notes around resources, deployment, etc.
+#### Log File 
+During the implementation phase a LOG file is created in the same folder as the shell script, so you can follow all the intermediate steps.
+After a successful deployment a **cluster-admin** account is added to your cluster whose password will be recorded in the LOG file, feel free to change this to fit your security needs. See 'rosa create idp --help' for more information. 
+
+> [!NOTE]
+> It is mandatory to keep this file in its original location so that the script can automatically delete the cluster when necessary.
+> Once the cluster deletion process is complete, the LOG file will be moved from its current location to the **/tmp** folder.
+
+# Notes around resources, deployment, etc.
 ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-AZ), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly)
 
 - AWS Resource created includes:
@@ -155,13 +163,30 @@ ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, Priv
   - Single-AZ: 2x worker nodes will be created within the same subnet<br />
   - Multi-AZ: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
 
-#### Log File 
-During the implementation phase a LOG file is created in the same folder as the shell script, so you can follow all the intermediate steps.
-After a successful deployment a **cluster-admin** account is added to your cluster whose password will be recorded in the LOG file, feel free to change this to fit your security needs. See 'rosa create idp --help' for more information. 
+# Additional tools
+From the main menù, click option #8 to access to the sub-menù called " ROSA HCP TOOLS Menu ". <br />
+Here you will find specific actions you take do to manage your environment:
+```
+************************************************************
 
-> [!NOTE]
-> It is mandatory to keep this file in its original location so that the script can automatically delete the cluster when necessary.
-> Once the cluster deletion process is complete, the LOG file will be moved from its current location to the **/tmp** folder.
+*               ROSA HCP TOOLS Menu                        *
 
+************************************************************
+** 1) Create a SingleAZ Public VPC  --> no clusters will be created, only VPC resources            
+** 2) Inst./Upd. AWS CLI            --> linux/mac, x86/ARM	 	 
+** 3) Inst./Upd. ROSA CLI           --> linux/mac, x86/ARM
+** 4) Inst./Upd. OC CLI             --> linux/mac, x86/ARM
+** 5) Inst./Upd. all CLIs           --> this also include JQ    
+** -- ------------------------------------------
+** 6) Delete a specific HCP Cluster --> in case no LOG files are in place
+** 7) Delete a specific (empty) VPC --> only VPC resources
+** 8) Delete EVERYTHING             --> CAUTION: THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT 
+
+************************************************************
+Current VPCs:  0
+Current HCP clusters:  0
+
+************************************************************
+```
 # Wrap up
 This script will make use of specific commands, options, and variables to successfully install the cluster for you in a few minutes but **feel free to make changes to suit your needs**.
