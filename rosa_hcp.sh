@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#set -x
 ######################################################################################################################
 ##  +-----------------------------------+-----------------------------------+
 ##  |                                                                       |
@@ -66,42 +67,57 @@ CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 ############################################################
 Delete_HCP() {
 #set -x
-CLUSTER_COUNT=$(rosa list clusters|wc -l)
-CLUSTER_NAME=$(ls "$INSTALL_DIR" |grep *.log| awk -F. '{print $1}')
-CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
-PREFIX=$(grep "INFO: Cluster" $CLUSTER_LOG |grep "is now ready"|awk -F\' '{print $2}')
-####### PREFIX=$(rosa list account-roles| grep Install|awk '{print $1}'| sed 's/.\{24\}$//')
-#OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
-OIDC_ID=$(cat "$CLUSTER_LOG" |grep OIDC_ID |awk '{print $2}'|sort -u)
-VPC_ID=$(cat "$CLUSTER_LOG" |grep VPC_ID_VALUE|awk '{print $2}')
-if [ "$CLUSTER_COUNT" -gt 2 ]; then
-        option_picked "Found more than one clusterm with this Account Please pick one HCP cluster from the following list: "
+CHECK_GM="Delete_HCP"
+if [ "$CURRENT_HCP" -eq 0 ]; then
+    	  echo ""
+    	  echo ""
+    	  option_picked "Unfortunately there are NO HCP clusters now "
+    	  echo ""
+    	  echo ""
+    	  echo ""
+	ppp=x
+	echo "Press ENTER to go back to the Menu"
+	read -r ppp
+else 
+  if [ "$CURRENT_HCP" -gt 1 ]; then
+        option_picked "Found more than one clusterm with this Account Please pick one HCP cluster from the following list"
 	Delete_One_HCP
    	sub_menu_tools
-else
-	echo ""
-fi
-#
-JUMP_HOST="$CLUSTER_NAME"-jump-host
-JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
-	if [[ $JUMP_HOST_ID ]]
-	then
-        aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
-        JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
-        echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-        aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-	mv "$JUMP_HOST_KEY" /tmp
+  else
+	#CLUSTER_NAME=$(ls "$INSTALL_DIR" | grep -v vpc-*.log|grep *.log | awk -F. '{print $1}')
+	CLUSTER_NAME=$(find . -name "*.log"|grep -v vpc| awk -F/ '{print $2}'|awk -F. '{print $1}'|xargs)
+	CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+	PREFIX=$(grep "INFO: Cluster" $CLUSTER_LOG |grep "is now ready"|awk -F\' '{print $2}')
+	####### PREFIX=$(rosa list account-roles| grep Install|awk '{print $1}'| sed 's/.\{24\}$//')
+	#OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
+	OIDC_ID=$(cat "$CLUSTER_LOG" |grep OIDC_ID |awk '{print $2}'|sort -u)
+	VPC_ID=$(cat "$CLUSTER_LOG" |grep VPC_ID_VALUE|awk '{print $2}')
+	PRIVATE=$(cat $CLUSTER_LOG|grep "Private:"|sort -u |awk -F: '{print $2}'|xargs)
+#   
+        if  [ "$PRIVATE" == "Yes" ]; then
+	JUMP_HOST="$CLUSTER_NAME"-jump-host
+	JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
+		if [[ $JUMP_HOST_ID ]]
+		then
+        		aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+        		JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
+       	 		echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+        		aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+			mv "$JUMP_HOST_KEY" /tmp
+		else
+      			echo ""
+		fi
 	else
-      	echo ""
-	fi
+         echo ""
+  fi
   #
-  echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-  echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
-  echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
-  echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-  rosa delete cluster -c "$CLUSTER_NAME" --yes &>> "$CLUSTER_LOG"
-	if [ $? -eq 0 ]; then
+rosa delete cluster -c "$CLUSTER_NAME" --yes &>> "$CLUSTER_LOG"
+  if [ $? -eq 0 ]; then
 	  # start removing the NGW since it takes a lot of time
 	  while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id "$instance_id"; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='"$VPC_ID"| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
           echo "Cluster deletion in progress " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -126,23 +142,18 @@ JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_H
 	  CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 	  CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 	  Countdown
-	else
+  else
 	  echo " "
 	  echo " "
-    	  option_picked "Unfortunately there are no clusters with name => " "$CLUSTER_NAME"
-	  rosa delete operator-roles --prefix "$PREFIX" -m auto -y 2>&1 >> "$CLUSTER_LOG"
-          rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
-          rosa delete account-roles --mode auto --prefix "$PREFIX" --yes &>> "$CLUSTER_LOG"
-    	  echo "The VPC " $VPC_ID "will be deleted then"
-# 	  NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
-	  echo "waiting for the NAT-GW to die " 2>&1 |tee -a "$CLUSTER_LOG"
-          while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
-	  sleep_120
-	  Delete_VPC
-	fi
+    	  option_picked "Unfortunately there are NO clusters with name => " "$CLUSTER_NAME"
+	  FILE=.log
+	   if test -f "$FILE"; then
+    		mv .log /tmp
+	   fi
+  fi
 Fine
-#
-#
+fi
+fi
 }
 #
 #############################################################################################
@@ -150,6 +161,7 @@ Fine
 #############################################################################################
 Delete_One_HCP() {
 #set -x
+CHECK_GM="Delete_One_HCP"
 CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|grep -v uninstalling|awk '{print $2}')
 echo ""
 echo ""
@@ -168,41 +180,45 @@ if [ -n "$CLUSTER_LIST" ]; then
 # if2 #########################################################################################################
 		if [ "$CLUSTER_NAME" == $a ]; then
 		option_picked_green "Let's get started with " "$CLUSTER_NAME" " cluster"
+                rosa describe cluster -c $CLUSTER_NAME > $CLUSTER_NAME.txt
 		echo ""
 		echo ""
 		CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
-		#############################################################################################################################################################
-#
-		JUMP_HOST="$CLUSTER_NAME"-jump-host
-		JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
-        		if [[ $JUMP_HOST_ID ]]
-        		then
-        		aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
-        		JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
-        		echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-        		aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-        		mv "$JUMP_HOST_KEY" /tmp
-        		else
-        		echo ""
-        		fi
-    #############################################################################################################################################################
     #############################################################################################################################################################
 #
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
 echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-#
 		#
 		# Collecting a few details
 		#
-		rosa describe cluster -c $CLUSTER_NAME > $CLUSTER_NAME.txt
 		OIDC_ID=$(cat $CLUSTER_NAME.txt |grep OIDC| awk -F/ '{print $4}'|cut -c 1-32)
-		DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}')
-		DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}')
-		CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}')
-		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}')
-		#
+		DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}'| xargs)
+		DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}'| xargs)
+		CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}'| xargs)
+		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}'|awk -F, '{print $1}'| xargs)
+	        PRIVATE=$(cat $CLUSTER_NAME.txt|grep Private|awk -F: '{print $2}'|xargs)
+    #############################################################################################################################################################
+    #
+		if  [ "$PRIVATE" == "Yes" ]; then
+    JUMP_HOST="$CLUSTER_NAME"-jump-host
+		JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
+        		if [[ $JUMP_HOST_ID ]]
+        		then
+        		 aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+        		 JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
+        		 echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+        		 aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+        		 mv "$JUMP_HOST_KEY" /tmp
+        		else
+        		 echo ""
+        		fi
+      else
+       echo ""
+      fi
+    #############################################################################################################################################################
+#
 		# Find $VPC_ID and start deleting NGW
 		#
 		VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
@@ -269,13 +285,14 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
         fi
 	done
 else
-option_picked "Unfortunately there are no HCP clusters in this accout"
+option_picked "Unfortunately there are NO HCP clusters in this accout"
 fi
 #################################################################################################################################
 #
 #
 echo "" 
 echo ""
+ppp=x
 echo "Press ENTER to go back to the Menu"
 read -r ppp
 }
@@ -289,6 +306,7 @@ read -r ppp
 ################################################
 Delete_ALL() {
 # set -x
+CHECK_GM="Delete_ALL"
 #
 #
 # how many clusters do we have ?
@@ -401,9 +419,10 @@ done
 else
 	echo "" 
 	echo "" 
-	option_picked "Unfortunately there are HCP clusters at the moment in this accout"
+	option_picked "Unfortunately there are NO HCP clusters at the moment in this accout"
 	echo "" 
 	echo "" 
+	ppp=x
 	echo "Press ENTER to go back to the Menu"
 	read -r ppp
 fi
@@ -417,6 +436,8 @@ fi
 #######################################################################################################################################
 Delete_VPC()
 {
+CHECK_GM="Delete_VPC"
+
     echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
 #
 #
@@ -449,6 +470,7 @@ echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 Delete_1_VPC() {
 #
 #set -x
+CHECK_GM="Delete_1_VPC"
 CLUSTER_NAME=delete-vpc
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 #
@@ -513,13 +535,14 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
 else
 echo " "
 echo " "
-option_picked "Unfortunately there are No VPCs in this AWS accout"
+option_picked "Unfortunately there are NO VPCs in this AWS accout"
 fi
 #
 #
 #
 echo ""
 echo ""
+ppp=x
 echo "Press ENTER to go back to the Menu"
 read -r ppp
 
@@ -652,6 +675,69 @@ aws ec2 create-tags --resources $PRIVATE_RT_ID1 $EIP_ADDRESS --tags Key=Name,Val
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "VPC creation ... done! " 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+}
+#
+#
+############################################################
+# Create only a Single AZ VPC                              #
+############################################################
+#
+SingleAZ_VPC_22() {
+echo "#"
+CLUSTER_NAME=${1:-vpc-$NOW}
+CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+touch $CLUSTER_LOG
+aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
+aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
+#rosa verify permissions 2>&1 >> "$CLUSTER_LOG"
+#rosa verify quota --region=$AWS_REGION
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text)
+
+echo "Creating the VPC: " $VPC_ID_VALUE 2>&1 |tee -a "$CLUSTER_LOG"
+#
+echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> "$CLUSTER_LOG"
+aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
+aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
+#
+PUBLIC_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
+echo "Creating the Public Subnet: " $PUBLIC_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-public
+#
+PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
+echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
+#
+IGW=$(aws ec2 create-internet-gateway --query InternetGateway.InternetGatewayId --output text)
+echo "Creating the IGW: " $IGW 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 attach-internet-gateway --vpc-id $VPC_ID_VALUE --internet-gateway-id $IGW 2>&1 >> "$CLUSTER_LOG"
+aws ec2 create-tags --resources $IGW --tags Key=Name,Value=$CLUSTER_NAME-IGW 2>&1 >> "$CLUSTER_LOG"
+#
+PUBLIC_RT_ID=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
+echo "Creating the Public Route Table: " $PUBLIC_RT_ID 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 create-route --route-table-id $PUBLIC_RT_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW 2>&1 >> "$CLUSTER_LOG"
+aws ec2 associate-route-table --subnet-id $PUBLIC_SUB_2a --route-table-id $PUBLIC_RT_ID 2>&1 >> "$CLUSTER_LOG"
+aws ec2 create-tags --resources $PUBLIC_RT_ID --tags Key=Name,Value=$CLUSTER_NAME-public-rtb 2>&1 >> "$CLUSTER_LOG"
+#
+EIP_ADDRESS=$(aws ec2 allocate-address --domain vpc --query AllocationId --output text)
+NAT_GATEWAY_ID=$(aws ec2 create-nat-gateway --subnet-id $PUBLIC_SUB_2a --allocation-id $EIP_ADDRESS --query NatGateway.NatGatewayId --output text)
+echo "Creating the NGW: " $NAT_GATEWAY_ID 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Waiting for NGW to warm up " 2>&1 |tee -a "$CLUSTER_LOG"
+sleep_120
+aws ec2 create-tags --resources $EIP_ADDRESS  --resources $NAT_GATEWAY_ID --tags Key=Name,Value=$CLUSTER_NAME-NAT-GW
+#
+PRIVATE_RT_ID1=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
+echo "Creating the Private Route Table: " $PRIVATE_RT_ID1 2>&1 |tee -a "$CLUSTER_LOG"
+aws ec2 create-route --route-table-id $PRIVATE_RT_ID1 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> "$CLUSTER_LOG"
+aws ec2 associate-route-table --subnet-id $PRIV_SUB_2a --route-table-id $PRIVATE_RT_ID1 2>&1 >> "$CLUSTER_LOG"
+aws ec2 create-tags --resources $PRIVATE_RT_ID1 $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private-rtb
+#
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "VPC creation ... done! " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+mv "$CLUSTER_LOG" /tmp
 }
 #
 ############################################################
@@ -1384,12 +1470,15 @@ fi
    echo " "
    echo " "
    echo " "
+   ppp=x
    read -p "Press ENTER to continue"
+   read -r ppp
 }
 ########################################################################################################################
 # Menu
 ########################################################################################################################
 show_menu(){
+opt=x
 clear
 various_checks
     normal=$(echo "\033[m")
@@ -1419,7 +1508,8 @@ various_checks
     printf "\n${menu}************************************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
     read="m"
-    read -r opt
+######################  read -r opt
+    read -s -n 1 opt
 
 while [ "$opt" != '' ]
     do
@@ -1474,6 +1564,7 @@ done
 ########################################################################################################################
 sub_menu_tools(){
 clear
+sub_tools=x
     normal=$(echo "\033[m")
     menu=$(echo "\033[36m") #Blue
     number=$(echo "\033[33m") #yellow
@@ -1501,7 +1592,8 @@ clear
 #
     printf "\n${menu}************************************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
-    read -r sub_tools
+#######################    read -r sub_tools
+    read -s -n 1 sub_tools
 while [[ "$sub_tools" != '' ]]
     do
  if [[ "$sub_tools" = '' ]]; then
@@ -1510,7 +1602,7 @@ while [[ "$sub_tools" != '' ]]
       case "$sub_tools" in
         1) clear;
             option_picked "Option 1 Picked - Create a Public VPC ";
-            SingleAZ_VPC;
+            SingleAZ_VPC_22;
 	    CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
             sub_menu_tools;
         ;;
