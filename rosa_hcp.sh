@@ -964,7 +964,7 @@ VAR2="ROSA_${OS}"
 # Check if ROSA CLI is installed
 if [ -x "$(command -v /usr/local/bin/rosa)" ]
 then
-    CHECK_IF_UPDATE_IS_NEEDED=${rosa version|grep "There is a newer release version"| awk -F\ '{print $1 ", going to install version --> " $2}'}
+    CHECK_IF_UPDATE_IS_NEEDED=$(rosa version|grep "There is a newer release version"| awk -F/ '{print $1 ", going to install version --> " $2}')
         if [ -z ${CHECK_IF_UPDATE_IS_NEEDED:+word} ]
         then
                 ROSA_VERSION=$(/usr/local/bin/rosa version)
@@ -986,7 +986,7 @@ then
    		echo " ###########################################################################"
                 ROSA_ACTUAL_V=$(rosa version|awk -F. 'NR==1{print $1"."$2"."$3 }')
                 echo "ROSA actual version is --> " $ROSA_ACTUAL_V
-                NEXT_V=$(rosa version|grep "There is a newer release version"| awk -F\ 'NR==1{print $1 ", going to install version --> " $2}')
+                NEXT_V=$(rosa version|grep "There is a newer release version"| awk -F/ 'NR==1{print $1 ", going to install version --> " $2}')
                 echo $NEXT_V
         	# Download and install ROSA CLI
                 curl ${!VAR2} --output rosa-linux.tar.gz
@@ -1518,27 +1518,27 @@ while [ "$opt" != '' ]
     else
       case "$opt" in
         1) clear;
-            option_picked "Option 1 Picked - Installing ROSA with HCP Public (Single-AZ)";
+            option_picked "Option 1 Picked - Installing ROSA HCP Public (Single-AZ)";
             HCP_Public;
             show_menu;
         ;;
         2) clear;
-            option_picked "Option 2 Picked - Installing ROSA with HCP Public (Multi-AZ)";
+            option_picked "Option 2 Picked - Installing ROSA HCP Public (Multi-AZ)";
             HCP_Public_MultiAZ;
             show_menu;
         ;;
         3) clear;
-            option_picked "Option 3 Picked - Installing ROSA with HCP PrivateLink (Single-AZ)";
+            option_picked "Option 3 Picked - Installing ROSA HCP PrivateLink (Single-AZ)";
             HCP_Private;
             show_menu;
         ;;
         4) clear;
-            option_picked "Option 4 Picked - Installing ROSA with HCP PrivateLink (Single-AZ) with Jump Host ";
+            option_picked "Option 4 Picked - Installing ROSA HCP PrivateLink (Single-AZ) with Jump Host ";
             HCP_Private2;
             show_menu;
         ;;
         5) clear;
-            option_picked "Option 5 Picked - Removing ROSA with HCP";
+            option_picked "Option 5 Picked - Removing ROSA HCP";
             Delete_HCP;
             show_menu;
         ;;
@@ -1582,7 +1582,7 @@ sub_tools=x
     printf "${menu}**${number} 4)${menu} Inst./Upd. OC CLI			 ${normal}\n"
     printf "${menu}**${number} 5)${menu} Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)    ${normal}\n"
     printf "${menu}**${number} --${menu} ------------------------------------------${normal}\n"
-    printf "${menu}**${number} 6)${menu} Delete a specific HCP Cluster (w/no LOGs) ${normal}\n"
+    printf "${menu}**${number} 6)${menu} Delete a specific HCP cluster (w/no LOGs) ${normal}\n"
     printf "${menu}**${number} 7)${menu} Delete a specific VPC                     ${normal}\n"
     printf "${menu}**${number} 8)${menu} Delete EVERYTHING ${fgred}(CAUTION: THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT) ${normal}\n"
     printf "\n${menu}************************************************************${normal}\n"
@@ -1727,33 +1727,35 @@ echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 #############################################################################################################################################################################
 #############################################################################################################################################################################
 clear
-echo "Please take a few notes:
-1) login to your newly created jump host like this: " 2>&1 |tee -a "$CLUSTER_LOG"
-option_picked_green "
-sudo ssh -i "$CLUSTER_NAME"_KEY -L 6443:api.$ROSA_DNS:6443 -L 443:console-openshift-console.apps.rosa.$ROSA_DNS:443 -L 80:console-openshift-console.apps.rosa.$ROSA_DNS:80 ec2-user@$JH_PUB_IP" 2>&1 |tee -a "$CLUSTER_LOG"
-#
+echo "#"
+echo "#########################################################################################################################################"
 echo " "
-echo "2) from the jump host, download the OC CLI " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "A few notes more:
+"
+echo  "
+1) Update your /etc/hosts like following:
+127.0.0.1 api.$ROSA_DNS
+127.0.0.1 console-openshift-console.apps.rosa.$ROSA_DNS
+127.0.0.1 oauth.$ROSA_DNS
+" 2>&1 |tee -a "$CLUSTER_LOG"
+
+echo  "
+2) login to your newly created Jump Host: 
+" 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "
+sudo ssh -i "$CLUSTER_NAME"_KEY -L 6443:api.$ROSA_DNS:6443 -L 443:console-openshift-console.apps.rosa.$ROSA_DNS:443 -L 80:console-openshift-console.apps.rosa.$ROSA_DNS:80 ec2-user@$JH_PUB_IP" 2>&1 |tee -a "$CLUSTER_LOG
+"
+echo "3) from the Jump Host, download and install the OC CLI " 2>&1 |tee -a "$CLUSTER_LOG"
 option_picked_green "
 wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
 gunzip openshift-client-linux.tar.gz
 tar -xvf openshift-client-linux.tar
 sudo mv oc /usr/local/bin
 " 2>&1 |tee -a "$CLUSTER_LOG"
-echo " "
 HOW_TO_LOG=$(grep "oc login" "$CLUSTER_LOG" |grep -v example)
 echo " 
-3) login to your HCP PrivateLink cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+4) login to your HCP PrivateLink cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 option_picked_green $HOW_TO_LOG 2>&1 |tee -a "$CLUSTER_LOG"
-#
-# update /etc/hosts
-#
-echo  "
-Also, update your /etc/hosts with the following info:
-127.0.0.1 api.$ROSA_DNS
-127.0.0.1 console-openshift-console.apps.rosa.$ROSA_DNS
-127.0.0.1 oauth.$ROSA_DNS
-" 2>&1 |tee -a "$CLUSTER_LOG"
 #############################################################################################################################################################################
 #############################################################################################################################################################################
 #############################################################################################################################################################################
