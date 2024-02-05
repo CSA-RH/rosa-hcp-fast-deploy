@@ -29,6 +29,7 @@
 ##  DESCRIPTION
 #
 #
+#
 #   This is a single shell script that will create all the resources needed to deploy a ROSA HCP cluster via the CLI. The script will take care of:
 #
 #   - Set up your AWS account and roles (eg. the account-wide IAM roles and policies, cluster-specific Operator roles and policies, and OpenID Connect (OIDC) identity provider).
@@ -46,7 +47,7 @@
 ########################################################################################################################
 #
 #
-SCRIPT_VERSION=v1.0.8
+SCRIPT_VERSION=v1.0.9
 #
 #
 ########################################################################################################################
