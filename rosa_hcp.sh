@@ -52,13 +52,13 @@ SCRIPT_VERSION=v1.0.8
 ########################################################################################################################
 #set -x
 INSTALL_DIR=$(pwd)
-AWS_REGION=$(cat ~/.aws/config|grep region|awk '{print $3}')
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=${1:-gm-$NOW}
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 PREFIX=${2:-$CLUSTER_NAME}
 OS=$(uname -s)
 ARC=$(uname -m)
+AWS_REGION=$(aws configure get region)
 CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 #
@@ -946,7 +946,10 @@ else
     echo "Verifying AWS CLI installation..."
     aws --version
     option_picked_green "AWS CLI installation completed."
+	AWS_REGION=$(aws configure get region)
+	CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 fi
+#check
 Countdown
 }
 #
@@ -1014,6 +1017,7 @@ else
    # Verify the installation
    rosa version
    option_picked_green "ROSA CLI update completed."
+	CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 fi
 Countdown
 }
@@ -1349,7 +1353,7 @@ if [ "$(which aws 2>&1 > /dev/null;echo $?)" == "0" ]
         then
                 test_count=1
         else
-		option_picked "WARNING: AWS CLI is NOT installed ! Please use Option 8 and then Option 5 from the MENU to install only this one, or Option 8 to install all CLIs needed by HCP."
+		option_picked "WARNING: AWS CLI is NOT installed ! Please use Option 8 and then Option 2 from the MENU to install only this one, or Option 8 and then Option 5 to install all CLIs needed by HCP."
 fi
 #
 # Check if ROSA CLI is installed && rosa login
@@ -1358,7 +1362,7 @@ if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]
 	then
                 test_count=2
  	else
-		option_picked "WARNING: ROSA CLI is NOT installed ! Please use Option 8 and then Option 6 from the MENU to install only this one, or Option 8 to install all CLIs needed by HCP."
+		option_picked "WARNING: ROSA CLI is NOT installed ! Please use Option 8 and then Option 3 from the MENU to install only this one, or Option 8 and then Option 5 to install all CLIs needed by HCP."
 fi
 #
 # Check if OC CLI is installed
@@ -1367,7 +1371,7 @@ if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
 	then
                 test_count=3
 	else
-		option_picked "WARNING: OC CLI is NOT installed ! Please use Option 8 and then Option 7 from the MENU to install only this one, or Option 8 to install all CLIs needed by HCP."
+		option_picked "WARNING: OC CLI is NOT installed ! Please use Option 8 and then Option 4 from the MENU to install only this one, or Option 8 and then Option 5 to install all CLIs needed by HCP."
 fi
 #
 # Check if JQ is installed
@@ -1376,20 +1380,20 @@ if [ "$(which jq 2>&1 > /dev/null;echo $?)" == "0" ]
 	then
                 test_count=4
 	else
-		option_picked "WARNING: JC CLI is NOT installed ! Please use Option 8 from the main Menu, this will install all CLIs needed by HCP."
-		option_picked "WARNING: JC CLI is NOT installed ! Please use Option 8 and then Option 8 from the MENU to install it."
+		option_picked "WARNING: JC CLI is NOT installed ! Please use Option 8 and then Option 5 from the main Menu, this will install all CLIs needed by HCP."
 fi
 #   echo " "
 #   echo " "
 #   echo " "
 #   echo " "
 #   read -p "Press ENTER to continue"
+#exit 1
 }
 ########################################################################################################################
 # Install/Update all CLIs
 # Supporting Linux OS, testing Mac OS
 ########################################################################################################################
-various_checks2(){
+INSTALL_ALL_CLIs(){
 #set -x
 #
 # Check if JQ CLI is installed
@@ -1623,7 +1627,7 @@ while [[ "$sub_tools" != '' ]]
         ;;
         5) clear;
             option_picked "Option 5 Picked - Install/Updat all CLIs (plus some additional check)";
-            various_checks2;
+            INSTALL_ALL_CLIs;
             sub_menu_tools;
         ;;
         6) clear;
@@ -1730,22 +1734,24 @@ clear
 echo "#"
 echo "#########################################################################################################################################"
 echo " "
-echo "A few notes more:
-"
+echo "A few notes more: "
+#
+echo " "
 echo  "
 1) Update your /etc/hosts like following:
 127.0.0.1 api.$ROSA_DNS
 127.0.0.1 console-openshift-console.apps.rosa.$ROSA_DNS
 127.0.0.1 oauth.$ROSA_DNS
 " 2>&1 |tee -a "$CLUSTER_LOG"
-
-echo  "
-2) login to your newly created Jump Host: 
-" 2>&1 |tee -a "$CLUSTER_LOG"
-option_picked_green "
-sudo ssh -i "$CLUSTER_NAME"_KEY -L 6443:api.$ROSA_DNS:6443 -L 443:console-openshift-console.apps.rosa.$ROSA_DNS:443 -L 80:console-openshift-console.apps.rosa.$ROSA_DNS:80 ec2-user@$JH_PUB_IP" 2>&1 |tee -a "$CLUSTER_LOG
-"
+#
+echo " "
+echo " 2) login to your newly created Jump Host: " 2>&1 |tee -a "$CLUSTER_LOG"
+echo  " "
+option_picked_green "sudo ssh -i "$CLUSTER_NAME"_KEY -L 6443:api.$ROSA_DNS:6443 -L 443:console-openshift-console.apps.rosa.$ROSA_DNS:443 -L 80:console-openshift-console.apps.rosa.$ROSA_DNS:80 ec2-user@$JH_PUB_IP" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+echo  " "
 echo "3) from the Jump Host, download and install the OC CLI " 2>&1 |tee -a "$CLUSTER_LOG"
+echo  " "
 option_picked_green "
 wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
 gunzip openshift-client-linux.tar.gz
@@ -1753,9 +1759,11 @@ tar -xvf openshift-client-linux.tar
 sudo mv oc /usr/local/bin
 " 2>&1 |tee -a "$CLUSTER_LOG"
 HOW_TO_LOG=$(grep "oc login" "$CLUSTER_LOG" |grep -v example)
-echo " 
-4) login to your HCP PrivateLink cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+echo  " "
+echo " 4) login to your HCP PrivateLink cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+echo  " "
 option_picked_green $HOW_TO_LOG 2>&1 |tee -a "$CLUSTER_LOG"
+echo  " "
 #############################################################################################################################################################################
 #############################################################################################################################################################################
 #############################################################################################################################################################################
