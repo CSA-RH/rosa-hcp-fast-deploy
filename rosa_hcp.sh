@@ -1349,11 +1349,13 @@ various_checks(){
 #set -x
 #
 # Check if AWS CLI is installed
+CLI_TEST=0
 #
 if [ "$(which aws 2>&1 > /dev/null;echo $?)" == "0" ]
         then
-                test_count=1
+                echo "" > /dev/null
         else
+		CLI_TEST=$((CLI_TEST=+1))
 		option_picked "WARNING: AWS CLI is NOT installed ! Please use Option 8 and then Option 2 from the MENU to install only this one, or Option 8 and then Option 5 to install all CLIs needed by HCP."
 fi
 #
@@ -1361,8 +1363,9 @@ fi
 #
 if [ "$(which rosa 2>&1 > /dev/null;echo $?)" == "0" ]
 	then
-                test_count=2
+                echo "" > /dev/null
  	else
+		CLI_TEST=$((CLI_TEST=+1))
 		option_picked "WARNING: ROSA CLI is NOT installed ! Please use Option 8 and then Option 3 from the MENU to install only this one, or Option 8 and then Option 5 to install all CLIs needed by HCP."
 fi
 #
@@ -1370,8 +1373,9 @@ fi
 #
 if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
 	then
-                test_count=3
+                echo "" > /dev/null
 	else
+		CLI_TEST=$((CLI_TEST=+1))
 		option_picked "WARNING: OC CLI is NOT installed ! Please use Option 8 and then Option 4 from the MENU to install only this one, or Option 8 and then Option 5 to install all CLIs needed by HCP."
 fi
 #
@@ -1379,8 +1383,9 @@ fi
 #
 if [ "$(which jq 2>&1 > /dev/null;echo $?)" == "0" ]
 	then
-                test_count=4
+                echo "" > /dev/null
 	else
+		CLI_TEST=$((CLI_TEST=+1))
 		option_picked "WARNING: JC CLI is NOT installed ! Please use Option 8 and then Option 5 from the main Menu, this will install all CLIs needed by HCP."
 fi
 #   echo " "
@@ -1389,6 +1394,19 @@ fi
 #   echo " "
 #   read -p "Press ENTER to continue"
 #exit 1
+}
+#BLOCK INSTALLATION IN CASE OF MISSING CLIs
+BLOCK_INST() {
+if [ $CLI_TEST = 0 ]; then 
+	echo "" > /dev/null
+else
+   	echo " "
+   	echo " "
+   	option_picked "   ... sorry, you must install all missing CLIs before to proceed "
+   	echo " "
+   	echo " "
+	exit 1
+fi
 }
 ########################################################################################################################
 # Install/Update all CLIs
@@ -1494,9 +1512,9 @@ various_checks
 #
     echo $SCRIPT_VERSION
 #
-    printf "\n${menu}************************************************************${normal}\n"
-    printf "\n${menu}*               ROSA HCP Installation Menu                 *${normal}\n"
-    printf "\n${menu}************************************************************${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
+    printf "\n${menu}*                 ROSA HCP Installation Menu                 *${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
     printf "${menu}**${number} 1)${menu} HCP Public in Single-AZ                 ${normal}\n"
     printf "${menu}**${number} 2)${menu} HCP Public in Multi-AZ                  ${normal}\n"
     printf "${menu}**${number} 3)${menu} HCP PrivateLink in Single-AZ            ${normal}\n"
@@ -1523,26 +1541,31 @@ while [ "$opt" != '' ]
     else
       case "$opt" in
         1) clear;
+	    BLOCK_INST;
             option_picked "Option 1 Picked - Installing ROSA HCP Public (Single-AZ)";
             HCP_Public;
             show_menu;
         ;;
         2) clear;
+	    BLOCK_INST;
             option_picked "Option 2 Picked - Installing ROSA HCP Public (Multi-AZ)";
             HCP_Public_MultiAZ;
             show_menu;
         ;;
         3) clear;
+	    BLOCK_INST;
             option_picked "Option 3 Picked - Installing ROSA HCP PrivateLink (Single-AZ)";
             HCP_Private;
             show_menu;
         ;;
         4) clear;
+	    BLOCK_INST;
             option_picked "Option 4 Picked - Installing ROSA HCP PrivateLink (Single-AZ) with Jump Host ";
             HCP_Private2;
             show_menu;
         ;;
         5) clear;
+	    BLOCK_INST;
             option_picked "Option 5 Picked - Removing ROSA HCP";
             Delete_HCP;
             show_menu;
@@ -1578,14 +1601,15 @@ sub_tools=x
 #
     echo $SCRIPT_VERSION
 #
-    printf "\n${menu}************************************************************${normal}\n"
-    printf "\n${menu}*               ROSA HCP TOOLS Menu                        *${normal}\n"
-    printf "\n${menu}************************************************************${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
+    printf "\n${menu}*                     ROSA HCP TOOLS Menu                    *${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
+    printf "${menu}**${number} 0)${menu} Check available AWS Regions               ${normal}\n"
     printf "${menu}**${number} 1)${menu} Create a SingleAZ Public VPC              ${normal}\n"
-    printf "${menu}**${number} 2)${menu} Inst./Upd. AWS CLI 	       	 	 ${normal}\n"
-    printf "${menu}**${number} 3)${menu} Inst./Upd. ROSA CLI 			 ${normal}\n"
-    printf "${menu}**${number} 4)${menu} Inst./Upd. OC CLI			 ${normal}\n"
-    printf "${menu}**${number} 5)${menu} Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)    ${normal}\n"
+    printf "${menu}**${number} 2)${menu} Inst./Upd. AWS CLI 	       	 	   ${normal}\n"
+    printf "${menu}**${number} 3)${menu} Inst./Upd. ROSA CLI 			   ${normal}\n"
+    printf "${menu}**${number} 4)${menu} Inst./Upd. OC CLI		           ${normal}\n"
+    printf "${menu}**${number} 5)${menu} Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)      ${normal}\n"
     printf "${menu}**${number} --${menu} ------------------------------------------${normal}\n"
     printf "${menu}**${number} 6)${menu} Delete a specific HCP cluster (w/no LOGs) ${normal}\n"
     printf "${menu}**${number} 7)${menu} Delete a specific VPC                     ${normal}\n"
@@ -1605,7 +1629,13 @@ while [[ "$sub_tools" != '' ]]
       Errore;
     else
       case "$sub_tools" in
+        0) clear;
+            option_picked "Option 0 Picked - Check ROSA HCP available Regions ";
+            HCP_REGIONS;
+            sub_menu_tools;
+        ;;
         1) clear;
+	    BLOCK_INST;
             option_picked "Option 1 Picked - Create a Public VPC ";
             SingleAZ_VPC_22;
 	    CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
@@ -1632,16 +1662,19 @@ while [[ "$sub_tools" != '' ]]
             sub_menu_tools;
         ;;
         6) clear;
+	    BLOCK_INST;
             option_picked "Option 6 Picked - Delete one Cluster (w/no LOGs)";
             Delete_One_HCP;
             sub_menu_tools;
         ;;
         7) clear;
+	    BLOCK_INST;
             option_picked "Option 7 Picked - Delete a VPC ";
             Delete_1_VPC;
             sub_menu_tools;
         ;;
         8) clear;
+	    BLOCK_INST;
             option_picked "Option 8 Picked - Delete ALL (Clusters, VPCs w/no LOGs)";
             Delete_ALL;
             sub_menu_tools;
@@ -1769,7 +1802,35 @@ echo  " "
 #############################################################################################################################################################################
 #############################################################################################################################################################################
 }
+#
+HCP_REGIONS() {
+AWS_REGION=$(aws configure get region)
+AWS_REG_LIST=$(rosa list regions --hosted-cp|grep -v SUPPORT| awk '{print $1}')
+#
+echo " "
+echo "HCP available AWS Regions are:"
+echo " "
+printf "%s\n"  $AWS_REG_LIST
+#
+REG_CHECK=$( printf "%s\n"  "$AWS_REG_LIST" | grep "$AWS_REGION" )
+if [ "$REG_CHECK" == "$AWS_REGION" ]; then
+        echo " "
+        echo " "
+        option_picked_green "HCP service is available in your current AWS Region \"$AWS_REGION\" "
+        echo " "
+        echo " "
+else
+        echo " "
+        echo " "
+        option_picked "Unfortunaley your current AWS Region \"$AWS_REGION\" is NOT supported yet"
+        echo " "
+        echo " "
 
+fi
+        ppp=x
+        echo "Press ENTER to go back to the Menu"
+        read -r ppp
+}
 ############################################################################################################################################################
 #clear
 show_menu
