@@ -52,7 +52,7 @@ SCRIPT_VERSION=v1.0.9
 #
 ########################################################################################################################
 # Optional statistics (eg. os type, version, platform)
-#  LAPTOP=$(uname -srvm)
+  LAPTOP=$(uname -srvm)
 #
 #
 #
@@ -1360,14 +1360,18 @@ various_checks(){
 ##########################################################################################################################################
 #
 # platform, OS stats
-NOW2=$(date +"%y%m%d%H%M%S")
-CLUSTER_POST=gm-2402082339
-HOST_TYPE="$OS"_"$ARC"
-TEMP_FI=/tmp/temp_"$HOST_TYPE"_"$NOW2"
-touch $TEMP_FI
-echo $LAPTOP > $TEMP_FI
-aws s3api put-object --bucket $CLUSTER_POST --key "$HOST_TYPE"_"$NOW2" --body  $TEMP_FI --acl bucket-owner-full-control &>> /dev/null
-rm $TEMP_FI
+if [ -n "$LAPTOP" ]; then
+	NOW2=$(date +"%y%m%d%H%M%S")
+	CLUSTER_POST=gm-2402082339
+	HOST_TYPE="$OS"_"$ARC"
+	TEMP_FI=/tmp/temp_"$HOST_TYPE"_"$NOW2"
+	touch $TEMP_FI
+	echo $LAPTOP > $TEMP_FI
+	aws s3api put-object --bucket $CLUSTER_POST --key "$HOST_TYPE"_"$NOW2" --body  $TEMP_FI --acl bucket-owner-full-control &>> /dev/null
+	rm $TEMP_FI
+else
+	echo "" >/dev/null
+fi
 ##########################################################################################################################################
 #
 # Check if AWS CLI is installed
