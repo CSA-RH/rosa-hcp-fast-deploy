@@ -1,10 +1,10 @@
 # AWS ROSA with hosted control planes cluster (ROSA HCP) fast deploy
-The idea behind this shell script was to automatically create the necessary environment and deploy a ROSA **HCP** cluster in a few minutes, using the CLI. The initial setup includes the creation and configuration of the
+The idea behind this shell script was to automatically create the necessary environment and deploy a ROSA **HCP** cluster in a few minutes, using the CLI. The initial setup includes the installation and configuration of the
    - Virtual Private Cloud (VPC), including Subnets, IGW, NGW, Routes, etc.
    - Account and Operator roles and policies
    - OIDC identity provider configuration
 
-This is not intended to replace the [Red Hat official documentation](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html), but rather to practice creating your own test environments in such a short time: the entire process to create/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
+This is not intended to replace the [Red Hat official documentation](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html), but rather to practice installing your own test environments in such a short time: the entire process to install/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
 
 
 #### Script prerequisites
@@ -188,5 +188,21 @@ Current HCP clusters:  0
 
 ************************************************************
 ```
+# Statistics
+By using this script you accept and allow the collection of some data only for statistical purposes, precisely the result that comes out of this command: uname -srvm.
+
+```
+Example:
+# uname -srvm
+Linux 6.6.13-200.fc39.x86_64 #1 SMP PREEMPT_DYNAMIC Sat Jan 20 18:03:28 UTC 2024 x86_64
+```
+This is information related only to the operating system (e.g. Mac, Linux) and platform (e.g. x86, ARM) on which the script is running. There is no way for the script to collect any other types of data.
+Participation in the collection of this data **is not mandatory**: if you do not wish to contribute simply comment the $LAPTOP variable (line 55) within the script as follows:
+
+```
+# Optional statistics (eg. os type, version, platform)
+# LAPTOP=$(uname -srvm)
+```
+
 # Wrap up
 This script will make use of specific commands, options, and variables to successfully install the cluster for you in a few minutes but **feel free to make changes to suit your needs**.
