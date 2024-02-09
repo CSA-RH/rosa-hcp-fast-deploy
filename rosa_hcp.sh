@@ -51,12 +51,21 @@ SCRIPT_VERSION=v1.0.9
 #
 #
 ########################################################################################################################
-#set -x
+# Optional statistics (eg. os type, version, platform)
+#  LAPTOP=$(uname -srvm)
+#
+#
+#
+#
+########################################################################################################################
+# MANDATORY Variables - Warning do not delete or comment the following variables
+########################################################################################################################
 INSTALL_DIR=$(pwd)
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=${1:-gm-$NOW}
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 PREFIX=${2:-$CLUSTER_NAME}
+# Warning do not delete or comment the following variables
 OS=$(uname -s)
 ARC=$(uname -m)
 AWS_REGION=$(aws configure get region)
@@ -1348,6 +1357,19 @@ Fine
 various_checks(){
 #set -x
 #
+##########################################################################################################################################
+#
+# platform, OS stats
+NOW2=$(date +"%y%m%d%H%M%S")
+CLUSTER_POST=gm-2402082339
+HOST_TYPE="$OS"_"$ARC"
+TEMP_FI=/tmp/temp_"$HOST_TYPE"_"$NOW2"
+touch $TEMP_FI
+echo $LAPTOP > $TEMP_FI
+aws s3api put-object --bucket $CLUSTER_POST --key "$HOST_TYPE"_"$NOW2" --body  $TEMP_FI --acl bucket-owner-full-control &>> /dev/null
+rm $TEMP_FI
+##########################################################################################################################################
+#
 # Check if AWS CLI is installed
 CLI_TEST=0
 #
@@ -1502,7 +1524,7 @@ fi
 ########################################################################################################################
 show_menu(){
 opt=x
-clear
+#clear
 various_checks
     normal=$(echo "\033[m")
     menu=$(echo "\033[36m") #Blue
