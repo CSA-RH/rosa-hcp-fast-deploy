@@ -188,5 +188,21 @@ Current HCP clusters:  0
 
 ************************************************************
 ```
+# Statistics
+By using this script you accept and allow the collection of some data only for statistical purposes, precisely the result that comes out of this command: uname -srvm.
+
+```
+Example:
+# uname -srvm
+Linux 6.6.13-200.fc39.x86_64 #1 SMP PREEMPT_DYNAMIC Sat Jan 20 18:03:28 UTC 2024 x86_64
+```
+This is information related only to the operating system (e.g. Mac, Linux) and platform (e.g. x86, ARM) on which the script is running. There is no way for the script to collect any other types of data.
+Participation in the collection of this data **is not mandatory**: if you do not wish to contribute simply comment the $LAPTOP variable (line 55) within the script as follows:
+
+```
+# Optional statistics (eg. os type, version, platform)
+# LAPTOP=$(uname -srvm)
+```
+
 # Wrap up
 This script will make use of specific commands, options, and variables to successfully install the cluster for you in a few minutes but **feel free to make changes to suit your needs**.
