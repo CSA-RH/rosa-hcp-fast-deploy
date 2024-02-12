@@ -109,10 +109,11 @@ else
 	JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
 		if [[ $JUMP_HOST_ID ]]
 		then
-        		aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+       	 		echo "Deleting the jump-host ID " "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+        		aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" &>> "$CLUSTER_LOG"
         		JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
        	 		echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-        		aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+        		aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" &>> "$CLUSTER_LOG"
 			mv "$JUMP_HOST_KEY" /tmp
 		else
       			echo ""
@@ -1173,7 +1174,7 @@ Fine
 #
 # 
 ############################################################
-# HCP PrivateLink Cluster                                  #
+# HCP Private Cluster                                  #
 ############################################################
 # 
 function HCP_Private()
@@ -1186,7 +1187,7 @@ BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
 aws configure
 echo "#"
 echo "#"
-echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) ..." 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Start installing Public ROSA HCP cluster $CLUSTER_NAME in a Single-AZ  ..." 2>&1 |tee -a "$CLUSTER_LOG"
 #
 SingleAZ_VPC_Priv
 #
@@ -1202,9 +1203,10 @@ echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
 SUBNET_IDS=$PRIV_SUB_2a
 #
-echo "Creating ROSA HCP cluster with PrivateLink " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Creating a Private ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 >> "$CLUSTER_LOG"
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private-link --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+#rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private-link --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
@@ -1230,7 +1232,7 @@ Fine
 #
 # 
 ############################################################
-# HCP PrivateLink Cluster 2 (with Jump Host)               #
+# HCP Private Cluster 2 (with Jump Host)               #
 ############################################################
 # 
 function HCP_Private2()
@@ -1243,7 +1245,7 @@ BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
 aws configure
 echo "#"
 echo "#"
-echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ (Private) with JUMP HOST ..." 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Start installing a Private ROSA HCP cluster $CLUSTER_NAME in a Single-AZ  with JUMP HOST ..." 2>&1 |tee -a "$CLUSTER_LOG"
 #JUMP_HOST_STAT="ON"
 echo "JUMP_HOST ON" 2>&1 "$CLUSTER_LOG"
 #
@@ -1261,9 +1263,10 @@ echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
 SUBNET_IDS=$PRIV_SUB_2a
 #
-echo "Creating ROSA HCP cluster with PrivateLink " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Creating a Private ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 >> "$CLUSTER_LOG"
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private-link --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+#rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private-link --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
@@ -1541,10 +1544,10 @@ various_checks
     printf "\n${menu}**************************************************************${normal}\n"
     printf "\n${menu}*                 ROSA HCP Installation Menu                 *${normal}\n"
     printf "\n${menu}**************************************************************${normal}\n"
-    printf "${menu}**${number} 1)${menu} HCP Public in Single-AZ                 ${normal}\n"
-    printf "${menu}**${number} 2)${menu} HCP Public in Multi-AZ                  ${normal}\n"
-    printf "${menu}**${number} 3)${menu} HCP PrivateLink in Single-AZ            ${normal}\n"
-    printf "${menu}**${number} 4)${menu} HCP PrivateLink in Single-AZ with Jump Host ${normal}\n"
+    printf "${menu}**${number} 1)${menu} Public HCP (Single-AZ)                 ${normal}\n"
+    printf "${menu}**${number} 2)${menu} Public HCP (Multi-AZ)                  ${normal}\n"
+    printf "${menu}**${number} 3)${menu} Private HCP (Single-AZ)            ${normal}\n"
+    printf "${menu}**${number} 4)${menu} Private HCP (Single-AZ) with Jump Host ${normal}\n"
     printf "${menu}**${number} 5)${menu} Delete HCP ${normal}\n"
     printf "${menu}**${number} 6)${menu}  ${normal}\n"
     printf "${menu}**${number} 7)${menu}  ${normal}\n"
@@ -1568,25 +1571,25 @@ while [ "$opt" != '' ]
       case "$opt" in
         1) clear;
 	    BLOCK_INST;
-            option_picked "Option 1 Picked - Installing ROSA HCP Public (Single-AZ)";
+            option_picked "Option 1 Picked - Installing a Public ROSA HCP (Single-AZ)";
             HCP_Public;
             show_menu;
         ;;
         2) clear;
 	    BLOCK_INST;
-            option_picked "Option 2 Picked - Installing ROSA HCP Public (Multi-AZ)";
+            option_picked "Option 2 Picked - Installing a Public ROSA HCP (Multi-AZ)";
             HCP_Public_MultiAZ;
             show_menu;
         ;;
         3) clear;
 	    BLOCK_INST;
-            option_picked "Option 3 Picked - Installing ROSA HCP PrivateLink (Single-AZ)";
+            option_picked "Option 3 Picked - Installing a Private ROSA HCP (Single-AZ)";
             HCP_Private;
             show_menu;
         ;;
         4) clear;
 	    BLOCK_INST;
-            option_picked "Option 4 Picked - Installing ROSA HCP PrivateLink (Single-AZ) with Jump Host ";
+            option_picked "Option 4 Picked - Installing a Private ROSA HCP (Single-AZ) with Jump Host ";
             HCP_Private2;
             show_menu;
         ;;
@@ -1820,7 +1823,7 @@ sudo mv oc /usr/local/bin
 " 2>&1 |tee -a "$CLUSTER_LOG"
 HOW_TO_LOG=$(grep "oc login" "$CLUSTER_LOG" |grep -v example)
 echo  " "
-echo " 4) login to your HCP PrivateLink cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " 4) login to your Public HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo  " "
 option_picked_green $HOW_TO_LOG 2>&1 |tee -a "$CLUSTER_LOG"
 echo  " "
