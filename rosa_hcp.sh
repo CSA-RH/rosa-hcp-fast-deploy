@@ -76,7 +76,7 @@ CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 # Delete HCP (the LOG file is in place)                    #
 ############################################################
 Delete_HCP() {
-#set -x
+set -x
 CHECK_GM="Delete_HCP"
 if [ "$CURRENT_HCP" -eq 0 ]; then
     	  echo ""
@@ -94,6 +94,10 @@ else
 	Delete_One_HCP
    	sub_menu_tools
   else
+	CLUSTER_LOGS=$(ls "$INSTALL_DIR/"*.log | grep -v vpc| wc -l)
+	   if [ "$CLUSTER_LOGS" -gt 1 ]; then
+	      Delete_One_HCP
+	   else
 	#CLUSTER_NAME=$(ls "$INSTALL_DIR" | grep -v vpc-*.log|grep *.log | awk -F. '{print $1}')
 	CLUSTER_NAME=$(find . -name "*.log"|grep -v vpc| awk -F/ '{print $2}'|awk -F. '{print $1}'|xargs)
 	CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
@@ -104,7 +108,7 @@ else
 	VPC_ID=$(cat "$CLUSTER_LOG" |grep VPC_ID_VALUE|awk '{print $2}')
 	PRIVATE=$(cat $CLUSTER_LOG|grep "Private:"|sort -u |awk -F: '{print $2}'|xargs)
 #   
-        if  [ "$PRIVATE" == "Yes" ]; then
+        	if  [ "$PRIVATE" == "Yes" ]; then
 	JUMP_HOST="$CLUSTER_NAME"-jump-host
 	JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
 		if [[ $JUMP_HOST_ID ]]
@@ -118,9 +122,9 @@ else
 		else
       			echo ""
 		fi
-	else
-         echo ""
-  fi
+		else
+         		echo ""
+  		fi
   #
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -160,6 +164,7 @@ rosa delete cluster -c "$CLUSTER_NAME" --yes &>> "$CLUSTER_LOG"
 	  FILE=.log
 	   if test -f "$FILE"; then
     		mv .log /tmp
+	   fi
 	   fi
   fi
 Fine
@@ -1148,7 +1153,16 @@ rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_I
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
 echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+#
+#
+#
+#
+#### rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+#
+#
+#
+#
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --version 4.15.0 --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
@@ -1366,7 +1380,7 @@ various_checks(){
 if [ -n "$LAPTOP" ]; then
 	NOW2=$(date +"%y%m%d%H%M%S")
 	CLUSTER_POST=gm-2402082339
-	HOST_TYPE="$OS"_"$ARC"
+	HOST_TYPE=gm_"$OS"_"$ARC"
 	TEMP_FI=/tmp/temp_"$HOST_TYPE"_"$NOW2"
 	touch $TEMP_FI
 	echo $LAPTOP > $TEMP_FI
