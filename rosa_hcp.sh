@@ -76,7 +76,7 @@ CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 # Delete HCP (the LOG file is in place)                    #
 ############################################################
 Delete_HCP() {
-set -x
+#set -x
 CHECK_GM="Delete_HCP"
 if [ "$CURRENT_HCP" -eq 0 ]; then
     	  echo ""
@@ -1154,15 +1154,7 @@ SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
 echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 #
-#
-#
-#
-#### rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
-#
-#
-#
-#
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --version 4.15.0 --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
@@ -1380,7 +1372,7 @@ various_checks(){
 if [ -n "$LAPTOP" ]; then
 	NOW2=$(date +"%y%m%d%H%M%S")
 	CLUSTER_POST=gm-2402082339
-	HOST_TYPE=gm_"$OS"_"$ARC"
+	HOST_TYPE="$OS"_"$ARC"
 	TEMP_FI=/tmp/temp_"$HOST_TYPE"_"$NOW2"
 	touch $TEMP_FI
 	echo $LAPTOP > $TEMP_FI
