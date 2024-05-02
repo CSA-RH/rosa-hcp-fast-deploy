@@ -288,3 +288,7 @@ INFO: Once the cluster is uninstalled use the following commands to remove the a
 	rosa delete oidc-provider --oidc-config-id 2b0rsr4jupachs5tk1j2f4n4iaa1o864
 INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall -c gm-2405022354 --watch'
 #  You can watch logs with "$ tail -f /home/gmollo/tools/cluster/svil/rosa-hcp-fast-deploy/gm-2405022354.log"
+2024-05-02 22:24:46 +0000 UTC hostedclusters gm-2405022354 invalid service account signing key: failed to get hostedcluster ServiceAccountSigningKey secret bound-service-account-signing-key: Secret "bound-service-account-signing-key" not found
+2024-05-02 22:24:47 +0000 UTC hostedclusters gm-2405022354 Reconciliation completed successfully
+2024-05-02 22:27:13 +0000 UTC hostedclusters gm-2405022354 failed to delete security group sg-0f66d464c3d9cb269: DependencyViolation
+2024-05-02 22:27:14 +0000 UTC hostedclusters gm-2405022354 Remaining resources: persistent-volumes
