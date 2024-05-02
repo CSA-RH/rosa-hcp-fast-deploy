@@ -267,8 +267,10 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		#################################################################################################################################
 		# Delete the VPC it belongs to
 		#
-		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}')
-		VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
+		#SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}')
+  		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk '{print $3}'|xargs|tr ',' '\n')
+  		VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}'|xargs)
+#
     		echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
 		#
 		#
@@ -362,7 +364,7 @@ if [ -n "$CLUSTER_LIST" ]; then
   DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}')
   CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}')
 # Find VPC_ID
-  SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}')
+  SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk '{print $3}'|xargs|tr ',' '\n')
   VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}'|xargs)
 #
 #
@@ -402,8 +404,10 @@ rosa delete account-roles --mode auto --prefix $PREFIX --yes &>> "$CLUSTER_LOG"
 #
 
 #########################
-SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}')
-VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
+# Find VPC_ID
+  SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk '{print $3}'|xargs|tr ',' '\n')
+  VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}'|xargs)
+#
     echo "########### " 2>&1 |tee -a "$CLUSTER_LOG"
     echo "#  Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
 #
