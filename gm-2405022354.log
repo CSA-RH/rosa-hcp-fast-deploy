@@ -292,3 +292,4 @@ INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall -c gm-
 2024-05-02 22:24:47 +0000 UTC hostedclusters gm-2405022354 Reconciliation completed successfully
 2024-05-02 22:27:13 +0000 UTC hostedclusters gm-2405022354 failed to delete security group sg-0f66d464c3d9cb269: DependencyViolation
 2024-05-02 22:27:14 +0000 UTC hostedclusters gm-2405022354 Remaining resources: persistent-volumes
+2024-05-02 22:28:59 +0000 UTC hostedclusters gm-2405022354 All is well
