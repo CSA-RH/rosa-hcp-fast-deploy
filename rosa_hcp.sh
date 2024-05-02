@@ -213,6 +213,7 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}'| xargs)
 		DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}'| xargs)
 		CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}'| xargs)
+#
 		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}'|awk -F, '{print $1}'| xargs)
 	        PRIVATE=$(cat $CLUSTER_NAME.txt|grep Private|awk -F: '{print $2}'|xargs)
     #############################################################################################################################################################
