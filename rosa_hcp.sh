@@ -930,7 +930,7 @@ AWS_Darwin=https://awscli.amazonaws.com/AWSCLIV2.pkg
 #
 VAR3="AWS_${OS}_${ARC}"
 #[[ $OS == "Darwin" ]] && VAR3="AWS_${OS}"
-If [ $OS == "Darwin" ]; then
+if [ $OS == "Darwin" ]; then
 VAR3="AWS_${OS}"
 echo $VAR3 "-->" ${!VAR3}
 if [ -x "$(command -v /usr/local/bin/aws)" ]
@@ -969,7 +969,7 @@ else
 	CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 fi
 fi
-If [ $OS == "Linux" ]; then
+if [ $OS == "Linux" ]; then
 VAR3="AWS_${OS}"
 echo $VAR3 "-->" ${!VAR3}
 # Check if AWS CLI is installed
