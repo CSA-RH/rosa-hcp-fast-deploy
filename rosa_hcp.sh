@@ -52,7 +52,7 @@ SCRIPT_VERSION=v1.10.0
 #
 ########################################################################################################################
 # Optional statistics (eg. os type, version, platform)
-  LAPTOP=$(uname -srvm)
+# LAPTOP=$(uname -srvm)
 #
 #
 #
