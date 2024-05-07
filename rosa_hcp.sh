@@ -1133,13 +1133,14 @@ Countdown
 # JQ command-line JSON processor                           #
 ############################################################
 JQ_CLI() {
-#set -xe
+set -x
 JQ_Linux_x86_64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
 JQ_Linux_aarch64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-arm64
-JQ_Darwin_x86_64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-amd64
+JQ_Darwin=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-amd64
 JQ_Darwin_arm64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-arm64
 #
-VAR4="JQ_${OS}_${ARC}"
+[[ $OS == "Darwin" ]] && VAR4="JQ_${OS}"
+echo $VAR4 "-->" ${!VAR3}
 #
 # Check if JQ CLI is installed
 if [ "$(which jq 2>&1 > /dev/null;echo $?)" == "0" ]
@@ -1159,7 +1160,7 @@ if [ "$(which jq 2>&1 > /dev/null;echo $?)" == "0" ]
    echo " ###########################################################################"
         cd /tmp
 	curl -L -o jq-1.7.1 ${!VAR4} && chmod +x jq-1.7.1
-        sudo mv jq-1.7.1 /usr/bin/jq
+        sudo mv jq-1.7.1 /usr/local/bin/jq
         # Clean up
         rm -rf jq-1.7.1
         cd $INSTALL_DIR
@@ -1495,7 +1496,7 @@ fi
 # Supporting Linux OS, testing Mac OS
 ########################################################################################################################
 INSTALL_ALL_CLIs(){
-set -x
+#set -x
 #
 # Check if JQ CLI is installed
 #
@@ -1683,6 +1684,7 @@ done
 ########################################################################################################################
 sub_menu_tools(){
 clear
+various_checks
 if [ $CLI_TEST -ne 0 ]; then
 option_picked "WARNING: Please install missing CLIs, when in doubt use Option 5 to install all CLIs needed by HCP."
 fi
