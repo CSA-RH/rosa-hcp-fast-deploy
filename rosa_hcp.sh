@@ -68,9 +68,9 @@ PREFIX=${2:-$CLUSTER_NAME}
 # Warning do not delete or comment the following variables
 OS=$(uname -s)
 ARC=$(uname -m)
-AWS_REGION=$(aws configure get region)
-CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
-CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
+#AWS_REGION=$(aws configure get region)
+#CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+#CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 #
 ############################################################
 # Delete HCP (the LOG file is in place)                    #
@@ -114,10 +114,10 @@ else
 		if [[ $JUMP_HOST_ID ]]
 		then
        	 		echo "Deleting the jump-host ID " "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
-        		aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" &>> "$CLUSTER_LOG"
+        		aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 "$CLUSTER_LOG"
         		JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
        	 		echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-        		aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" &>> "$CLUSTER_LOG"
+        		aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 "$CLUSTER_LOG"
 			mv "$JUMP_HOST_KEY" /tmp
 		else
       			echo ""
@@ -131,18 +131,18 @@ echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |
 echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-rosa delete cluster -c "$CLUSTER_NAME" --yes &>> "$CLUSTER_LOG"
+rosa delete cluster -c "$CLUSTER_NAME" --yes 2>&1 "$CLUSTER_LOG"
   if [ $? -eq 0 ]; then
 	  # start removing the NGW since it takes a lot of time
 	  while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id "$instance_id"; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='"$VPC_ID"| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
           echo "Cluster deletion in progress " 2>&1 |tee -a "$CLUSTER_LOG"
-          rosa logs uninstall -c "$CLUSTER_NAME" --watch &>> "$CLUSTER_LOG"
+          rosa logs uninstall -c "$CLUSTER_NAME" --watch 2>&1 "$CLUSTER_LOG"
           rosa delete operator-roles --prefix "$PREFIX" -m auto -y 2>&1 >> "$CLUSTER_LOG"
           echo "operator-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
           rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
           echo "oidc-provider deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 	  Delete_VPC
-	  rosa delete account-roles --mode auto --prefix "$PREFIX" --yes &>> "$CLUSTER_LOG"
+	  rosa delete account-roles --mode auto --prefix "$PREFIX" --yes 2>&1 "$CLUSTER_LOG"
 	  echo "account-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 	#
 	#
@@ -253,9 +253,9 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		#Get started
 		#
 		echo "Running \"rosa delete cluster\"" 2>&1 |tee -a "$CLUSTER_LOG"
-		rosa delete cluster -c $CLUSTER_NAME --yes &>> "$CLUSTER_LOG"
+		rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 "$CLUSTER_LOG"
 		echo "Running \"rosa logs unistall\"" 2>&1 |tee -a "$CLUSTER_LOG"
-		rosa logs uninstall -c $CLUSTER_NAME --watch &>> "$CLUSTER_LOG"
+		rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 "$CLUSTER_LOG"
 #
 		echo "Deleting operator-roles" 2>&1 |tee -a "$CLUSTER_LOG"
 		rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
@@ -263,7 +263,7 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
 		#
 		echo "Deleting account-roles " 2>&1 |tee -a "$CLUSTER_LOG"
-		rosa delete account-roles --prefix $PREFIX -m auto -y  &>> "$CLUSTER_LOG"
+		rosa delete account-roles --prefix $PREFIX -m auto -y  2>&1 "$CLUSTER_LOG"
 		#
 		#################################################################################################################################
 		# Delete the VPC it belongs to
@@ -288,7 +288,7 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
 #
    		while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 		#
-		aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
+		aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 $CLUSTER_LOG
 		option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 		echo " "
 		option_picked_green "HCP Cluster $CLUSTER_NAME deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
@@ -392,16 +392,16 @@ if [ -n "$CLUSTER_LIST" ]; then
 #Get started 
    option_picked "#  Going to delete the HCP cluster named " "$CLUSTER_NAME" " and the VPC " "$VPC_ID" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-rosa delete cluster -c $CLUSTER_NAME --yes &>> "$CLUSTER_LOG"
+rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 "$CLUSTER_LOG"
   echo "#  You can watch logs with \"$ tail -f $CLUSTER_LOG\"" 2>&1 |tee -a "$CLUSTER_LOG"
-rosa logs uninstall -c $CLUSTER_NAME --watch &>> "$CLUSTER_LOG"
+rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 "$CLUSTER_LOG"
   echo "#  Deleting operator-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
 rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
   echo "#  Deleting OIDC " $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
   echo "#  Deleting account-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
-rosa delete account-roles --mode auto --prefix $PREFIX --yes &>> "$CLUSTER_LOG"
+rosa delete account-roles --mode auto --prefix $PREFIX --yes 2>&1 "$CLUSTER_LOG"
 #
 
 #########################
@@ -427,7 +427,7 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
 #
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 #
-aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
+aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 $CLUSTER_LOG
 option_picked_green "#  VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
   echo "############################################################################################################# "
 mv "$CLUSTER_LOG" /tmp
@@ -475,7 +475,7 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
 #
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 #
-aws ec2 delete-vpc --vpc-id=$VPC_ID &>> $CLUSTER_LOG
+aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 $CLUSTER_LOG
 CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 }
@@ -533,7 +533,7 @@ aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $V
 aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED 2>&1 >> "$CLUSTER_LOG"
 #
         	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
-        	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID &>> $CLUSTER_LOG
+        	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID 2>&1 $CLUSTER_LOG
           	echo ""
         	echo ""
         	echo "#############################################################################"
@@ -925,11 +925,52 @@ AWS_CLI() {
 AWS_Linux_x86_64=https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
 AWS_Linux_aarch64=https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip
 AWS_MAC=https://awscli.amazonaws.com/AWSCLIV2.pkg
+AWS_Darwin=https://awscli.amazonaws.com/AWSCLIV2.pkg
 #ROSA_Winzoz=https://awscli.amazonaws.com/AWSCLIV2.msi
 #
 VAR3="AWS_${OS}_${ARC}"
-[[ $OS == "Darwin" ]] && VAR3="AWS_${OS}"
-echo "-------------------------------------"
+#[[ $OS == "Darwin" ]] && VAR3="AWS_${OS}"
+If [ $OS == "Darwin" ]; then
+VAR3="AWS_${OS}"
+echo $VAR3 "-->" ${!VAR3}
+if [ -x "$(command -v /usr/local/bin/aws)" ]
+then
+    # AWS CLI is installed, check for updates
+    option_picked_green "AWS CLI is already installed. Checking for updates..."
+    curl ${!VAR3} -o "AWSCLIV2.pkg"
+    sudo installer -pkg AWSCLIV2.pkg -target /
+aws --version
+    option_picked_green "AWS CLI update completed."
+    rm -rf AWSCLIV2.pkg
+else
+   echo " "
+   echo " "
+   echo " "
+   echo " "
+   echo " "
+   echo " ###########################################################################"
+   echo " #                                                                         #"
+   echo " # Checking prerequisites: AWS CLI is NOT installed ...                     #"
+   echo " # going to download and install the latest version !                      #"
+   echo " #                                                                         #"
+   echo " ###########################################################################"
+    dirname='/usr/local/aws-cli'
+    if [ -d $dirname ]; then sudo rm -rf $dirname; fi
+    # Download and install AWS CLI
+    curl ${!VAR3} -o "AWSCLIV2.pkg"
+    sudo installer -pkg AWSCLIV2.pkg -target /
+    # Clean up
+    rm -rf AWSCLIV2.pkg
+    # Verify the installation
+    echo "Verifying AWS CLI installation..."
+    aws --version
+    option_picked_green "AWS CLI installation completed."
+	AWS_REGION=$(aws configure get region)
+	CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+fi
+fi
+If [ $OS == "Linux" ]; then
+VAR3="AWS_${OS}"
 echo $VAR3 "-->" ${!VAR3}
 # Check if AWS CLI is installed
 if [ -x "$(command -v /usr/local/bin/aws)" ]
@@ -969,6 +1010,7 @@ else
     option_picked_green "AWS CLI installation completed."
 	AWS_REGION=$(aws configure get region)
 	CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+fi
 fi
 #check
 Countdown
@@ -1381,7 +1423,7 @@ if [ -n "$LAPTOP" ]; then
 	TEMP_FI=/tmp/temp_"$HOST_TYPE"_"$NOW2"
 	touch $TEMP_FI
 	echo $LAPTOP > $TEMP_FI
-	aws s3api put-object --bucket $CLUSTER_POST --key "$HOST_TYPE"_"$NOW2" --body  $TEMP_FI --acl bucket-owner-full-control &>> /dev/null
+	aws s3api put-object --bucket $CLUSTER_POST --key "$HOST_TYPE"_"$NOW2" --body  $TEMP_FI --acl bucket-owner-full-control 2>&1 /dev/null
 	rm $TEMP_FI
 else
 	echo "" >/dev/null
@@ -1453,7 +1495,7 @@ fi
 # Supporting Linux OS, testing Mac OS
 ########################################################################################################################
 INSTALL_ALL_CLIs(){
-#set -x
+set -x
 #
 # Check if JQ CLI is installed
 #
@@ -1544,6 +1586,15 @@ show_menu(){
 opt=x
 clear
 various_checks
+if [ $CLI_TEST -ne 0 ]; then
+option_picked "WARNING: Please install missing CLIs, when in doubt use Option 5 to install all CLIs needed by HCP."
+sub_menu_tools
+else
+AWS_REGION=$(aws configure get region)
+CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
+fi
+
     normal=$(echo "\033[m")
     menu=$(echo "\033[36m") #Blue
     number=$(echo "\033[33m") #yellow
@@ -1632,6 +1683,9 @@ done
 ########################################################################################################################
 sub_menu_tools(){
 clear
+if [ $CLI_TEST -ne 0 ]; then
+option_picked "WARNING: Please install missing CLIs, when in doubt use Option 5 to install all CLIs needed by HCP."
+fi
 sub_tools=x
     normal=$(echo "\033[m")
     menu=$(echo "\033[36m") #Blue
@@ -1663,6 +1717,7 @@ sub_tools=x
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
 #######################    read -r sub_tools
     read -s -n 1 sub_tools
+
 while [[ "$sub_tools" != '' ]]
     do
  if [[ "$sub_tools" = '' ]]; then
@@ -1782,7 +1837,7 @@ chmod 400 "$CLUSTER_NAME"_KEY
 JUMP_HOST=${CLUSTER_NAME}-jump-host
 echo "Creating the Jump host " "$JUMP_HOST" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-aws ec2 run-instances --image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 --instance-type t2.micro --region "$AWS_REGION" --subnet-id "$PUBLIC_SUB_2a" --key-name "$CLUSTER_NAME"_KEY --associate-public-ip-address --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$JUMP_HOST}]" --no-paginate --security-group-ids "$SG_ID" --count 1 &>> "$CLUSTER_LOG"
+aws ec2 run-instances --image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 --instance-type t2.micro --region "$AWS_REGION" --subnet-id "$PUBLIC_SUB_2a" --key-name "$CLUSTER_NAME"_KEY --associate-public-ip-address --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$JUMP_HOST}]" --no-paginate --security-group-ids "$SG_ID" --count 1 2>&1 "$CLUSTER_LOG"
 #  
 #aws ec2 run-instances 
 #--image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 \
