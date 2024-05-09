@@ -48,25 +48,25 @@ $ chmod +x rosa_hcp.sh
 ```
 $ ./rosa_hcp.sh 
 
-************************************************************
+**************************************************************
 
-*               ROSA HCP Installation Menu                 *
+*                 ROSA HCP Installation Menu                 *
 
-************************************************************
-** 1) HCP Public in Single-AZ                 
-** 2) HCP Public in Multi-Zone                  
-** 3) HCP PrivateLink in Single-AZ            
-** 4) HCP PrivateLink in Single-AZ with Jump Host 
+**************************************************************
+** 1) Public HCP (Single-AZ)                 
+** 2) Public HCP (Multi-Zone)                  
+** 3) Private HCP (Single-AZ)            
+** 4) Private HCP (Single-AZ) with Jump Host 
 ** 5) Delete HCP 
 ** 6)  
 ** 7)  
 ** 8) Tools 
 
-************************************************************
+**************************************************************
 Current VPCs:  0
 Current HCP clusters:  0
 
-************************************************************
+**************************************************************
 Please enter a menu option and enter or x to exit. 3
 ```
 The first 3 options require entering or updating your AWS access keys
