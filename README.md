@@ -54,7 +54,7 @@ $ ./rosa_hcp.sh
 
 ************************************************************
 ** 1) HCP Public in Single-AZ                 
-** 2) HCP Public in Multi-AZ                  
+** 2) HCP Public in Multi-Zone                  
 ** 3) HCP PrivateLink in Single-AZ            
 ** 4) HCP PrivateLink in Single-AZ with Jump Host 
 ** 5) Delete HCP 
@@ -108,7 +108,7 @@ $ ./rosa_hcp.sh
 
 ************************************************************
 ** 1) HCP Public in Single-AZ                 
-** 2) HCP Public in Multi-AZ                  
+** 2) HCP Public in Multi-Zone                  
 ** 3) HCP PrivateLink in Single-AZ            
 ** 4) HCP PrivateLink in Single-AZ with Jump Host 
 ** 5) Delete HCP 
@@ -143,7 +143,7 @@ After a successful deployment a **cluster-admin** account is added to your clust
 > Once the cluster deletion process is complete, the LOG file will be moved from its current location to the **/tmp** folder.
 
 # Notes around resources, deployment, etc.
-ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-AZ), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly)
+ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-Zone), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly)
 
 AWS Resource created includes:
   - 1 [VPC](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#rosa-vpc_prerequisites) with cidr-block 10.0.0.0/16 will be created in the same Region that you intend to install your cluster. In these examples
@@ -164,7 +164,7 @@ AWS Resource created includes:
 - Default HCP installer role is '$CLUSTER_NAME' prefix
 - Worker nodes:
   - Single-AZ: 2x worker nodes will be created within the same subnet<br />
-  - Multi-AZ: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
+  - Multi-Zone: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
 
 # Additional tools
 From the main menù, click option #8 to access to the sub-menù called " ROSA HCP TOOLS Menu ". <br />
