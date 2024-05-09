@@ -168,7 +168,7 @@ AWS Resource created includes:
 
 # Additional tools
 From the main menù, click option #8 to access to the sub-menù called " ROSA HCP TOOLS Menu ". <br />
-Here you will find specific actions you take do to manage your environment:
+Here you will find some specific actions you can take to manage your environment:
 ```
 ************************************************************
 
@@ -200,7 +200,7 @@ Example:
 # uname -srvm
 Linux 6.6.13-200.fc39.x86_64 #1 SMP PREEMPT_DYNAMIC Sat Jan 20 18:03:28 UTC 2024 x86_64
 ```
-As you can see in the example above, this information is related to the operating system (e.g. Mac, Linux) and platform (e.g. x86, ARM) the script is running on, which has no way of collecting other types of data. In any case, **collecting this data is not mandatory**: if you don't want to contribute simply leave "line 55" commented out as it is by default:
+As you can see in the example above, this information is related to the operating system type and version, cpu (e.g. x86, ARM) on which the script is running. The script itself has no way of collecting other types of data other than those mentioned above. In any case, **the collection of this data is not mandatory**: if you do not want to contribute simply leave "line 55" commented out as it is by default:
 ```
 # Optional statistics (eg. os type, version, platform)
 # LAPTOP=$(uname -srvm)
