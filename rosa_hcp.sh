@@ -1,6 +1,6 @@
 #!/bin/bash
 #set -x
-######################################################################################################################
+#####################################################################################################################
 ##  +-----------------------------------+-----------------------------------+
 ##  |                                                                       |
 ##  | Copyright (c) 2023-2024, Gianfranco Mollo <gmollo@redhat.com>.        |
@@ -47,7 +47,7 @@
 ########################################################################################################################
 #
 #
-SCRIPT_VERSION=v1.12.0
+SCRIPT_VERSION=v1.12.1
 #
 #
 ########################################################################################################################
@@ -1615,12 +1615,12 @@ fi
     printf "${menu}**${number} 6)${menu}  ${normal}\n"
     printf "${menu}**${number} 7)${menu}  ${normal}\n"
     printf "${menu}**${number} 8)${menu} Tools ${normal}\n"
-    printf "\n${menu}************************************************************${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
 #
     echo "Current VPCs: " $CURRENT_VPC
     echo "Current HCP clusters: " $CURRENT_HCP
 #
-    printf "\n${menu}************************************************************${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
     read="m"
 ######################  read -r opt
@@ -1710,12 +1710,12 @@ sub_tools=x
     printf "${menu}**${number} 6)${menu} Delete a specific HCP cluster (w/no LOGs) ${normal}\n"
     printf "${menu}**${number} 7)${menu} Delete a specific VPC                     ${normal}\n"
     printf "${menu}**${number} 8)${menu} Delete EVERYTHING ${fgred}(CAUTION: THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT) ${normal}\n"
-    printf "\n${menu}************************************************************${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
 #
     echo "Current VPCs: " $CURRENT_VPC
     echo "Current HCP clusters: " $CURRENT_HCP
 #
-    printf "\n${menu}************************************************************${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
 #######################    read -r sub_tools
     read -s -n 1 sub_tools
