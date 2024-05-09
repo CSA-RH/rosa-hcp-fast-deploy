@@ -34,7 +34,7 @@
 #
 #   - Set up your AWS account and roles (eg. the account-wide IAM roles and policies, cluster-specific Operator roles and policies, and OpenID Connect (OIDC) identity provider).
 #   - Create the VPC;
-#   - Create your ROSA HCP Cluster with a minimal configuration (eg. 2 workers/Single-AZ; 3 workers/Multi-AZ).
+#   - Create your ROSA HCP Cluster with a minimal configuration (eg. 2 workers/Single-AZ; 3 workers/Multi-Zone).
 #
 # It takes approximately 15 minutes to create/destroy the cluster and its related VPC, AWS roles, etc.
 #
@@ -1361,7 +1361,7 @@ BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
 aws configure
 echo "#"
 echo "#"
-echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Multi-AZ ..." 2>&1 |tee -a "$CLUSTER_LOG"
+echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Multi-Zone ..." 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#"
 #
 declare -A AZ_PAIRED_ARRAY
@@ -1608,7 +1608,7 @@ fi
     printf "\n${menu}*                 ROSA HCP Installation Menu                 *${normal}\n"
     printf "\n${menu}**************************************************************${normal}\n"
     printf "${menu}**${number} 1)${menu} Public HCP (Single-AZ)                 ${normal}\n"
-    printf "${menu}**${number} 2)${menu} Public HCP (Multi-AZ)                  ${normal}\n"
+    printf "${menu}**${number} 2)${menu} Public HCP (Multi-Zone)                  ${normal}\n"
     printf "${menu}**${number} 3)${menu} Private HCP (Single-AZ)            ${normal}\n"
     printf "${menu}**${number} 4)${menu} Private HCP (Single-AZ) with Jump Host ${normal}\n"
     printf "${menu}**${number} 5)${menu} Delete HCP ${normal}\n"
@@ -1640,7 +1640,7 @@ while [ "$opt" != '' ]
         ;;
         2) clear;
 	    BLOCK_INST;
-            option_picked "Option 2 Picked - Installing a Public ROSA HCP (Multi-AZ)";
+            option_picked "Option 2 Picked - Installing a Public ROSA HCP (Multi-Zone)";
             HCP_Public_MultiAZ;
             show_menu;
         ;;
