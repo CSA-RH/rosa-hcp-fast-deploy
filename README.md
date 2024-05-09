@@ -48,25 +48,25 @@ $ chmod +x rosa_hcp.sh
 ```
 $ ./rosa_hcp.sh 
 
-************************************************************
+**************************************************************
 
-*               ROSA HCP Installation Menu                 *
+*                 ROSA HCP Installation Menu                 *
 
-************************************************************
-** 1) HCP Public in Single-AZ                 
-** 2) HCP Public in Multi-AZ                  
-** 3) HCP PrivateLink in Single-AZ            
-** 4) HCP PrivateLink in Single-AZ with Jump Host 
+**************************************************************
+** 1) Public HCP (Single-AZ)                 
+** 2) Public HCP (Multi-Zone)                  
+** 3) Private HCP (Single-AZ)            
+** 4) Private HCP (Single-AZ) with Jump Host 
 ** 5) Delete HCP 
 ** 6)  
 ** 7)  
 ** 8) Tools 
 
-************************************************************
+**************************************************************
 Current VPCs:  0
 Current HCP clusters:  0
 
-************************************************************
+**************************************************************
 Please enter a menu option and enter or x to exit. 3
 ```
 The first 3 options require entering or updating your AWS access keys
@@ -108,7 +108,7 @@ $ ./rosa_hcp.sh
 
 ************************************************************
 ** 1) HCP Public in Single-AZ                 
-** 2) HCP Public in Multi-AZ                  
+** 2) HCP Public in Multi-Zone                  
 ** 3) HCP PrivateLink in Single-AZ            
 ** 4) HCP PrivateLink in Single-AZ with Jump Host 
 ** 5) Delete HCP 
@@ -143,17 +143,20 @@ After a successful deployment a **cluster-admin** account is added to your clust
 > Once the cluster deletion process is complete, the LOG file will be moved from its current location to the **/tmp** folder.
 
 # Notes around resources, deployment, etc.
-ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-AZ), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly)
+ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-Zone), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly)
 
-- AWS Resource created includes:
-  - 1 [VPC](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#rosa-vpc_prerequisites) with cidr-block 10.0.0.0/16
+AWS Resource created includes:
+  - 1 [VPC](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#rosa-vpc_prerequisites) with cidr-block 10.0.0.0/16 will be created in the same Region that you intend to install your cluster. In these examples
   - 1 or more Public subnets
     - Single-AZ --> cidr-block 10.0.0.0/20
-    - Multi-AZ  --> cidr-blocks 10.0.0.0/20; 10.0.16.0/20; 10.0.32.0/20
+    - Multi-Zone  --> cidr-blocks 10.0.0.0/20; 10.0.16.0/20; 10.0.32.0/20
   - 1 or more Private subnets - In the case of Option 3 (HCP PrivateLink in Single-AZ), it is assumed that the cluster will be reachable via a VPN or a Direct Connect service, therefore the script does not provide for the creation of any subnet Public Subnet, NGW, jump host, etc. In the case of Option 4 (HCP PrivateLink in Single-AZ with Jump Host), a public subnet is included to allow egress via IGW+NGW and enable creation of a jump host to allow access to the cluster's private network via SSH. If you are using a firewall to control egress traffic, you must configure your firewall to grant access to the domain and port combinations [here](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#osd-aws-privatelink-firewall-prerequisites_prerequisites)
     - Single-AZ --> cidr-block  10.0.128.0/20
-    - Multi-AZ  --> cidr-blocks 10.0.128.0/20; 10.0.144.0/20; 10.0.160.0/20
-  - 1 NAT GW per AZ
+    - Multi-Zone  --> cidr-blocks 10.0.128.0/20; 10.0.144.0/20; 10.0.160.0/20
+> [!NOTE]
+> While ROSA HCP's control planes are always highly available, customer's worker node machinepools are scoped to single-AZs (subnets) only, they do not distribute automatically across AZs. If you want to have workers in
+> three different AZs, the script will create three machinepools for you.
+ - 1 NAT GW per AZ
   - 1 Internet GW in just one AZ, to allow the egress (NAT) traffic to the Internet
   - Enable DNS hostnames
   - Enable DNS resolution
@@ -161,7 +164,7 @@ ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, Priv
 - Default HCP installer role is '$CLUSTER_NAME' prefix
 - Worker nodes:
   - Single-AZ: 2x worker nodes will be created within the same subnet<br />
-  - Multi-AZ: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
+  - Multi-Zone: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
 
 # Additional tools
 From the main menù, click option #8 to access to the sub-menù called " ROSA HCP TOOLS Menu ". <br />
@@ -172,15 +175,16 @@ Here you will find specific actions you take do to manage your environment:
 *               ROSA HCP TOOLS Menu                        *
 
 ************************************************************
-** 1) Create a SingleAZ Public VPC  --> no clusters will be created, only VPC resources            
-** 2) Inst./Upd. AWS CLI            --> linux/mac, x86/ARM	 	 
-** 3) Inst./Upd. ROSA CLI           --> linux/mac, x86/ARM
-** 4) Inst./Upd. OC CLI             --> linux/mac, x86/ARM
-** 5) Inst./Upd. all CLIs           --> this also include JQ    
+** 0) Check available AWS Regions               
+** 1) Create a SingleAZ Public VPC              
+** 2) Inst./Upd. AWS CLI 	       	 	   
+** 3) Inst./Upd. ROSA CLI 			   
+** 4) Inst./Upd. OC CLI		           
+** 5) Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)      
 ** -- ------------------------------------------
-** 6) Delete a specific HCP Cluster --> in case no LOG files are in place
-** 7) Delete a specific (empty) VPC --> only VPC resources
-** 8) Delete EVERYTHING             --> CAUTION: THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT 
+** 6) Delete a specific HCP cluster (w/no LOGs) 
+** 7) Delete a specific VPC                     
+** 8) Delete EVERYTHING (CAUTION: THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT)
 
 ************************************************************
 Current VPCs:  0
@@ -189,20 +193,18 @@ Current HCP clusters:  0
 ************************************************************
 ```
 # Statistics
-By using this script you accept and allow the collection of some data only for statistical purposes, precisely the result that comes out of this command: uname -srvm.
+By using this script you accept and allow the collection of some OS data only for statistical purposes, precisely the result that comes out of this command: uname -srvm.
 
 ```
 Example:
 # uname -srvm
 Linux 6.6.13-200.fc39.x86_64 #1 SMP PREEMPT_DYNAMIC Sat Jan 20 18:03:28 UTC 2024 x86_64
 ```
-This is information related only to the operating system (e.g. Mac, Linux) and platform (e.g. x86, ARM) on which the script is running. There is no way for the script to collect any other types of data.
-Participation in the collection of this data **is not mandatory**: if you do not wish to contribute simply comment the $LAPTOP variable (line 55) within the script as follows:
-
+As you can see in the example above, this information is related to the operating system (e.g. Mac, Linux) and platform (e.g. x86, ARM) the script is running on, which has no way of collecting other types of data. In any case, **collecting this data is not mandatory**: if you don't want to contribute simply leave "line 55" commented out as it is by default:
 ```
 # Optional statistics (eg. os type, version, platform)
 # LAPTOP=$(uname -srvm)
 ```
 
 # Wrap up
-This script will make use of specific commands, options, and variables to successfully install the cluster for you in a few minutes but **feel free to make changes to suit your needs**.
+This script will make use of specific commands, options, and variables to successfully install your cluster(s) for you in a few minutes but **feel free to make changes to suit your needs**.
