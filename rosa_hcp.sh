@@ -1,5 +1,5 @@
 #!/bin/bash
-#set -x
+set -x
 ####################################################################################################################
 ##  +-----------------------------------+-----------------------------------+
 ##  |                                                                       |
@@ -427,7 +427,7 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
 #
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 #
-aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 $CLUSTER_LOG
+aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
 option_picked_green "#  VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
   echo "############################################################################################################# "
 mv "$CLUSTER_LOG" /tmp
@@ -475,7 +475,7 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
 #
    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 #
-aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 $CLUSTER_LOG
+aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
 CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 echo "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 }
@@ -533,7 +533,7 @@ aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $V
 aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED 2>&1 >> "$CLUSTER_LOG"
 #
         	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
-        	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID 2>&1 $CLUSTER_LOG
+        	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
           	echo ""
         	echo ""
         	echo "#############################################################################"
