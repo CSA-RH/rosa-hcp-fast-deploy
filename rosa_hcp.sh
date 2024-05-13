@@ -1133,7 +1133,7 @@ Countdown
 # JQ command-line JSON processor                           #
 ############################################################
 JQ_CLI() {
-set -x
+#set -x
 JQ_Linux_x86_64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
 JQ_Linux_aarch64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-arm64
 JQ_Darwin=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-amd64
@@ -1808,7 +1808,7 @@ option_picked(){
 ############################################################
 ##
 Create_Jump_Host() {
-set -x
+#set -x
 # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami.html#finding-an-ami-aws-cli
 # the EC2-provided parameter /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2 is available in all Regions and always points to the latest version of the Amazon Linux 2 AMI in a given Region.
 #
