@@ -47,7 +47,7 @@
 ########################################################################################################################
 #
 #
-SCRIPT_VERSION=v1.12.1
+SCRIPT_VERSION=v1.12.2
 #
 #
 ########################################################################################################################
@@ -114,10 +114,10 @@ else
 		if [[ $JUMP_HOST_ID ]]
 		then
        	 		echo "Deleting the jump-host ID " "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
-        		aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 "$CLUSTER_LOG"
+        		aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 >> "$CLUSTER_LOG"
         		JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
        	 		echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-        		aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 "$CLUSTER_LOG"
+        		aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 >> "$CLUSTER_LOG"
 			mv "$JUMP_HOST_KEY" /tmp
 		else
       			echo ""
@@ -131,18 +131,18 @@ echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |
 echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-rosa delete cluster -c "$CLUSTER_NAME" --yes 2>&1 "$CLUSTER_LOG"
+rosa delete cluster -c "$CLUSTER_NAME" --yes 2>&1 >> "$CLUSTER_LOG"
   if [ $? -eq 0 ]; then
 	  # start removing the NGW since it takes a lot of time
 	  while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id "$instance_id"; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='"$VPC_ID"| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
           echo "Cluster deletion in progress " 2>&1 |tee -a "$CLUSTER_LOG"
-          rosa logs uninstall -c "$CLUSTER_NAME" --watch 2>&1 "$CLUSTER_LOG"
+          rosa logs uninstall -c "$CLUSTER_NAME" --watch 2>&1 >> "$CLUSTER_LOG"
           rosa delete operator-roles --prefix "$PREFIX" -m auto -y 2>&1 >> "$CLUSTER_LOG"
           echo "operator-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
           rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
           echo "oidc-provider deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 	  Delete_VPC
-	  rosa delete account-roles --mode auto --prefix "$PREFIX" --yes 2>&1 "$CLUSTER_LOG"
+	  rosa delete account-roles --mode auto --prefix "$PREFIX" --yes 2>&1 >> "$CLUSTER_LOG"
 	  echo "account-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 	#
 	#
@@ -253,9 +253,9 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		#Get started
 		#
 		echo "Running \"rosa delete cluster\"" 2>&1 |tee -a "$CLUSTER_LOG"
-		rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 "$CLUSTER_LOG"
+		rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 >> "$CLUSTER_LOG"
 		echo "Running \"rosa logs unistall\"" 2>&1 |tee -a "$CLUSTER_LOG"
-		rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 "$CLUSTER_LOG"
+		rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
 #
 		echo "Deleting operator-roles" 2>&1 |tee -a "$CLUSTER_LOG"
 		rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
@@ -263,7 +263,7 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 		rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
 		#
 		echo "Deleting account-roles " 2>&1 |tee -a "$CLUSTER_LOG"
-		rosa delete account-roles --prefix $PREFIX -m auto -y  2>&1 "$CLUSTER_LOG"
+		rosa delete account-roles --prefix $PREFIX -m auto -y  2>&1 >> "$CLUSTER_LOG"
 		#
 		#################################################################################################################################
 		# Delete the VPC it belongs to
@@ -288,7 +288,7 @@ aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELE
 #
    		while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> "$CLUSTER_LOG"
 		#
-		aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 $CLUSTER_LOG
+		aws ec2 delete-vpc --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
 		option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 		echo " "
 		option_picked_green "HCP Cluster $CLUSTER_NAME deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
@@ -392,16 +392,16 @@ if [ -n "$CLUSTER_LIST" ]; then
 #Get started 
    option_picked "#  Going to delete the HCP cluster named " "$CLUSTER_NAME" " and the VPC " "$VPC_ID" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 "$CLUSTER_LOG"
+rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 >> "$CLUSTER_LOG"
   echo "#  You can watch logs with \"$ tail -f $CLUSTER_LOG\"" 2>&1 |tee -a "$CLUSTER_LOG"
-rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 "$CLUSTER_LOG"
+rosa logs uninstall -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
   echo "#  Deleting operator-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
 rosa delete operator-roles --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
   echo "#  Deleting OIDC " $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
   echo "#  Deleting account-roles with PREFIX= " "$PREFIX" 2>&1 |tee -a "$CLUSTER_LOG"
-rosa delete account-roles --mode auto --prefix $PREFIX --yes 2>&1 "$CLUSTER_LOG"
+rosa delete account-roles --mode auto --prefix $PREFIX --yes 2>&1 >> "$CLUSTER_LOG"
 #
 
 #########################
@@ -519,7 +519,7 @@ if [ -n "$VPC_LIST" ]; then
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
 		echo "Waiting for NGW to die (~2 min) "
         	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
-		sleep_120
+#		sleep_120
 #
         	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
         	while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
@@ -1300,7 +1300,7 @@ echo "#"
 echo "#"
 echo "Start installing a Private ROSA HCP cluster $CLUSTER_NAME in a Single-AZ  with JUMP HOST ..." 2>&1 |tee -a "$CLUSTER_LOG"
 #JUMP_HOST_STAT="ON"
-echo "JUMP_HOST ON" 2>&1 "$CLUSTER_LOG"
+echo "JUMP_HOST ON" 2>&1 >> "$CLUSTER_LOG"
 #
 SingleAZ_VPC
 #
@@ -1808,7 +1808,7 @@ option_picked(){
 ############################################################
 ##
 Create_Jump_Host() {
-#set -x
+set -x
 # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami.html#finding-an-ami-aws-cli
 # the EC2-provided parameter /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2 is available in all Regions and always points to the latest version of the Amazon Linux 2 AMI in a given Region.
 #
@@ -1837,7 +1837,7 @@ chmod 400 "$CLUSTER_NAME"_KEY
 JUMP_HOST=${CLUSTER_NAME}-jump-host
 echo "Creating the Jump host " "$JUMP_HOST" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-aws ec2 run-instances --image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 --instance-type t2.micro --region "$AWS_REGION" --subnet-id "$PUBLIC_SUB_2a" --key-name "$CLUSTER_NAME"_KEY --associate-public-ip-address --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$JUMP_HOST}]" --no-paginate --security-group-ids "$SG_ID" --count 1 2>&1 "$CLUSTER_LOG"
+aws ec2 run-instances --image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 --instance-type t2.micro --region "$AWS_REGION" --subnet-id "$PUBLIC_SUB_2a" --key-name "$CLUSTER_NAME"_KEY --associate-public-ip-address --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$JUMP_HOST}]" --no-paginate --security-group-ids "$SG_ID" --count 1 2>&1 >> "$CLUSTER_LOG"
 #  
 #aws ec2 run-instances 
 #--image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 \
