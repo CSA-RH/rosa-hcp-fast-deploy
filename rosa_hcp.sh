@@ -1,5 +1,5 @@
 #!/bin/bash
-#set -x
+set -x
 ####################################################################################################################
 ##  +-----------------------------------+-----------------------------------+
 ##  |                                                                       |
@@ -519,7 +519,7 @@ if [ -n "$VPC_LIST" ]; then
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
 		echo "Waiting for NGW to die (~2 min) "
         	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
-#		sleep_120
+		sleep_120
 #
         	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
         	while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG

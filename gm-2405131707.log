@@ -1,0 +1,52 @@
+Start installing a Private ROSA HCP cluster gm-2405131707 in a Single-AZ  with JUMP HOST ...
+JUMP_HOST ON
+{
+    "UserId": "AIDAZHWQV3JOTIOBCZC4R",
+    "Account": "635019057757",
+    "Arn": "arn:aws:iam::635019057757:user/open-environment-td9nl-admin"
+}
+{
+    "Role": {
+        "Path": "/aws-service-role/elasticloadbalancing.amazonaws.com/",
+        "RoleName": "AWSServiceRoleForElasticLoadBalancing",
+        "RoleId": "AROAZHWQV3JO6AXE25ABX",
+        "Arn": "arn:aws:iam::635019057757:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing",
+        "CreateDate": "2019-09-07T15:14:23+00:00",
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "elasticloadbalancing.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                }
+            ]
+        },
+        "Description": "Allows ELB to call AWS services on your behalf.",
+        "MaxSessionDuration": 3600,
+        "RoleLastUsed": {
+            "LastUsedDate": "2024-05-13T14:00:07+00:00",
+            "Region": "us-east-2"
+        }
+    }
+}
+#
+Creating the VPC:  vpc-0773dd87e254a7c72
+VPC_ID_VALUE  vpc-0773dd87e254a7c72
+Creating the Public Subnet:  subnet-023b0e64b28f46a93
+Creating the Private Subnet:  subnet-0c9370a0c19244b03
+Creating the IGW:  igw-0cac1705d53a82d64
+Creating the Public Route Table:  rtb-0ed71e4364a95701b
+{
+    "Return": true
+}
+{
+    "AssociationId": "rtbassoc-0f4deeaa2961d709f",
+    "AssociationState": {
+        "State": "associated"
+    }
+}
+Creating the NGW:  nat-0475a6ce5535da67e
+Waiting for NGW to warm up 
