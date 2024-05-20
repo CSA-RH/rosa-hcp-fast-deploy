@@ -1023,7 +1023,7 @@ Countdown
 ROSA_CLI() {
 #set -xe
 ROSA_Linux=https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz
-ROSA_MAC=https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-macosx.tar.gz
+ROSA_Darwin=https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-macosx.tar.gz
 #ROSA_Winzoz=https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-windows.zip
 #
 VAR2="ROSA_${OS}"
@@ -1055,11 +1055,12 @@ then
                 NEXT_V=$(rosa version|grep "There is a newer release version"| awk -F/ 'NR==1{print $1 ", going to install version --> " $2}')
                 echo $NEXT_V
         	# Download and install ROSA CLI
-                curl ${!VAR2} --output rosa-linux.tar.gz
-                tar xvf rosa-linux.tar.gz
+                curl ${!VAR2} --output rosa.tar.gz
+                tar xvf rosa.tar.gz
+                sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.$ROSA_ACTUAL_V
                 sudo mv rosa /usr/local/bin/rosa
         	# Clean up
-                rm -rf rosa-linux.tar.gz
+                rm -rf rosa.tar.gz
         	# Trigger the update
                 rosa version
                 option_picked_green "ROSA CLI update completed."
@@ -1072,11 +1073,12 @@ else
    echo " # going to download and install the latest version !                      #"
    echo " #                                                                         #"
    echo " ###########################################################################"
-   curl ${!VAR2} --output rosa-linux.tar.gz
-   tar xvf rosa-linux.tar.gz
-   sudo mv rosa /usr/local/bin/rosa
+   curl ${!VAR2} --output rosa.tar.gz
+   tar xvf rosa.tar.gz
+                sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.$ROSA_ACTUAL_V
+                sudo mv rosa /usr/local/bin/rosa
    # Clean up
-   rm -rf rosa-linux.tar.gz
+   rm -rf rosa.tar.gz
    # Verify the installation
    rosa version
    option_picked_green "ROSA CLI update completed."
