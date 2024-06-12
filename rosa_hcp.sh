@@ -47,7 +47,7 @@
 ########################################################################################################################
 #
 #
-SCRIPT_VERSION=v1.12.5
+SCRIPT_VERSION=v1.12.6
 #
 #
 ########################################################################################################################
@@ -663,11 +663,17 @@ aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 #
 PUBLIC_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
 echo "Creating the Public Subnet: " $PUBLIC_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
-aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-public
+#
+# Automated service preflight checks verify that these resources are tagged correctly before you can use them
+#
+aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=kubernetes.io/role/elb,Value=1 2>&1 |tee -a "$CLUSTER_LOG"
 #
 PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
 echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
-aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
+#
+# Automated service preflight checks verify that these resources are tagged correctly before you can use them
+#
+aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=kubernetes.io/role/internal-elb,Value=1 2>&1 |tee -a "$CLUSTER_LOG"
 #
 IGW=$(aws ec2 create-internet-gateway --query InternetGateway.InternetGatewayId --output text)
 echo "Creating the IGW: " $IGW 2>&1 |tee -a "$CLUSTER_LOG"
@@ -725,11 +731,17 @@ aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 #
 PUBLIC_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
 echo "Creating the Public Subnet: " $PUBLIC_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
-aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-public
+#
+# Automated service preflight checks verify that these resources are tagged correctly before you can use them
+#
+aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=kubernetes.io/role/elb,Value=1 2>&1 |tee -a "$CLUSTER_LOG"
 #
 PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
 echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
-aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
+#
+# Automated service preflight checks verify that these resources are tagged correctly before you can use them
+#
+aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=kubernetes.io/role/internal-elb,Value=1 2>&1 |tee -a "$CLUSTER_LOG"
 #
 IGW=$(aws ec2 create-internet-gateway --query InternetGateway.InternetGatewayId --output text)
 echo "Creating the IGW: " $IGW 2>&1 |tee -a "$CLUSTER_LOG"
@@ -784,7 +796,10 @@ aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
 
 echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
-aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=Name,Value=$CLUSTER_NAME-private
+# 
+# Automated service preflight checks verify that these resources are tagged correctly before you can use them
+# 
+aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=kubernetes.io/role/internal-elb,Value=1 2>&1 |tee -a "$CLUSTER_LOG"
 #
 PRIVATE_RT_ID1=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
 
@@ -1050,14 +1065,15 @@ then
    		echo " # ROSA CLI is already installed. Checking for updates.. :                 #"
    		echo " #                                                                         #"
    		echo " ###########################################################################"
-                ROSA_ACTUAL_V=$(rosa version|awk -F. 'NR==1{print $1"."$2"."$3 }')
-                echo "ROSA actual version is --> " $ROSA_ACTUAL_V
+                #ROSA_ACTUAL_V=$(rosa version|awk -F. 'NR==1{print $1"."$2"."$3 }')
+                ROSA_ACTUAL_V=$(rosa version|awk -F1. 'NR==1{print $2,$3}')
+                echo "ROSA actual version is --> " "1."$ROSA_ACTUAL_V
                 NEXT_V=$(rosa version|grep "There is a newer release version"| awk -F/ 'NR==1{print $1 ", going to install version --> " $2}')
                 echo $NEXT_V
         	# Download and install ROSA CLI
                 curl ${!VAR2} --output rosa.tar.gz
                 tar xvf rosa.tar.gz
-                sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.$ROSA_ACTUAL_V
+                sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v."1."$ROSA_ACTUAL_V
                 sudo mv rosa /usr/local/bin/rosa
         	# Clean up
                 rm -rf rosa.tar.gz
@@ -1230,63 +1246,6 @@ Fine
 #
 # 
 ############################################################
-# HCP Private Cluster                                  #
-############################################################
-# 
-function HCP_Private()
-{ 
-#set -x
-CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
-touch $CLUSTER_LOG
-BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
-#
-aws configure
-echo "#"
-echo "#"
-echo "Start installing Public ROSA HCP cluster $CLUSTER_NAME in a Single-AZ  ..." 2>&1 |tee -a "$CLUSTER_LOG"
-#
-SingleAZ_VPC_Priv
-#
-echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
-rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
-OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
-echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
-echo "OIDC_ID " $OIDC_ID 2>&1 >> "$CLUSTER_LOG"
-echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
-rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
-SUBNET_IDS=$PRIV_SUB_2a
-#
-echo "Creating a Private ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
-echo " " 2>&1 >> "$CLUSTER_LOG"
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
-#
-echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
-rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
-#
-rosa describe cluster -c $CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
-#
-echo "Creating the cluster-admin user" 2>&1 |tee -a "$CLUSTER_LOG"
-rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
-#   
-echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-normal=$(echo "\033[m")
-menu=$(echo "\049[92m") #Green
-#
-option_picked_green "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
-option_picked_green "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
-option_picked_green "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
-#
-echo " " 2>&1 |tee -a "$CLUSTER_LOG"
-echo " " 2>&1 |tee -a "$CLUSTER_LOG"
-echo " " 2>&1 |tee -a "$CLUSTER_LOG"
-Fine
-}
-#
-# 
-############################################################
 # HCP Private Cluster 2 (with Jump Host)               #
 ############################################################
 # 
@@ -1305,7 +1264,7 @@ echo "Start installing a Private ROSA HCP cluster $CLUSTER_NAME in a Single-AZ  
 echo "JUMP_HOST ON" 2>&1 >> "$CLUSTER_LOG"
 #
 SingleAZ_VPC
-#
+# 
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
@@ -1329,6 +1288,26 @@ rosa describe cluster -c $CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
 #
 echo "Creating the cluster-admin user" 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
+#
+#
+#
+#
+#
+#
+# Going to grant access to any entities outside of the VPC, through VPC peering and transit gateway,
+# by creating and attaching another security group to the PrivateLink endpoint to grant the necessary access
+#
+#
+#
+#
+echo "Going to grant access to any entities outside of the VPC, through VPC peering and transit gateway,  by creating and attaching another security group to the PrivateLink endpoint to grant the necessary access" 2>&1 >> "$CLUSTER_LOG"
+read -r VPCE_ID VPC_ID <<< $(aws ec2 describe-vpc-endpoints --filters "Name=tag:api.openshift.com/id,Values=$(rosa describe cluster -c ${CLUSTER_NAME} -o yaml | grep '^id: ' | cut -d' ' -f2)" --query 'VpcEndpoints[].[VpcEndpointId,VpcId]' --output text) 2>&1 >> "$CLUSTER_LOG"
+export SG_ID=$(aws ec2 create-security-group --description "Granting API access to ${CLUSTER_NAME} from outside of VPC" --group-name "${CLUSTER_NAME}-api-sg" --vpc-id $VPC_ID --output text) 2>&1 >> "$CLUSTER_LOG"
+aws ec2 authorize-security-group-ingress --group-id $SG_ID --ip-permissions IpProtocol=tcp,FromPort=443,ToPort=443,IpRanges="[{CidrIp=0.0.0.0/0}]" 2>&1 >> "$CLUSTER_LOG"
+aws ec2 modify-vpc-endpoint --vpc-endpoint-id $VPCE_ID --add-security-group-ids $SG_ID 2>&1 >> "$CLUSTER_LOG"
+#
+#
+#
 #
 echo "going to create the JUMP HOST instance" 2>&1 >> "$CLUSTER_LOG"
 Create_Jump_Host
@@ -1609,9 +1588,9 @@ fi
     printf "\n${menu}**************************************************************${normal}\n"
     printf "${menu}**${number} 1)${menu} Public HCP (Single-AZ)                 ${normal}\n"
     printf "${menu}**${number} 2)${menu} Public HCP (Multi-Zone)                  ${normal}\n"
-    printf "${menu}**${number} 3)${menu} Private HCP (Single-AZ)            ${normal}\n"
-    printf "${menu}**${number} 4)${menu} Private HCP (Single-AZ) with Jump Host ${normal}\n"
-    printf "${menu}**${number} 5)${menu} Delete HCP ${normal}\n"
+    printf "${menu}**${number} 3)${menu} Private HCP (Single-AZ) with Jump Host ${normal}\n"
+    printf "${menu}**${number} 4)${menu} Delete HCP ${normal}\n"
+    printf "${menu}**${number} 5)${menu}  ${normal}\n"
     printf "${menu}**${number} 6)${menu}  ${normal}\n"
     printf "${menu}**${number} 7)${menu}  ${normal}\n"
     printf "${menu}**${number} 8)${menu} Tools ${normal}\n"
@@ -1646,17 +1625,11 @@ while [ "$opt" != '' ]
         ;;
         3) clear;
 	    BLOCK_INST;
-            option_picked "Option 3 Picked - Installing a Private ROSA HCP (Single-AZ)";
-            HCP_Private;
-            show_menu;
-        ;;
-        4) clear;
-	    BLOCK_INST;
-            option_picked "Option 4 Picked - Installing a Private ROSA HCP (Single-AZ) with Jump Host ";
+            option_picked "Option 3 Picked - Installing a Private ROSA HCP (Single-AZ) with Jump Host";
             HCP_Private2;
             show_menu;
         ;;
-        5) clear;
+        4) clear;
 	    BLOCK_INST;
             option_picked "Option 5 Picked - Removing ROSA HCP";
             Delete_HCP;
