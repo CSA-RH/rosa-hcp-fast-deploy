@@ -143,9 +143,13 @@ AWS Resource created includes:
   - 1 or more Public subnets
     - Single-AZ --> cidr-block 10.0.0.0/20
     - Multi-Zone  --> cidr-blocks 10.0.0.0/20; 10.0.16.0/20; 10.0.32.0/20
-  - 1 or more Private subnets - In the case of Option 3 (HCP PrivateLink in Single-AZ), it is assumed that the cluster will be reachable via a VPN or a Direct Connect service, therefore the script does not provide for the creation of any subnet Public Subnet, NGW, jump host, etc. In the case of Option 4 (HCP PrivateLink in Single-AZ with Jump Host), a public subnet is included to allow egress via IGW+NGW and enable creation of a jump host to allow access to the cluster's private network via SSH. If you are using a firewall to control egress traffic, you must configure your firewall to grant access to the domain and port combinations [here](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#osd-aws-privatelink-firewall-prerequisites_prerequisites)
-    - Single-AZ --> cidr-block  10.0.128.0/20
-    - Multi-Zone  --> cidr-blocks 10.0.128.0/20; 10.0.144.0/20; 10.0.160.0/20
+  - 1 or more Private subnets
+    - Single-AZ --> cidr-block  10.0.128.0/20 <br />
+  - Subnetes TAGS are like following:
+    - Public subnet: Key=kubernetes.io/role/elb,Value=1
+    - Private subnet: Key=kubernetes.io/role/internal-elb,Value=1<br />
+
+In the case of Option 3 (HCP PrivateLink in Single-AZ with Jump Host), a public subnet is included to allow egress via IGW+NGW and enable creation of a jump host to allow access to the cluster's private network via SSH. Also [an additional SG](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-aws-private-creating-cluster.html#rosa-hcp-aws-private-security-groups_rosa-hcp-aws-private-creating-cluster) will be created and attached to the PrivateLink endpoint to grant the necessary access to any entities outside of the VPC (eg. VPC peering, TGW). If you are using a firewall to control egress traffic, you must configure your firewall to grant access to the domain and port combinations [here](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#osd-aws-privatelink-firewall-prerequisites_prerequisites)
 > [!NOTE]
 > While ROSA HCP's control planes are always highly available, customer's worker node machinepools are scoped to single-AZs (subnets) only, they do not distribute automatically across AZs. If you want to have workers in
 > three different AZs, the script will create three machinepools for you.
@@ -156,6 +160,7 @@ AWS Resource created includes:
 - AWS Region: the aws configure command will ask for the default $AWS_Region which will be used as the target destination during the installation process
 - Default HCP installer role is '$CLUSTER_NAME' prefix
 - Worker nodes:
+  - The default Machine type is "m5.xlarge"
   - Single-AZ: 2x worker nodes will be created within the same subnet<br />
   - Multi-Zone: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
 
