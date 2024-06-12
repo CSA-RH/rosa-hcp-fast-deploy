@@ -25,13 +25,6 @@ Once done your AWS and Red Hat account are linked and you can start witht the in
 1. Clone this repo
 ```
 $ git clone https://github.com/CSA-RH/rosa-hcp-fast-deploy
-Cloning into 'fast-rosa-hcp-depoly'...
-remote: Enumerating objects: 290, done.
-remote: Counting objects: 100% (57/57), done.
-remote: Compressing objects: 100% (24/24), done.
-remote: Total 290 (delta 50), reused 34 (delta 33), pack-reused 233
-Receiving objects: 100% (290/290), 101.00 KiB | 1.12 MiB/s, done.
-Resolving deltas: 100% (121/121), done.
 
 ```
 2. Go to path:
@@ -55,9 +48,9 @@ $ ./rosa_hcp.sh
 **************************************************************
 ** 1) Public HCP (Single-AZ)                 
 ** 2) Public HCP (Multi-Zone)                  
-** 3) Private HCP (Single-AZ)            
-** 4) Private HCP (Single-AZ) with Jump Host 
-** 5) Delete HCP 
+** 3) Private HCP (Single-AZ) with Jump Host 
+** 4) Delete HCP 
+** 5)  
 ** 6)  
 ** 7)  
 ** 8) Tools 
@@ -102,28 +95,28 @@ Once you are done, feel free to destroy your ROSA **HCP** cluster by launching t
 ```
 $ ./rosa_hcp.sh 
 
-************************************************************
+**************************************************************
 
-*               ROSA HCP Installation Menu                 *
+*                 ROSA HCP Installation Menu                 *
 
-************************************************************
+**************************************************************
 ** 1) Public HCP (Single-AZ)                 
 ** 2) Public HCP (Multi-Zone)                  
-** 3) Private HCP (Single-AZ)            
-** 4) Private HCP (Single-AZ) with Jump Host 
-** 5) Delete HCP 
+** 3) Private HCP (Single-AZ) with Jump Host 
+** 4) Delete HCP 
+** 5)  
 ** 6)  
 ** 7)  
-** 8) Tools
+** 8) Tools 
 
 ************************************************************
 Current VPCs:  1
 Current HCP clusters:  1
 
 ************************************************************
-Please enter a menu option and enter or x to exit. 5
+Please enter a menu option and enter or x to exit. 4
 
-Option 5 Picked - Removing ROSA with HCP
+Option 4 Picked - Removing ROSA with HCP
 #
 # Start deleting ROSA HCP cluster gm-2401061517, VPC, roles, etc. 
 # Further details can be found in /home/gmollo/tools/cluster/svil/fast-rosa-hcp-depoly/gm-2401061517.log LOG file
