@@ -47,7 +47,7 @@
 ########################################################################################################################
 #
 #
-SCRIPT_VERSION=v1.12.6
+SCRIPT_VERSION=v1.12.7
 #
 #
 ########################################################################################################################
@@ -68,7 +68,7 @@ PREFIX=${2:-$CLUSTER_NAME}
 # Warning do not delete or comment the following variables
 OS=$(uname -s)
 ARC=$(uname -m)
-#AWS_REGION=$(aws configure get region)
+AWS_REGION=$(aws configure get region)
 #CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 #CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 #
@@ -648,8 +648,6 @@ echo "#"
 touch $CLUSTER_LOG
 aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
-#rosa verify permissions 2>&1 >> "$CLUSTER_LOG"
-#rosa verify quota --region=$AWS_REGION
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
 VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text)
@@ -698,6 +696,10 @@ echo "Creating the Private Route Table: " $PRIVATE_RT_ID1 2>&1 |tee -a "$CLUSTER
 aws ec2 create-route --route-table-id $PRIVATE_RT_ID1 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> "$CLUSTER_LOG"
 aws ec2 associate-route-table --subnet-id $PRIV_SUB_2a --route-table-id $PRIVATE_RT_ID1 2>&1 >> "$CLUSTER_LOG"
 aws ec2 create-tags --resources $PRIVATE_RT_ID1 $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private-rtb
+#
+#
+aws ec2 create-vpc-endpoint --vpc-id $VPC_ID_VALUE --service-name com.amazonaws.${AWS_REGION}.s3 --route-table-ids $PRIVATE_RT_ID1
+#
 #
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "VPC creation ... done! " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -716,8 +718,6 @@ CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
-#rosa verify permissions 2>&1 >> "$CLUSTER_LOG"
-#rosa verify quota --region=$AWS_REGION
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
 VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text)
@@ -767,51 +767,17 @@ aws ec2 create-route --route-table-id $PRIVATE_RT_ID1 --destination-cidr-block 0
 aws ec2 associate-route-table --subnet-id $PRIV_SUB_2a --route-table-id $PRIVATE_RT_ID1 2>&1 >> "$CLUSTER_LOG"
 aws ec2 create-tags --resources $PRIVATE_RT_ID1 $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private-rtb
 #
+#
+aws ec2 create-vpc-endpoint --vpc-id $VPC_ID_VALUE --service-name com.amazonaws.${AWS_REGION}.s3 --route-table-ids $PRIVATE_RT_ID1
+#
+#
+#
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "VPC creation ... done! " 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 mv "$CLUSTER_LOG" /tmp
 }
 #
-############################################################
-# Single AZ (Private) - no NGW, no IGW                     #
-############################################################
-#
-SingleAZ_VPC_Priv() {
-echo "#" 
-aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
-aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
-echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-#
-VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text)
-
-echo "Creating the VPC " $VPC_ID_VALUE 2>&1 |tee -a "$CLUSTER_LOG"
-#
-# 
-echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> "$CLUSTER_LOG"
-aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
-aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
-aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
-#
-PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
-
-echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
-# 
-# Automated service preflight checks verify that these resources are tagged correctly before you can use them
-# 
-aws ec2 create-tags --resources  $PRIV_SUB_2a --tags Key=kubernetes.io/role/internal-elb,Value=1 2>&1 |tee -a "$CLUSTER_LOG"
-#
-PRIVATE_RT_ID1=$(aws ec2 create-route-table --no-cli-pager --vpc-id $VPC_ID_VALUE --query RouteTable.RouteTableId --output text)
-
-echo "Creating the Private Route Table: " $PRIVATE_RT_ID1 2>&1 |tee -a "$CLUSTER_LOG"
-#aws ec2 create-route --route-table-id $PRIVATE_RT_ID1 --destination-cidr-block 0.0.0.0/0 --gateway-id $NAT_GATEWAY_ID 2>&1 >> "$CLUSTER_LOG"
-aws ec2 associate-route-table --subnet-id $PRIV_SUB_2a --route-table-id $PRIVATE_RT_ID1 2>&1 >> "$CLUSTER_LOG"
-aws ec2 create-tags --resources $PRIVATE_RT_ID1 $EIP_ADDRESS --tags Key=Name,Value=$CLUSTER_NAME-private-rtb
-#
-echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-echo "VPC creation ... done! " 2>&1 |tee -a "$CLUSTER_LOG"
-echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-}
 #
 ############################################################
 # Multi AZ                                                 #
@@ -952,7 +918,7 @@ if [ -x "$(command -v /usr/local/bin/aws)" ]
 then
     # AWS CLI is installed, check for updates
     option_picked_green "AWS CLI is already installed. Checking for updates..."
-    curl ${!VAR3} -o "AWSCLIV2.pkg"
+    curl -L0 ${!VAR3} -o "AWSCLIV2.pkg"
     sudo installer -pkg AWSCLIV2.pkg -target /
 aws --version
     option_picked_green "AWS CLI update completed."
@@ -972,7 +938,7 @@ else
     dirname='/usr/local/aws-cli'
     if [ -d $dirname ]; then sudo rm -rf $dirname; fi
     # Download and install AWS CLI
-    curl ${!VAR3} -o "AWSCLIV2.pkg"
+    curl -L0 ${!VAR3} -o "AWSCLIV2.pkg"
     sudo installer -pkg AWSCLIV2.pkg -target /
     # Clean up
     rm -rf AWSCLIV2.pkg
@@ -992,7 +958,7 @@ if [ -x "$(command -v /usr/local/bin/aws)" ]
 then
     # AWS CLI is installed, check for updates
     option_picked_green "AWS CLI is already installed. Checking for updates..."
-    curl ${!VAR3} -o "awscliv2.zip"
+    curl -L0 ${!VAR3} -o "awscliv2.zip"
     unzip awscliv2.zip
     sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
     aws --version
@@ -1013,7 +979,7 @@ else
     dirname='/usr/local/aws-cli'
     if [ -d $dirname ]; then sudo rm -rf $dirname; fi
     # Download and install AWS CLI
-    curl ${!VAR3} -o "awscliv2.zip"
+    curl -L0 ${!VAR3} -o "awscliv2.zip"
     unzip -u awscliv2.zip
     sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
     #sudo ./aws/install
@@ -1071,7 +1037,7 @@ then
                 NEXT_V=$(rosa version|grep "There is a newer release version"| awk -F/ 'NR==1{print $1 ", going to install version --> " $2}')
                 echo $NEXT_V
         	# Download and install ROSA CLI
-                curl ${!VAR2} --output rosa.tar.gz
+                curl -L0 ${!VAR2} --output rosa.tar.gz
                 tar xvf rosa.tar.gz
                 sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v."1."$ROSA_ACTUAL_V
                 sudo mv rosa /usr/local/bin/rosa
@@ -1089,7 +1055,7 @@ else
    echo " # going to download and install the latest version !                      #"
    echo " #                                                                         #"
    echo " ###########################################################################"
-   curl ${!VAR2} --output rosa.tar.gz
+   curl -L0 ${!VAR2} --output rosa.tar.gz
    tar xvf rosa.tar.gz
                 sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.$ROSA_ACTUAL_V
                 sudo mv rosa /usr/local/bin/rosa
@@ -1135,7 +1101,7 @@ if [ "$(which oc 2>&1 > /dev/null;echo $?)" == "0" ]
         cd /tmp
         #rosa download oc
         #tar xvf openshift-client-linux.tar.gz
-	curl ${!VAR1} --output openshift-client.tar.gz
+	curl -L0 ${!VAR1} --output openshift-client.tar.gz
         tar xvf openshift-client.tar.gz
         sudo mv oc /usr/local/bin/oc
         # Clean up
@@ -1177,7 +1143,7 @@ if [ "$(which jq 2>&1 > /dev/null;echo $?)" == "0" ]
    echo " #                                                                         #"
    echo " ###########################################################################"
         cd /tmp
-	curl -L -o jq-1.7.1 ${!VAR4} && chmod +x jq-1.7.1
+	curl -L0  -o jq-1.7.1 ${!VAR4} && chmod +x jq-1.7.1
         sudo mv jq-1.7.1 /usr/local/bin/jq
         # Clean up
         rm -rf jq-1.7.1
@@ -1707,7 +1673,10 @@ while [[ "$sub_tools" != '' ]]
         1) clear;
 	    BLOCK_INST;
             option_picked "Option 1 Picked - Create a Public VPC ";
-            SingleAZ_VPC_22;
+		CLUSTER_NAME=${1:-vpc-$NOW}
+		CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+#            SingleAZ_VPC_22;
+            SingleAZ_VPC;
 	    CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
             sub_menu_tools;
         ;;
