@@ -49,20 +49,20 @@ $ ./rosa_hcp.sh
 ** 1) Public HCP (Single-AZ)                 
 ** 2) Public HCP (Multi-Zone)                  
 ** 3) Private HCP (Single-AZ) with Jump Host 
-** 4) Delete HCP 
-** 5)  
+** 4) Public HCP (Single-AZ) with AWS Graviton (ARM) 
+** -- ------------------------------------------
+** 5) Delete HCP 
 ** 6)  
 ** 7)  
-** 8) Tools 
-
+** 8) Tools
 **************************************************************
 Current VPCs:  0
 Current HCP clusters:  0
 
 **************************************************************
-Please enter a menu option and enter or x to exit. 3
+Please enter a menu option and press enter or x to exit. 1
 ```
-The first 3 options require entering or updating your AWS access keys
+The first 4 options require entering or updating your AWS access keys
 ```
 Example:
 Option 1 Picked - Installing ROSA with HCP Public (Single-AZ)
@@ -72,7 +72,7 @@ Default region name [us-east-2]:
 Default output format [json]:
 #
 #
-Start installing ROSA HCP cluster gm-2312111104 in a Single-AZ ...
+Start installing ROSA HCP cluster gm-1234567890 in a Single-AZ ...
 #
 #
 Creating the VPC
@@ -103,22 +103,21 @@ $ ./rosa_hcp.sh
 ** 1) Public HCP (Single-AZ)                 
 ** 2) Public HCP (Multi-Zone)                  
 ** 3) Private HCP (Single-AZ) with Jump Host 
-** 4) Delete HCP 
-** 5)  
+** 4) Public HCP (Single-AZ) with AWS Graviton (ARM) 
+** -- ------------------------------------------
+** 5) Delete HCP 
 ** 6)  
 ** 7)  
 ** 8) Tools 
-
 ************************************************************
 Current VPCs:  1
 Current HCP clusters:  1
 
 ************************************************************
-Please enter a menu option and enter or x to exit. 4
-
-Option 4 Picked - Removing ROSA with HCP
+Please enter a menu option and press enter or x to exit. 5
+Option 5 Picked - Removing ROSA with HCP
 #
-# Start deleting ROSA HCP cluster gm-2401061517, VPC, roles, etc. 
+# Start deleting ROSA HCP cluster gm-1234567890, VPC, roles, etc. 
 # Further details can be found in /home/gmollo/tools/cluster/svil/fast-rosa-hcp-depoly/gm-2401061517.log LOG file
 #
 Cluster deletion in progress 
@@ -159,11 +158,14 @@ In the case of Option 3 (HCP PrivateLink in Single-AZ with Jump Host), a public 
   - Enable DNS resolution
 - AWS Region: the aws configure command will ask for the default $AWS_Region which will be used as the target destination during the installation process
 - Default HCP installer role is '$CLUSTER_NAME' prefix
+if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
 - Worker nodes:
-  - The default Machine type is "m5.xlarge"
+  - the default instance type based on AWS x86 is "m5.xlarge", while the default Arm-based Graviton worker node instance type is "m6g.xlarge". There are different [instance types](https://docs.openshift.com/rosa/rosa_architecture/rosa_policy_service_definition/rosa-hcp-instance-types.html), you can change one of the following variables according to your choice.
+     - DEF_MACHINE_TYPE="m5.xlarge"
+     - DEF_GRAVITON_MACHINE_TYPE="m6g.xlarge" <br />
   - Single-AZ: 2x worker nodes will be created within the same subnet<br />
-  - Multi-Zone: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
-
+  - Multi-Zone: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example:
+  
 # Additional tools
 From the main menù, click option #8 to access to the sub-menù called " ROSA HCP TOOLS Menu ". <br />
 Here you will find some specific actions you can take to manage your environment:
@@ -175,22 +177,22 @@ Here you will find some specific actions you can take to manage your environment
 ************************************************************
 ** 0) Check available AWS Regions               
 ** 1) Create a SingleAZ Public VPC              
+** -- ------------------------------------------
 ** 2) Inst./Upd. AWS CLI 	       	 	   
 ** 3) Inst./Upd. ROSA CLI 			   
 ** 4) Inst./Upd. OC CLI		           
 ** 5) Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)      
 ** -- ------------------------------------------
-** 6) Delete a specific HCP cluster (w/no LOGs) 
+** 6) Delete a specific HCP cluster             
 ** 7) Delete a specific VPC                     
 ** 8) Delete EVERYTHING (CAUTION: THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT)
-
 ************************************************************
 Current VPCs:  0
 Current HCP clusters:  0
 
 ************************************************************
 ```
-# Statistics
+# Statistics (optional)
 By using this script you accept and allow the collection of some OS data only for statistical purposes, precisely the result that comes out of this command: uname -srvm.
 
 ```
