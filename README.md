@@ -164,7 +164,7 @@ if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), the
      - DEF_MACHINE_TYPE="m5.xlarge"
      - DEF_GRAVITON_MACHINE_TYPE="m6g.xlarge" <br />
   - Single-AZ: 2x worker nodes will be created within the same subnet<br />
-  - Multi-Zone: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one for each AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example:
+  - Multi-Zone: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one per AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
   
 # Additional tools
 From the main menù, click option #8 to access to the sub-menù called " ROSA HCP TOOLS Menu ". <br />
