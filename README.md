@@ -40,28 +40,9 @@ $ chmod +x rosa_hcp.sh
 4. Run the script and then make your choise
 ```
 $ ./rosa_hcp.sh 
-
-**************************************************************
-
-*                 ROSA HCP Installation Menu                 *
-
-**************************************************************
-** 1) Public HCP (Single-AZ)                 
-** 2) Public HCP (Multi-Zone)                  
-** 3) Private HCP (Single-AZ) with Jump Host 
-** 4) Public HCP (Single-AZ) with AWS Graviton (ARM) 
-** -- ------------------------------------------
-** 5) Delete HCP 
-** 6)  
-** 7)  
-** 8) Tools
-**************************************************************
-Current VPCs:  0
-Current HCP clusters:  0
-
-**************************************************************
-Please enter a menu option and press enter or x to exit. 1
 ```
+<img width="381" alt="image" src="https://github.com/user-attachments/assets/06e4e3b8-3617-4ce0-ac64-779d9e0136b9">
+
 The first 4 options require entering or updating your AWS access keys
 ```
 Example:
@@ -91,30 +72,14 @@ Creating the NGW:  nat-08c847f619caed7c5
 The AWS CLI will now remember your inputs, no further action is required until the ROSA **HCP** cluster installation is complete.
 
 # Delete your cluster
-Once you are done, feel free to destroy your ROSA **HCP** cluster by launching the same shell script and choosing option 4) this time. 
+Once you are done, feel free to destroy your ROSA **HCP** cluster by launching the same shell script and choosing option 5) this time. 
 ```
 $ ./rosa_hcp.sh 
 
-**************************************************************
+```
+<img width="409" alt="image" src="https://github.com/user-attachments/assets/ee357ee8-5485-4051-872d-4be34da0af29">
 
-*                 ROSA HCP Installation Menu                 *
-
-**************************************************************
-** 1) Public HCP (Single-AZ)                 
-** 2) Public HCP (Multi-Zone)                  
-** 3) Private HCP (Single-AZ) with Jump Host 
-** 4) Public HCP (Single-AZ) with AWS Graviton (ARM) 
-** -- ------------------------------------------
-** 5) Delete HCP 
-** 6)  
-** 7)  
-** 8) Tools 
-************************************************************
-Current VPCs:  1
-Current HCP clusters:  1
-
-************************************************************
-Please enter a menu option and press enter or x to exit. 5
+```
 Option 5 Picked - Removing ROSA with HCP
 #
 # Start deleting ROSA HCP cluster gm-1234567890, VPC, roles, etc. 
@@ -167,31 +132,12 @@ if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), the
   - Multi-Zone: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one per AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
   
 # Additional tools
-From the main menù, click option #8 to access to the sub-menù called " ROSA HCP TOOLS Menu ". <br />
+From the main menù, click option #8 to access the " ROSA HCP TOOLS Menu ". <br />
 Here you will find some specific actions you can take to manage your environment:
-```
-************************************************************
 
-*               ROSA HCP TOOLS Menu                        *
+<img width="649" alt="image" src="https://github.com/user-attachments/assets/a04e1eea-8d79-4c3e-940e-7c7b14e22eea">
 
-************************************************************
-** 0) Check available AWS Regions               
-** 1) Create a SingleAZ Public VPC              
-** -- ------------------------------------------
-** 2) Inst./Upd. AWS CLI 	       	 	   
-** 3) Inst./Upd. ROSA CLI 			   
-** 4) Inst./Upd. OC CLI		           
-** 5) Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)      
-** -- ------------------------------------------
-** 6) Delete a specific HCP cluster             
-** 7) Delete a specific VPC                     
-** 8) Delete EVERYTHING (CAUTION: THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT)
-************************************************************
-Current VPCs:  0
-Current HCP clusters:  0
 
-************************************************************
-```
 # Statistics (optional)
 By using this script you accept and allow the collection of some OS data only for statistical purposes, precisely the result that comes out of this command: uname -srvm.
 
