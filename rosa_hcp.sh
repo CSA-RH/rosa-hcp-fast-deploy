@@ -47,7 +47,7 @@
 ########################################################################################################################
 #
 #
-SCRIPT_VERSION=v1.12.7
+SCRIPT_VERSION=v1.13.0
 #
 #
 ########################################################################################################################
@@ -72,108 +72,14 @@ AWS_REGION=$(aws configure get region)
 #CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
 #CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
 #
-############################################################
-# Delete HCP (the LOG file is in place)                    #
-############################################################
-Delete_HCP() {
-#set -x
-CHECK_GM="Delete_HCP"
-if [ "$CURRENT_HCP" -eq 0 ]; then
-    	  echo ""
-    	  echo ""
-    	  option_picked "Unfortunately there are NO HCP clusters now "
-    	  echo ""
-    	  echo ""
-    	  echo ""
-	ppp=x
-	echo "Press ENTER to go back to the Menu"
-	read -r ppp
-else 
-  if [ "$CURRENT_HCP" -gt 1 ]; then
-        option_picked "Found more than one clusterm with this Account Please pick one HCP cluster from the following list"
-	Delete_One_HCP
-   	sub_menu_tools
-  else
-	CLUSTER_LOGS=$(ls "$INSTALL_DIR/"*.log | grep -v vpc| wc -l)
-	   if [ "$CLUSTER_LOGS" -gt 1 ]; then
-	      Delete_One_HCP
-	   else
-	#CLUSTER_NAME=$(ls "$INSTALL_DIR" | grep -v vpc-*.log|grep *.log | awk -F. '{print $1}')
-	CLUSTER_NAME=$(find . -name "*.log"|grep -v vpc| awk -F/ '{print $2}'|awk -F. '{print $1}'|xargs)
-	CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
-	PREFIX=$(grep "INFO: Cluster" $CLUSTER_LOG |grep "is now ready"|awk -F\' '{print $2}')
-	####### PREFIX=$(rosa list account-roles| grep Install|awk '{print $1}'| sed 's/.\{24\}$//')
-	#OIDC_ID=$(rosa list oidc-provider -o json|grep arn| awk -F/ '{print $3}'|cut -c 1-32)
-	OIDC_ID=$(cat "$CLUSTER_LOG" |grep OIDC_ID |awk '{print $2}'|sort -u)
-	VPC_ID=$(cat "$CLUSTER_LOG" |grep VPC_ID_VALUE|awk '{print $2}')
-	PRIVATE=$(cat $CLUSTER_LOG|grep "Private:"|sort -u |awk -F: '{print $2}'|xargs)
-#   
-        	if  [ "$PRIVATE" == "Yes" ]; then
-	JUMP_HOST="$CLUSTER_NAME"-jump-host
-	JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
-		if [[ $JUMP_HOST_ID ]]
-		then
-       	 		echo "Deleting the jump-host ID " "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
-        		aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 >> "$CLUSTER_LOG"
-        		JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
-       	 		echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-        		aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 >> "$CLUSTER_LOG"
-			mv "$JUMP_HOST_KEY" /tmp
-		else
-      			echo ""
-		fi
-		else
-         		echo ""
-  		fi
-  #
-echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-echo "# Start deleting ROSA HCP cluster $CLUSTER_NAME, VPC, roles, etc. " 2>&1 |tee -a "$CLUSTER_LOG"
-echo "# Further details can be found in $CLUSTER_LOG LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
-echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+# Here you can change the default instance type for the compute nodes(--compute-machine-type). 
+# Determines the amount of memory and vCPU allocated to each compute node.
 #
-rosa delete cluster -c "$CLUSTER_NAME" --yes 2>&1 >> "$CLUSTER_LOG"
-  if [ $? -eq 0 ]; then
-	  # start removing the NGW since it takes a lot of time
-	  while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id "$instance_id"; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='"$VPC_ID"| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
-          echo "Cluster deletion in progress " 2>&1 |tee -a "$CLUSTER_LOG"
-          rosa logs uninstall -c "$CLUSTER_NAME" --watch 2>&1 >> "$CLUSTER_LOG"
-          rosa delete operator-roles --prefix "$PREFIX" -m auto -y 2>&1 >> "$CLUSTER_LOG"
-          echo "operator-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
-          rosa delete oidc-provider --oidc-config-id "$OIDC_ID" -m auto -y 2>&1 >> "$CLUSTER_LOG"
-          echo "oidc-provider deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
-	  Delete_VPC
-	  rosa delete account-roles --mode auto --prefix "$PREFIX" --yes 2>&1 >> "$CLUSTER_LOG"
-	  echo "account-roles deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
-	#
-	#
-	  echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-	  echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-	  echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
-	  echo "done! " 2>&1 |tee -a "$CLUSTER_LOG"
-	  option_picked_green "Cluster " "$CLUSTER_NAME" " was deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
-	  option_picked_green "The old LOG file ${CLUSTER_LOG} in is now moved to /tmp folder" 2>&1 |tee -a "$CLUSTER_LOG"
-	  echo " " 2>&1 |tee -a "$CLUSTER_LOG"
-	  mv "$CLUSTER_LOG" /tmp
-	  CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
-	  CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
-	  Countdown
-  else
-	  echo " "
-	  echo " "
-    	  option_picked "Unfortunately there are NO clusters with name => " "$CLUSTER_NAME"
-	  FILE=.log
-	   if test -f "$FILE"; then
-    		mv .log /tmp
-	   fi
-	   fi
-  fi
-Fine
-fi
-fi
-}
+DEF_MACHINE_TYPE="m5.xlarge"
+DEF_GRAVITON_MACHINE_TYPE="m6g.xlarge"
 #
 #############################################################################################
-# Select and delete an HCP c. and the VPC it belongs to, for example when there are NO logs #
+# Select and delete an HCP along with the VPC it belongs to
 #############################################################################################
 Delete_One_HCP() {
 #set -x
@@ -463,8 +369,13 @@ CHECK_GM="Delete_VPC"
 #
 #
    while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> "$CLUSTER_LOG"
+#
    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> "$CLUSTER_LOG"
+#
+   while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $vpcendpoint_id; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') 2>&1 >> "$CLUSTER_LOG"
+#
    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> "$CLUSTER_LOG"
+#
    while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> "$CLUSTER_LOG"; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> "$CLUSTER_LOG"
 #
 # Detach and delete IGW
@@ -523,6 +434,9 @@ if [ -n "$VPC_LIST" ]; then
 #
         	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
         	while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
+# 
+   while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $vpcendpoint_id; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') 2>&1 >> "$CLUSTER_LOG"
+#
         	while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id" 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') 2>&1 >> $CLUSTER_LOG
         	while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> $CLUSTER_LOG
 #
@@ -699,6 +613,7 @@ aws ec2 create-tags --resources $PRIVATE_RT_ID1 $EIP_ADDRESS --tags Key=Name,Val
 #
 #
 aws ec2 create-vpc-endpoint --vpc-id $VPC_ID_VALUE --service-name com.amazonaws.${AWS_REGION}.s3 --route-table-ids $PRIVATE_RT_ID1
+echo "Creating the VPC Endpoint: " $VPC_ID_VALUE  2>&1 |tee -a "$CLUSTER_LOG"
 #
 #
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
@@ -1160,6 +1075,7 @@ Countdown
 HCP_Public()
 {
 #set -x 
+CLUSTER_NAME=${1:-gm-$NOW}
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
@@ -1186,7 +1102,7 @@ SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
 echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 #
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
@@ -1210,6 +1126,64 @@ echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 Fine
 }
 #
+############################################################
+# HCP Public Cluster (GRAVITON)                            #
+############################################################
+HCP_Public_GRAVITON() 
+{
+#set -x                                                                     
+CLUSTER_NAME=${1:-gm-$NOW}
+CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+touch $CLUSTER_LOG
+BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')           
+#   
+aws configure                                                               
+echo "#"
+echo "#"
+echo "Start installing ROSA HCP cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |tee -a "$CLUSTER_LOG"
+echo "#"                                                                    
+#
+SingleAZ_VPC
+#
+echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
+INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
+WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
+SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
+OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
+echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
+echo "OIDC_ID " $OIDC_ID 2>&1 >> "$CLUSTER_LOG"
+echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
+rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG" 
+SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
+#
+echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+# 
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --compute-machine-type $DEF_GRAVITON_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+#
+echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
+rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
+#
+rosa describe cluster -c $CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
+#
+echo "Creating the cluster-admin user" 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
+# 
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+#
+option_picked_green "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+Fine
+} 
+#
+#
 # 
 ############################################################
 # HCP Private Cluster 2 (with Jump Host)               #
@@ -1218,6 +1192,7 @@ Fine
 function HCP_Private2()
 { 
 #set -x
+CLUSTER_NAME=${1:-gm-$NOW}
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
@@ -1245,7 +1220,7 @@ SUBNET_IDS=$PRIV_SUB_2a
 #
 echo "Creating a Private ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 >> "$CLUSTER_LOG"
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
@@ -1298,6 +1273,7 @@ Fine
 HCP_Public_MultiAZ()
 {
 #set -x
+CLUSTER_NAME=${1:-gm-$NOW}
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
@@ -1329,7 +1305,7 @@ SUBNET_IDS=$(echo $joined | sed -e 's/,$//g')
 #
 echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo "" 2>&1 >> "$CLUSTER_LOG"
-echo "rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y" 2>&1 >> "$CLUSTER_LOG"
+echo "rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --compute-machine-type $DEF_MACHINE_TYPE --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y" 2>&1 >> "$CLUSTER_LOG"
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -1555,8 +1531,9 @@ fi
     printf "${menu}**${number} 1)${menu} Public HCP (Single-AZ)                 ${normal}\n"
     printf "${menu}**${number} 2)${menu} Public HCP (Multi-Zone)                  ${normal}\n"
     printf "${menu}**${number} 3)${menu} Private HCP (Single-AZ) with Jump Host ${normal}\n"
-    printf "${menu}**${number} 4)${menu} Delete HCP ${normal}\n"
-    printf "${menu}**${number} 5)${menu}  ${normal}\n"
+    printf "${menu}**${number} 4)${menu} Public HCP (Single-AZ) with AWS Graviton (ARM) ${normal}\n"
+    printf "${menu}**${number} --${menu} ------------------------------------------${normal}\n"
+    printf "${menu}**${number} 5)${menu} Delete HCP ${normal}\n"
     printf "${menu}**${number} 6)${menu}  ${normal}\n"
     printf "${menu}**${number} 7)${menu}  ${normal}\n"
     printf "${menu}**${number} 8)${menu} Tools ${normal}\n"
@@ -1566,7 +1543,7 @@ fi
     echo "Current HCP clusters: " $CURRENT_HCP
 #
     printf "\n${menu}**************************************************************${normal}\n"
-    printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
+    printf "Please enter a menu option and press enter or ${fgred}x to exit. ${normal}"
     read="m"
 ######################  read -r opt
     read -s -n 1 opt
@@ -1597,8 +1574,14 @@ while [ "$opt" != '' ]
         ;;
         4) clear;
 	    BLOCK_INST;
+            option_picked "Option 4 Picked - Public HCP (Single-AZ) with AWS Graviton2 (ARM)";
+            HCP_Public_GRAVITON;
+            show_menu;
+        ;;
+        5) clear;
+	    BLOCK_INST;
             option_picked "Option 5 Picked - Removing ROSA HCP";
-            Delete_HCP;
+            Delete_One_HCP;
             show_menu;
         ;;
         8) #clear;
@@ -1641,12 +1624,13 @@ sub_tools=x
     printf "\n${menu}**************************************************************${normal}\n"
     printf "${menu}**${number} 0)${menu} Check available AWS Regions               ${normal}\n"
     printf "${menu}**${number} 1)${menu} Create a SingleAZ Public VPC              ${normal}\n"
+    printf "${menu}**${number} --${menu} ------------------------------------------${normal}\n"
     printf "${menu}**${number} 2)${menu} Inst./Upd. AWS CLI 	       	 	   ${normal}\n"
     printf "${menu}**${number} 3)${menu} Inst./Upd. ROSA CLI 			   ${normal}\n"
     printf "${menu}**${number} 4)${menu} Inst./Upd. OC CLI		           ${normal}\n"
     printf "${menu}**${number} 5)${menu} Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)      ${normal}\n"
     printf "${menu}**${number} --${menu} ------------------------------------------${normal}\n"
-    printf "${menu}**${number} 6)${menu} Delete a specific HCP cluster (w/no LOGs) ${normal}\n"
+    printf "${menu}**${number} 6)${menu} Delete a specific HCP cluster             ${normal}\n"
     printf "${menu}**${number} 7)${menu} Delete a specific VPC                     ${normal}\n"
     printf "${menu}**${number} 8)${menu} Delete EVERYTHING ${fgred}(CAUTION: THIS WILL DESTROY ALL CLUSTERS AND RELATED VPCs WITHIN YOUR AWS ACCOUNT) ${normal}\n"
     printf "\n${menu}**************************************************************${normal}\n"
@@ -1655,7 +1639,8 @@ sub_tools=x
     echo "Current HCP clusters: " $CURRENT_HCP
 #
     printf "\n${menu}**************************************************************${normal}\n"
-    printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
+    printf "Please enter a menu option and press enter or ${fgred}x to exit. ${normal}"
+
 #######################    read -r sub_tools
     read -s -n 1 sub_tools
 
