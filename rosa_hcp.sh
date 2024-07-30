@@ -47,7 +47,7 @@
 ########################################################################################################################
 #
 #
-SCRIPT_VERSION=v1.13.1
+SCRIPT_VERSION=v1.13.2
 #
 #
 ########################################################################################################################
@@ -1109,6 +1109,19 @@ SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 #
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+if [ $? -eq 1 ]; then
+    	echo " "
+    	echo " "
+    	echo " "
+	printf "${fgred} ... Ops! ${normal}"
+	printf "${fgred} Something went wrong: please read the documentation and check the log file for any other messages. ${normal}"
+    	echo " "
+    	echo " "
+    	echo " "
+    	echo " "
+    	exit
+fi
+
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
@@ -1166,6 +1179,18 @@ SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 # 
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --compute-machine-type $DEF_GRAVITON_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+if [ $? -eq 1 ]; then
+        echo " "
+        echo " "
+        echo " "
+        printf "${fgred} ... Ops! ${normal}"
+	printf "${fgred} Something went wrong: please read the documentation and check the log file for any other messages. ${normal}"
+        echo " "
+        echo " "
+        echo " " 
+        echo " "
+        exit
+fi
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
@@ -1227,6 +1252,18 @@ SUBNET_IDS=$PRIV_SUB_2a
 echo "Creating a Private ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 >> "$CLUSTER_LOG"
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+if [ $? -eq 1 ]; then
+        echo " "
+        echo " "
+        echo " "
+        printf "${fgred} ... Ops! ${normal}"
+	printf "${fgred} Something went wrong: please read the documentation and check the log file for any other messages. ${normal}"
+        echo " "
+        echo " "
+        echo " " 
+        echo " "
+        exit
+fi
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
@@ -1313,6 +1350,18 @@ echo "Creating ROSA HCP cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo "" 2>&1 >> "$CLUSTER_LOG"
 echo "rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --compute-machine-type $DEF_MACHINE_TYPE --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y" 2>&1 >> "$CLUSTER_LOG"
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+if [ $? -eq 1 ]; then
+        echo " "
+        echo " "
+        echo " "
+        printf "${fgred} ... Ops! ${normal}"
+	printf "${fgred} Something went wrong: please read the documentation and check the log file for any other messages. ${normal}"
+        echo " "
+        echo " "
+        echo " " 
+        echo " "
+        exit
+fi
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
