@@ -135,8 +135,7 @@ if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), the
 From the main menù, click option #8 to access the " ROSA HCP TOOLS Menu ". <br />
 Here you will find some specific actions you can take to manage your environment:
 
-<img width="649" alt="image" src="https://github.com/user-attachments/assets/a04e1eea-8d79-4c3e-940e-7c7b14e22eea">
-
+<img width="731" alt="image" src="https://github.com/user-attachments/assets/e5a86df4-eb87-40e8-a339-83bf2d44e3b7">
 
 # Statistics (optional)
 By using this script you accept and allow the collection of some OS data only for statistical purposes, precisely the result that comes out of this command: uname -srvm.
