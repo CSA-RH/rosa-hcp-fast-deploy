@@ -47,7 +47,7 @@
 #
 #
 #
-SCRIPT_VERSION=v1.14.0
+SCRIPT_VERSION=v1.15.0
 #
 #
 #
@@ -57,6 +57,7 @@ SCRIPT_VERSION=v1.14.0
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # MANDATORY Variables - Warning do not delete or comment the following variables
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+export RHCS_TOKEN=eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI0NzQzYTkzMC03YmJiLTRkZGQtOTgzMS00ODcxNGRlZDc0YjUifQ.eyJpYXQiOjE3MjQ5MjcwNzYsImp0aSI6ImU4ZTlhZTUwLWVmZWUtNDZjNy04ZTBiLTc3M2NmNzc4YzI3YyIsImlzcyI6Imh0dHBzOi8vc3NvLnJlZGhhdC5jb20vYXV0aC9yZWFsbXMvcmVkaGF0LWV4dGVybmFsIiwiYXVkIjoiaHR0cHM6Ly9zc28ucmVkaGF0LmNvbS9hdXRoL3JlYWxtcy9yZWRoYXQtZXh0ZXJuYWwiLCJzdWIiOiJmOjUyOGQ3NmZmLWY3MDgtNDNlZC04Y2Q1LWZlMTZmNGZlMGNlNjpyaC1lZS1nbW9sbG8iLCJ0eXAiOiJPZmZsaW5lIiwiYXpwIjoiY2xvdWQtc2VydmljZXMiLCJub25jZSI6IjZkNTg3NjViLTRjZWMtNDAxMi05MWVjLTcxOTIxMGVmNjEwZiIsInNpZCI6ImZjNWY2N2RjLWJlNTMtNDQyZS04ZjE2LTE4NzA3NGE3ZmUyOSIsInNjb3BlIjoib3BlbmlkIGJhc2ljIGFwaS5pYW0uc2VydmljZV9hY2NvdW50cyByb2xlcyB3ZWItb3JpZ2lucyBjbGllbnRfdHlwZS5wcmVfa2MyNSBvZmZsaW5lX2FjY2VzcyJ9.EGuX5sQfnwz1i7Ip5PKQbrb0yaMBr-nMdER2JEgm78iLsNKfRf5i3PLu1cKY3bSe5Lg05hgZue5pATkp_v5hqg
 INSTALL_DIR=$(pwd)
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=${1:-gm-$NOW}
@@ -65,6 +66,10 @@ PREFIX=${2:-$CLUSTER_NAME}
 OS=$(uname -s)
 ARC=$(uname -m)
 AWS_REGION=$(aws configure get region)
+#
+VPC_CIDR_BLOCK=10.0.0.0/16
+PubSUB_Single_AZ_CIDR_BLOCK=10.0.0.0/20
+PrivSUB_Single_AZ_CIDR_BLOCK=10.0.128.0/20
 #
 # Here you can change the default instance type for the compute nodes (--compute-machine-type). 
 # Determines the amount of memory and vCPU allocated to each compute node.
@@ -93,6 +98,10 @@ JQ_Linux_aarch64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linu
 JQ_Darwin=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-amd64
 JQ_Darwin_arm64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-arm64
 #
+TERRAFORM_Linux_aarch64=https://releases.hashicorp.com/terraform/1.9.4/terraform_1.9.4_linux_amd64.zip
+TERRAFORM_Darwin_arm64=https://releases.hashicorp.com/terraform/1.9.4/terraform_1.9.4_darwin_arm64.zip
+#ROSA_Winzoz=https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-windows.zip
+#
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # Create a Single AZ VPC
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -105,7 +114,7 @@ aws sts get-caller-identity 2>&1 >> "$CLUSTER_LOG"
 aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text)
+VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block $VPC_CIDR_BLOCK --query Vpc.VpcId --output text)
 echo "# Going to create the VPC: " $VPC_ID_VALUE 2>&1 |tee -a "$CLUSTER_LOG"
 #
 echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> "$CLUSTER_LOG"
@@ -113,14 +122,14 @@ aws ec2 create-tags --resources $VPC_ID_VALUE --tags Key=Name,Value=$CLUSTER_NAM
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-support
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID_VALUE --enable-dns-hostnames
 #
-PUBLIC_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.0.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
+PUBLIC_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block $PubSUB_Single_AZ_CIDR_BLOCK --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
 echo "Creating the Public Subnet: " $PUBLIC_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
 #
 # Automated service preflight checks verify that these resources are tagged correctly before you can use them
 #
 aws ec2 create-tags --resources $PUBLIC_SUB_2a --tags Key=kubernetes.io/role/elb,Value=1 2>&1 |tee -a "$CLUSTER_LOG"
 #
-PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block 10.0.128.0/20 --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
+PRIV_SUB_2a=$(aws ec2 create-subnet --vpc-id $VPC_ID_VALUE --cidr-block  $PrivSUB_Single_AZ_CIDR_BLOCK --availability-zone ${AWS_REGION}a --query Subnet.SubnetId --output text)
 echo "Creating the Private Subnet: " $PRIV_SUB_2a 2>&1 |tee -a "$CLUSTER_LOG"
 #
 # Automated service preflight checks verify that these resources are tagged correctly before you can use them
@@ -170,8 +179,7 @@ aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$C
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
-VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query Vpc.VpcId --output text)
-
+VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block $VPC_CIDR_BLOCK  --query Vpc.VpcId --output text)
 echo "Creating the VPC " $VPC_ID_VALUE 2>&1 |tee -a "$CLUSTER_LOG"
 # 
 echo "VPC_ID_VALUE " $VPC_ID_VALUE 2>&1 >> "$CLUSTER_LOG"
@@ -273,7 +281,7 @@ echo "VPC creation ... done! " 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 }
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# Main Menu - Option 1  - Installing a Public ROSA HCP (Single-Zone)
+# Main Menu - Installing a Public ROSA HCP (Single-Zone)
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 HCP_Public() {
 #set -x
@@ -331,7 +339,7 @@ echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 Fine
 }
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# Main Menu - Option 2 - Installing a Public ROSA HCP (Multi-Zone)
+# Main Menu - Installing a Public ROSA HCP (Multi-Zone)
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 HCP_Public_MultiAZ() {
 #set -x
@@ -396,7 +404,7 @@ echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 Fine
 }
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# Main Menu - Option 3 - Installing a Private ROSA HCP (Single-AZ) with Jump Host
+# Main Menu - Installing a Private ROSA HCP (Single-AZ) with Jump Host
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 HCP_Private() { 
 #set -x
@@ -469,7 +477,7 @@ echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 Fine
 }
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# Main Menu - Option 4 - Installing a Public HCP (Single-AZ) with AWS Graviton2 (ARM)
+# Main Menu - Installing a Public HCP (Single-AZ) with AWS Graviton2 (ARM)
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 HCP_Public_GRAVITON() {
 #set -x
@@ -530,7 +538,7 @@ Fine
 } 
 #
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# Main Menu - Option 5 - Removing ROSA HCP
+# Tools Menu - Removing ROSA HCP
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 Delete_One_HCP() {
 #set -x
@@ -544,7 +552,7 @@ if [ -n "$CLUSTER_LIST" ]; then
    echo "$CLUSTER_LIST"
    echo ""
    echo ""
-   echo -n  "Please pick one or hit ENTER to quit: "
+   echo -n  "Please pick one HCP cluster from the above list or hit ENTER to quit: "
    read -r CLUSTER_NAME
 	for a in $CLUSTER_LIST
     	do
@@ -574,10 +582,11 @@ if [ -n "$CLUSTER_LIST" ]; then
 		JUMP_HOST_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST Name=instance-state-name,Values=running --query "Reservations[*].Instances[*].InstanceId" --output text)
         		if [[ $JUMP_HOST_ID ]]
         		then
-        		 aws ec2 terminate-instances --instance-ids "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+        		 echo "Deleting the Jump Host (ID) " "$JUMP_HOST_ID" 2>&1 |tee -a "$CLUSTER_LOG"
+        		 aws ec2 terminate-instances --no-cli-pager --instance-ids "$JUMP_HOST_ID" 2>&1 >> "$CLUSTER_LOG"
         		 JUMP_HOST_KEY=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[*].Instances[*].KeyName" --output text)
         		 echo "Deleting the key-pair named " "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
-        		 aws ec2 delete-key-pair --key-name "$JUMP_HOST_KEY" 2>&1 |tee -a "$CLUSTER_LOG"
+        		 aws ec2 delete-key-pair --no-cli-pager  --key-name "$JUMP_HOST_KEY" 2>&1 >> "$CLUSTER_LOG"
         		 mv "$JUMP_HOST_KEY" /tmp
         		else
         		 echo ""
@@ -632,7 +641,7 @@ if [ -n "$CLUSTER_LIST" ]; then
 		mv "$CLUSTER_LOG" /tmp
 		mv "$CLUSTER_NAME".txt /tmp
 		CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
-		CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
+		CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l)
 	else
 		if [ $COUNTER = $CURRENT_VPC ]; then option_picked "This option doesn't match with $a or simply no HCP Cluster was chosen from the above list, returning to the Tools menu !"
                 else
@@ -651,7 +660,54 @@ echo "Press ENTER to go back to the Menu"
 read -r ppp
 }
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# Tools Menu - Option 0 - Check ROSA HCP available Regions
+# Terraform Menu - Installing a Public ROSA HCP (Multi-Zone) with Terraform
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+HCP_Public_Terraform() {
+#set -xe
+#PICK_ROSA_VERSION
+TERRAFORM_CLI
+RH_OFFLINE_TOKEN
+TERRAFORM_HOME=$INSTALL_DIR/terraform-cluster
+CLUSTER_NAME=tf_rosa
+CLUSTER_LOG=$TERRAFORM_HOME/$CLUSTER_NAME.log
+cd $TERRAFORM_HOME
+terraform init && terraform validate 2>&1 |tee -a "$CLUSTER_LOG"
+#terraform apply -auto-approve 2>&1 |tee -a "$CLUSTER_LOG"
+terraform apply 2>&1 |tee -a "$CLUSTER_LOG"
+cd ..
+CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l)
+sleep_5
+        echo "" 
+        echo ""
+        ppp=x
+        echo "Press ENTER to go back to the Menu"
+        read -r ppp
+}
+#
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Terraform Menu - Delete HCP cluster with Terraform
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+Delete_HCP_Public_Terraform() {
+#set -e
+TERRAFORM_CLI
+#RH_OFFLINE_TOKEN#
+TERRAFORM_HOME=$INSTALL_DIR/terraform-cluster
+CLUSTER_NAME=tf_rosa
+CLUSTER_LOG=$TERRAFORM_HOME/$CLUSTER_NAME.log
+cd $TERRAFORM_HOME
+#terraform destroy -auto-approve 2>&1 |tee -a "$CLUSTER_LOG"
+terraform destroy 2>&1 |tee -a "$CLUSTER_LOG"
+cd ..
+CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l)
+sleep_5
+        ppp=x
+        echo "Press ENTER to go back to the Menu"
+        read -r ppp
+}
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Tools Menu - Check ROSA HCP available Regions
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 HCP_REGIONS() {
 AWS_REGION=$(aws configure get region)
@@ -682,7 +738,7 @@ fi
         read -r ppp
 }
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# Tools Menu - Option 2 - Install/Update AWS CLI
+# Tools Menu - Install/Update AWS CLI
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 AWS_CLI() {
 #set -x
@@ -784,7 +840,7 @@ then
     CHECK_IF_UPDATE_IS_NEEDED=$(rosa version|grep "There is a newer release version"| awk -F/ '{print $1 ", going to install version --> " $2}')
         if [ -z ${CHECK_IF_UPDATE_IS_NEEDED:+word} ]
         then
-                ROSA_VERSION=$(/usr/local/bin/rosa version)
+                ROSA_VERSION=$(/usr/local/bin/rosa version |awk -F: '{print $2}' |xargs)
                 echo " "
                 echo " "
                 option_picked_green "ROSA CLI is already installed."
@@ -834,7 +890,7 @@ else
    # Verify the installation
    rosa version
    option_picked_green "ROSA CLI update completed."
-	CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
+	CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l)
 fi
 Countdown
 }
@@ -913,6 +969,65 @@ fi
 Countdown
 }
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#  Install TERRAFORM CLIs
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+TERRAFORM_CLI() {
+#set -xe
+# Check if TERRAFORM CLI is installed
+VARTERRA="TERRAFORM_${OS}_${ARC}"
+if [ -x "$(command -v terraform)" ]
+then
+        TERRAFORM_VERSION=$(terraform version)
+                echo " "
+                echo " "
+                #option_picked_green "Terraform CLI is already installed." $TERRAFORM_VERSION
+                echo "Terraform CLI is already installed." $TERRAFORM_VERSION
+else
+   echo " "
+   echo " ###########################################################################"
+   echo " #                                                                         #"
+   echo " # Warning: Terraform CLI is NOT installed ...                             #"
+   echo " # Please download and install the latest version !                        #"
+   echo " #                                                                         #"
+   echo " ###########################################################################"
+   curl -L0 ${!VARTERRA} --output terraform.tar.gz
+   tar xvf terraform.tar.gz 
+   sudo mv terraform /usr/local/bin/terraform
+ # Clean up
+   rm -rf terraform.tar.gz LICENSE.txt 
+ # Verify the installation
+   terraform version
+   echo " "
+   echo " "
+   echo " "
+   option_picked_green "The latest version of Terraform CLI has been installed."
+   Countdown
+fi
+}
+FORCE_INST_TERRAFORM_CLI() {
+#set -xe
+TERRAFORM_LATEST_VERSION=$(terraform version|grep "You can update by downloading"| awk -F'[^0-9]*' '{print $2"." $3"."$4}')
+echo "Latest Terraform CLI version is: " "$TERRAFORM_LATEST_VERSION"
+TERRAFORM_Linux_aarch64=https://releases.hashicorp.com/terraform/"$TERRAFORM_LATEST_VERSION"/terraform_"$TERRAFORM_LATEST_VERSION"_linux_amd64.zip
+TERRAFORM_Darwin_arm64=https://releases.hashicorp.com/terraform/"$TERRAFORM_LATEST_VERSION"/terraform_"$TERRAFORM_LATEST_VERSION"_darwin_arm64.zip
+#ROSA_Winzoz=https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-windows.zip
+VARTERRA="TERRAFORM_${OS}_${ARC}"
+   curl -L0 ${!VARTERRA} --output terraform.tar.gz
+   tar xvf terraform.tar.gz
+   sudo mv terraform /usr/local/bin/terraform
+ # Clean up
+   rm -rf terraform.tar.gz LICENSE.txt 
+ # Verify the installation
+   echo " "
+   echo " "
+   terraform version
+   echo " "
+   echo " "
+   echo " "
+   option_picked_green "The latest version of Terraform CLI has been installed."
+Countdown
+}
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # Tools Menu - Option 5 - Install/Updat all CLIs (plus some additional check)
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 INSTALL_ALL_CLIs(){
@@ -937,6 +1052,17 @@ if [ "$(which aws 2>&1 > /dev/null;echo $?)" == "0" ]
                 option_picked_green "AWS CLI already installed"
         else
                 AWS_CLI
+fi
+#
+#
+# Check if TERRAFORM CLI is installed
+#
+echo -ne "Checking TERRAFORM CLI ... "
+if [ "$(which terraform 2>&1 > /dev/null;echo $?)" == "0" ]
+        then
+                option_picked_green "Terraform CLI already installed"
+        else
+                TERRAFORM_CLI              
 fi
 #
 # Check if ROSA CLI is installed && rosa login
@@ -1006,7 +1132,6 @@ fi
 # Tools Menu - Option 7 - Delete a VPC (Delete_1_VPC)
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 Delete_1_VPC() {
-#
 #set -x
 CHECK_GM="Delete_1_VPC"
 CLUSTER_NAME=delete-vpc
@@ -1029,12 +1154,12 @@ if [ -n "$VPC_LIST" ]; then
         	echo "#############################################################################"
         	echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a $CLUSTER_LOG
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
-                CHECK_NAT=$(aws ec2 describe-nat-gateways --filter 'Name=vpc-id, Values='$VPC_ID| jq -r '.NatGateways[].State')
-                if [ "$CHECK_NAT" = "available" ]; then
+#                CHECK_NAT=$(aws ec2 describe-nat-gateways --filter 'Name=vpc-id, Values='$VPC_ID| jq -r '.NatGateways[].State'|awk '{print $1}')
+#                if [ "$CHECK_NAT" = "available" ]; then
                     echo "Waiting for NGW to die (~2 min) "
                     while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,  Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
                     sleep_120
-                fi
+#                fi
 #
         	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
         	while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
@@ -1136,7 +1261,7 @@ if [ -n "$CLUSTER_LIST" ]; then
              echo "#  Picked ==> " "$CLUSTER_NAME"
              echo "#  Cluster " $a "is a " $DEPLOYMENT "deployment with "$CURRENT_NODES" of"$DESIRED_NODES "nodes in VPC "$VPC_ID
 # removing the NGW since it takes a lot of time
-             while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
+             while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID | jq -r '.NatGateways[].NatGatewayId') 2>&1 >> "$CLUSTER_LOG"
 # removing the cluster 
            option_picked "#  Going to delete the HCP cluster named " "$CLUSTER_NAME" " and the VPC " "$VPC_ID" 2>&1 |tee -a "$CLUSTER_LOG"
            rosa delete cluster -c $CLUSTER_NAME --yes 2>&1 >> "$CLUSTER_LOG"
@@ -1168,7 +1293,7 @@ if [ -n "$CLUSTER_LIST" ]; then
                       OPSIDIDITAGAIN_VPC
               fi
               CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
-              CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
+              CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l)
               option_picked_green "#  VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
               echo "############################################################################################################# "
               mv "$CLUSTER_LOG" /tmp
@@ -1194,12 +1319,12 @@ else
                     echo  "Going to delete VPC --> " "$VPC_ID"
    		echo "" 
    		echo "" 
-                CHECK_NAT=$(aws ec2 describe-nat-gateways --filter 'Name=vpc-id, Values='$VPC_ID| jq -r '.NatGateways[].State')
-                if [ "$CHECK_NAT" = "available" ]; then
+#                CHECK_NAT=$(aws ec2 describe-nat-gateways --filter 'Name=vpc-id, Values='$VPC_ID| jq -r '.NatGateways[].State')
+#                if [ "$CHECK_NAT" = "available" ]; then
                     echo "Waiting for NGW to die (~2 min) "
                     while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,  Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
                     sleep_120
-                fi
+#                fi
 #
                     while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,  Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
                     while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
@@ -1220,7 +1345,7 @@ else
                             OPSIDIDITAGAIN_VPC
                     fi
                         CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
-                        CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
+                        CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l)
                     echo ""
                     option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a $CLUSTER_LOG
                   done
@@ -1322,13 +1447,23 @@ fi
 #//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Several_Checks() {
 #
+RED='\033[0;31m'
+GREEN='\033[0;34m'
+PURPLE='\033[0;35m'
+LPURPLE='\033[1;35m'
+BLUE='\033[0;34m'
+LBLUE='\033[1;34m'
+CYAN='\033[0;36m'
+LCYAN='\033[1;36m'
+NC='\033[0m' # No Color
 echo "#"
 echo "-----------------------------------------------------------------------------"
-echo "I: Fetching VPCs"
+echo -e "${CYAN}I: ${NC}Fetching VPCs"
+#echo "I: Fetching VPCs"
 aws ec2 describe-vpcs| jq -r '.Vpcs[].VpcId'
 echo "#"
 echo "-----------------------------------------------------------------------------"
-echo "I: Fetching ROSA clusters"
+echo -e "${CYAN}I: ${NC}Fetching ROSA clusters"
 rosa list cluster
 echo "#"
 echo "-----------------------------------------------------------------------------"
@@ -1358,8 +1493,107 @@ read -r ppp
 #//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-# Create Jump Host for HCP Private cluster
+CHECK_BILLING_ACC() {
+BILLING_ACCOUNT=0
+#set -x 
+CLUSTER_ERR=/tmp/out1
+rosa create cluster --cluster-name=gm-cluster --sts --hosted-cp --version 2 -m auto -y &> $CLUSTER_ERR
+IS_BILL=$(egrep "ERR: A billing account is required" < $CLUSTER_ERR)
+if [ -n "$IS_BILL" ]; then
+        echo " "
+        echo " "
+        echo " "
+        echo " "
+        echo " Warning: Billing account not linked to organization at the aws marketplace: a billing account is required for Hosted Control Plane clusters."
+        echo " Please check the script prerequisites --> https://github.com/CSA-RH/rosa-hcp-fast-deploy?tab=readme-ov-file#script-prerequisites "
+        echo " or just follow the official documentation --> https://docs.openshift.com/rosa/cloud_experts_tutorials/cloud-experts-rosa-hcp-activation-and-account-linking-tutorial.html "
+        echo " "
+        echo " "
+        echo " Thanks ! "
+        echo " "
+        echo " "
+        BILLING_ACCOUNT=1
+        Fine
+else
+        echo ""
+fi
+rm $CLUSTER_ERR
+}
 #//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+RH_OFFLINE_TOKEN() {
+#set -x 
+RHCS_TOKEN=x
+        echo " "
+        echo " "
+        echo " "
+        echo " "
+        read -p "Please enter a valid offline Red Hat OpenShift Cluster Manager token: " RHCS_TOKEN
+        echo " "
+        echo " "
+        echo " Thanks ! "
+        echo " "
+        echo " "
+}
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+CHECK_ROSA_VERSIONS() {
+#set -x 
+CLUSTER_ERR=/tmp/out1
+VER_LIST=/tmp/out2
+rosa create cluster --cluster-name=gm-cluster --sts --hosted-cp --version 2 -m auto -y &> $CLUSTER_ERR
+egrep Valid < $CLUSTER_ERR |awk -F: '{print $2}'| tr ' ' '\n' | sort > $VER_LIST
+cat $VER_LIST
+echo " "
+echo " "
+sleep_5
+        ppp=x
+        echo "Press ENTER to go back to the Menu"
+        read -r ppp
+rm $CLUSTER_ERR $VER_LIST
+}
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+PICK_ROSA_VERSION() {
+#set -x 
+CLUSTER_ERR=/tmp/out1
+VER_LIST=/tmp/out2
+rosa create cluster --cluster-name=gm-cluster --sts --hosted-cp --version 2 -m auto -y &> $CLUSTER_ERR
+egrep Valid < $CLUSTER_ERR |awk -F: '{print $2}'| tr ' ' '\n' | sort > $VER_LIST
+#cat $VER_LIST
+echo " "
+echo " "
+	ROSA_AVAIL_VERS=$(cat $VER_LIST)
+	if [ -n "$ROSA_AVAIL_VERS" ]; then
+   		echo "" 
+                echo "Valid OpenShift versions: "
+                cat $VER_LIST
+                ppp2=x
+                echo "Please select a valid version from the above list"
+                read -r ppp2
+        	for b in $ROSA_AVAIL_VERS
+        	  do
+                    if [ $ppp2 = $b ]; then
+                    export VERS_4_TERRAFORM=$b
+                    echo "Going to install ROSA HCP version " $VERS_4_TERRAFORM
+                    fi
+                  done
+   	else
+                option_picked "It looks like you did not choose, going back to the Menu "
+        fi
+rm $CLUSTER_ERR $VER_LIST
+}
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+# Create Jump Host for HCP Private cluster
 Create_Jump_Host() {
 #set -x
 # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami.html#finding-an-ami-aws-cli
@@ -1470,12 +1704,12 @@ OPSIDIDITAGAIN_REM_INST(){
         	echo "#############################################################################"
         	echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a $CLUSTER_LOG
 # NOTE: waiting for the NAT-GW to die - se non crepa non andiamo da nessuna parte
-                CHECK_NAT=$(aws ec2 describe-nat-gateways --filter 'Name=vpc-id, Values='$VPC_ID| jq -r '.NatGateways[].State')
-                if [ "$CHECK_NAT" = "available" ]; then
+#                CHECK_NAT=$(aws ec2 describe-nat-gateways --filter 'Name=vpc-id, Values='$VPC_ID| jq -r '.NatGateways[].State')
+#                if [ "$CHECK_NAT" = "available" ]; then
                     echo "Waiting for NGW to die (~2 min) "
                     while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,  Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') 2>&1 >> $CLUSTER_LOG
                     sleep_120
-                fi
+#                fi
 #
         	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') 2>&1 >> $CLUSTER_LOG
         	while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl 2>&1 >> $CLUSTER_LOG; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') 2>&1 >> $CLUSTER_LOG
@@ -1534,6 +1768,42 @@ option_picked(){
     normal=$(echo "\033[00;00m") # normal white
     message=${@:-"${normal}Error: No message passed"}
     printf "${msgcolor}${message}${normal}\n"
+}
+sleep_5() {
+ hour=0
+ min=0
+ sec=5
+        while [ $hour -ge 0 ]; do
+                 while [ $min -ge 0 ]; do
+                         while [ $sec -ge 0 ]; do
+                                 echo -ne "$hour:$min:$sec\033[0K\r"
+                                 let "sec=sec-1"
+                                 sleep 1
+                         done
+                         sec=59
+                         let "min=min-1"
+                 done
+                 min=59
+                 let "hour=hour-1"
+         done
+}
+sleep_10() {
+ hour=0
+ min=0
+ sec=10
+        while [ $hour -ge 0 ]; do
+                 while [ $min -ge 0 ]; do
+                         while [ $sec -ge 0 ]; do
+                                 echo -ne "$hour:$min:$sec\033[0K\r"
+                                 let "sec=sec-1"
+                                 sleep 1
+                         done
+                         sec=59
+                         let "min=min-1"
+                 done
+                 min=59
+                 let "hour=hour-1"
+         done
 }
 sleep_120() {
  hour=0
@@ -1606,13 +1876,8 @@ clear
 various_checks
 if [ $CLI_TEST -ne 0 ]; then
 option_picked "WARNING: Please install missing CLIs, when in doubt use Option 5 to install all CLIs needed by HCP."
-sub_menu_tools
-else
-AWS_REGION=$(aws configure get region)
-CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
-CURRENT_HCP=$(rosa list clusters|grep -v "No clusters"|grep -v ID|wc -l)
+sub_menu_CLIs
 fi
-
     normal=$(echo "\033[m")
     menu=$(echo "\033[36m") #Blue
     number=$(echo "\033[33m") #yellow
@@ -1624,17 +1889,19 @@ fi
     printf "\n${menu}**************************************************************${normal}\n"
     printf "\n${menu}*                 ROSA HCP Installation Menu                 *${normal}\n"
     printf "\n${menu}**************************************************************${normal}\n"
-    printf "${menu}**${number} 1)${menu} Public HCP (Single-AZ)                 ${normal}\n"
-    printf "${menu}**${number} 2)${menu} Public HCP (Multi-Zone)                  ${normal}\n"
-    printf "${menu}**${number} 3)${menu} Private HCP (Single-AZ) with Jump Host ${normal}\n"
-    printf "${menu}**${number} 4)${menu} Public HCP (Single-AZ) with AWS Graviton (ARM) ${normal}\n"
+    printf "${menu}**${number} 1)${menu} Create Public HCP (Single-AZ)                 ${normal}\n"
+    printf "${menu}**${number} 2)${menu} Create Public HCP (Multi-Zone)                  ${normal}\n"
+    printf "${menu}**${number} 3)${menu} Create Private HCP (Single-AZ) with Jump Host ${normal}\n"
+    printf "${menu}**${number} 4)${menu} Create Public HCP (Single-AZ) with AWS Graviton (ARM) ${normal}\n"
     printf "${menu}**${number} --${menu} --------------------------------------------------------${normal}\n"
-    printf "${menu}**${number} 5)${menu} Delete HCP ${normal}\n"
-    printf "${menu}**${number} 6)${menu}  ${normal}\n"
-    printf "${menu}**${number} 7)${menu}  ${normal}\n"
-    printf "${menu}**${number} 8)${menu} Tools ${normal}\n"
+    printf "${menu}**${number} 5)${menu} TERRAFORM Menu ${normal}\n"
+    printf "${menu}**${number} --${menu} --------------------------------------------------------${normal}\n"
+    printf "${menu}**${number} 8)${menu} TOOLS Menu ${normal}\n"
     printf "\n${menu}**************************************************************${normal}\n"
 #
+AWS_REGION=$(aws configure get region)
+CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
+CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l)
     echo "Current VPCs: " $CURRENT_VPC
     echo "Current HCP clusters: " $CURRENT_HCP
 #
@@ -1653,31 +1920,33 @@ while [ "$opt" != '' ]
         1) clear;
 	    BLOCK_INST;
             option_picked "Option 1 Picked - Installing a Public ROSA HCP (Single-AZ)";
+            CHECK_BILLING_ACC
             HCP_Public;
             show_menu;
         ;;
         2) clear;
 	    BLOCK_INST;
             option_picked "Option 2 Picked - Installing a Public ROSA HCP (Multi-Zone)";
+            CHECK_BILLING_ACC
             HCP_Public_MultiAZ;
             show_menu;
         ;;
         3) clear;
 	    BLOCK_INST;
             option_picked "Option 3 Picked - Installing a Private ROSA HCP (Single-AZ) with Jump Host";
+            CHECK_BILLING_ACC
             HCP_Private;
             show_menu;
         ;;
         4) clear;
 	    BLOCK_INST;
             option_picked "Option 4 Picked - Public HCP (Single-AZ) with AWS Graviton2 (ARM)";
+            CHECK_BILLING_ACC
             HCP_Public_GRAVITON;
             show_menu;
         ;;
         5) clear;
-	    BLOCK_INST;
-            option_picked "Option 5 Picked - Removing ROSA HCP";
-            Delete_One_HCP;
+	    sub_menu_terraform;
             show_menu;
         ;;
         8) clear;
@@ -1706,7 +1975,7 @@ various_checks
 if [ $CLI_TEST -ne 0 ]; then
 option_picked "WARNING: Please install missing CLIs, when in doubt use Option 5 to install all CLIs needed by HCP."
 fi
-sub_tools=x
+export sub_tools="x"
     normal=$(echo "\033[m")
     menu=$(echo "\033[36m") #Blue
     number=$(echo "\033[33m") #yellow
@@ -1718,18 +1987,17 @@ sub_tools=x
     printf "\n${menu}**************************************************************${normal}\n"
     printf "\n${menu}*                     ROSA HCP TOOLS Menu                    *${normal}\n"
     printf "\n${menu}**************************************************************${normal}\n"
-    printf "${menu}**${number} 0)${menu} Check available AWS Regions               ${normal}\n"
-    printf "${menu}**${number} 9)${menu} Check existing resources in your AWS account ${normal}\n"
-    printf "${menu}**${number} 1)${menu} Create a SingleAZ Public VPC              ${normal}\n"
+    printf "${menu}**${number} 1)${menu} Install/Update CLI Menu	       	   ${normal}\n"
     printf "${menu}**${number} --${menu} --------------------------------------------------------${normal}\n"
-    printf "${menu}**${number} 2)${menu} Inst./Upd. AWS CLI 	       	 	   ${normal}\n"
-    printf "${menu}**${number} 3)${menu} Inst./Upd. ROSA CLI 			   ${normal}\n"
-    printf "${menu}**${number} 4)${menu} Inst./Upd. OC CLI		           ${normal}\n"
-    printf "${menu}**${number} 5)${menu} Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)      ${normal}\n"
+    printf "${menu}**${number} 2)${menu} Check existing resources in your AWS account ${normal}\n"
+    printf "${menu}**${number} 3)${menu} Check available AWS Regions               ${normal}\n"
+    printf "${menu}**${number} 4)${menu} Check valid ROSA versions                 ${normal}\n"
     printf "${menu}**${number} --${menu} --------------------------------------------------------${normal}\n"
-    printf "${menu}**${number} 6)${menu} Delete a specific HCP cluster             ${normal}\n"
-    printf "${menu}**${number} 7)${menu} Delete a specific VPC                     ${normal}\n"
-    printf "${menu}**${number} 8)${menu} Delete EVERYTHING ${fgred}(CAUTION: THIS WILL DESTROY ALL CLUSTERS AND VPCs RELATED TO YOUR AWS ACCOUNT) ${normal}\n"
+    printf "${menu}**${number} 5)${menu} Create a Public VPC (SingleAZ)            ${normal}\n"
+    printf "${menu}**${number} --${menu} --------------------------------------------------------${normal}\n"
+    printf "${menu}**${fgred} 6) Delete a specific HCP cluster             ${normal}\n"
+    printf "${menu}**${fgred} 7) Delete a specific VPC                     ${normal}\n"
+    printf "${menu}**${fgred} 8)${menu} ${bgred}Delete EVERYTHING ${normal} ${fgred}(CAUTION: THIS WILL DESTROY ALL CLUSTERS AND VPCs RELATED TO YOUR AWS ACCOUNT) ${normal}\n"
     printf "\n${menu}**************************************************************${normal}\n"
 #
     echo "Current VPCs: " $CURRENT_VPC
@@ -1747,19 +2015,29 @@ while [[ "$sub_tools" != '' ]]
       Errore;
     else
       case "$sub_tools" in
-        0) clear;
-            option_picked "Option 0 Picked - Check ROSA HCP available Regions ";
-            HCP_REGIONS;
+        1) clear;
+            option_picked "Option 1 Picked - Install/Update AWS CLI Menu";
+            sub_menu_CLIs;
             sub_menu_tools;
         ;;
-        9) clear;
-            option_picked "Option 9 Picked - Check existing resources in your AWS account ";
+        2) clear;
+            option_picked "Option 2 Picked - Check existing resources in your AWS account ";
             Several_Checks;
             sub_menu_tools;
         ;;
-        1) clear;
+        3) clear;
+            option_picked "Option 3 Picked - Check ROSA HCP available Regions ";
+            HCP_REGIONS;
+            sub_menu_tools;
+        ;;
+        4) clear;
+            option_picked "Option 4 Picked - Check valid ROSA versions ";
+            CHECK_ROSA_VERSIONS;
+            sub_menu_tools;
+        ;;
+        5) clear;
 	    BLOCK_INST;
-            option_picked "Option 1 Picked - Create a Public VPC ";
+            option_picked "Option 5 Picked - Create a Public VPC (SingleAZ) ";
                 NOW=$(date +"%y%m%d%H%M")
                 CLUSTER_NAME=${1:-gm-$NOW}
                 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
@@ -1768,29 +2046,9 @@ while [[ "$sub_tools" != '' ]]
 	    CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
             sub_menu_tools;
         ;;
-        2) clear;
-            option_picked "Option 2 Picked - Install/Update AWS CLI ";
-            AWS_CLI;
-            sub_menu_tools;
-        ;;
-        3) clear;
-            option_picked "Option 3 Picked - Install/Update ROSA CLI";
-            ROSA_CLI;
-            sub_menu_tools;
-        ;;
-        4) clear;
-            option_picked "Option 4 Picked - Install/Update OC CLI";
-            OC_CLI;
-            sub_menu_tools;
-        ;;
-        5) clear;
-            option_picked "Option 5 Picked - Install/Updat all CLIs (plus some additional check)";
-            INSTALL_ALL_CLIs;
-            sub_menu_tools;
-        ;;
         6) clear;
 	    BLOCK_INST;
-            option_picked "Option 6 Picked - Delete one Cluster";
+            option_picked "Option 6 Picked - Delete a specific HCP cluster";
             Delete_One_HCP;
             sub_menu_tools;
         ;;
@@ -1802,9 +2060,150 @@ while [[ "$sub_tools" != '' ]]
         ;;
         8) clear;
 	    BLOCK_INST;
-            option_picked "Option 8 Picked - Delete ALL (Clusters, VPCs w/no LOGs)";
+            option_picked "Option 8 Picked - Delete ALL (Clusters, VPCs, etc.)";
             Delete_ALL;
-            show_menu;
+            sub_menu_tools;
+        ;;
+        x)Fine;
+        ;;
+        \n)exit;
+        ;;
+        *)clear;
+            option_picked "Pick an option from the menu";
+            sub_menu_tools;
+        ;;
+      esac
+    fi
+done
+}
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# SubMenu TERRAFORM
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+sub_menu_terraform(){
+clear
+#various_checks
+#if [ $CLI_TEST -ne 0 ]; then
+#option_picked "WARNING: Please install missing CLIs, when in doubt use Option 5 to install all CLIs needed by HCP."
+#fi
+export sub_tools="x"
+    normal=$(echo "\033[m")
+    menu=$(echo "\033[36m") #Blue
+    number=$(echo "\033[33m") #yellow
+    bgred=$(echo "\033[41m")
+    fgred=$(echo "\033[31m")
+#
+    echo $SCRIPT_VERSION
+#
+    printf "\n${menu}**************************************************************${normal}\n"
+    printf "\n${menu}*                     TERRAFORM Menu                    ${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
+    printf "${menu}**${number} 1)${menu} Install HCP Cluster with Terraform ${normal}\n"
+    printf "${menu}**${number} 2)${menu} Delete HCP Cluster with Terraform ${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
+#
+    echo "Current VPCs: " $CURRENT_VPC
+    echo "Current HCP clusters: " $CURRENT_HCP
+#
+    printf "\n${menu}**************************************************************${normal}\n"
+    printf "Please enter a menu option and press enter or ${fgred}x to exit. ${normal}"
+
+#######################    read -r sub_tools
+    read -s -n 1 sub_tools
+
+while [[ "$sub_tools" != '' ]]
+    do
+ if [[ "$sub_tools" = '' ]]; then
+      Errore;
+    else
+      case "$sub_tools" in
+        1) clear;
+#	    BLOCK_INST;
+            option_picked "Option 1 Picked - Install a Terraform HCP Cluster - Public (Multi-AZ)";
+            CHECK_BILLING_ACC
+            HCP_Public_Terraform;
+            sub_menu_terraform;
+        ;;
+        2) clear;
+#	    BLOCK_INST;
+            option_picked "Option 2 Picked - Delete a Terraform HCP Cluster";
+            Delete_HCP_Public_Terraform
+            sub_menu_terraform;
+        ;;
+        x)Fine;
+        ;;
+        \n)exit;
+        ;;
+        *)clear;
+            option_picked "Pick an option from the menu";
+            sub_menu_terraform;
+        ;;
+      esac
+    fi
+done
+}
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# SubMenu CLIs
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+sub_menu_CLIs(){
+clear
+export sub_tools="x"
+    normal=$(echo "\033[m")
+    menu=$(echo "\033[36m") #Blue
+    number=$(echo "\033[33m") #yellow
+    bgred=$(echo "\033[41m")
+    fgred=$(echo "\033[31m")
+#
+    echo $SCRIPT_VERSION
+#
+    printf "\n${menu}**************************************************************${normal}\n"
+    printf "\n${menu}*               Install / Update CLIs Menu                    *${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
+    printf "${menu}**${number} 1)${menu} Inst./Upd. AWS CLI 	       	 	   ${normal}\n"
+    printf "${menu}**${number} 2)${menu} Inst./Upd. ROSA CLI 			   ${normal}\n"
+    printf "${menu}**${number} 3)${menu} Inst./Upd. OC CLI		           ${normal}\n"
+    printf "${menu}**${number} 4)${menu} Inst./Upd. Terraform CLI                  ${normal}\n"
+    printf "${menu}**${number} 5)${menu} Inst./Upd. all CLIs (ROSA+OC+AWS+JQ)      ${normal}\n"
+    printf "\n${menu}**************************************************************${normal}\n"
+#
+    echo "Current VPCs: " $CURRENT_VPC
+    echo "Current HCP clusters: " $CURRENT_HCP
+#
+    printf "\n${menu}**************************************************************${normal}\n"
+    printf "Please enter a menu option and press enter or ${fgred}x to exit. ${normal}"
+
+#######################    read -r sub_tools
+    read -s -n 1 sub_tools
+
+while [[ "$sub_tools" != '' ]]
+    do
+ if [[ "$sub_tools" = '' ]]; then
+      Errore;
+    else
+      case "$sub_tools" in
+        1) clear;
+            option_picked "Option 1 Picked - Install/Update AWS CLI ";
+            AWS_CLI;
+            sub_menu_CLIs;
+        ;;
+        2) clear;
+            option_picked "Option 2 Picked - Install/Update ROSA CLI";
+            ROSA_CLI;
+            sub_menu_CLIs;
+        ;;
+        3) clear;
+            option_picked "Option 3 Picked - Install/Update OC CLI";
+            OC_CLI;
+            sub_menu_CLIs;
+        ;;
+        4) clear;
+            option_picked "Option 4 Picked - Install/Updat Terraform CLI";
+            FORCE_INST_TERRAFORM_CLI;
+            sub_menu_tools;
+        ;;
+        5) clear;
+            option_picked "Option 5 Picked - Install/Updat all CLIs (plus some additional check)";
+            INSTALL_ALL_CLIs;
+            sub_menu_tools;
         ;;
         x)Fine;
         ;;
