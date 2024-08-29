@@ -41,9 +41,11 @@ $ chmod +x rosa_hcp.sh
 ```
 $ ./rosa_hcp.sh 
 ```
-<img width="381" alt="image" src="https://github.com/user-attachments/assets/06e4e3b8-3617-4ce0-ac64-779d9e0136b9">
+<img width="477" alt="image" src="https://github.com/user-attachments/assets/3e5386fc-bb3a-4a93-9baf-eaadedc0444e">
 
-The first 4 options require entering or updating your AWS access keys
+The first 4 options require entering or updating your AWS access keys.<br /> 
+In the following example you can see the installation of a Public ROSA HCP cluster, which corresponds to option "**1)   Installing ROSA with HCP Public (Single-AZ)**"
+
 ```
 Example:
 Option 1 Picked - Installing ROSA with HCP Public (Single-AZ)
@@ -72,32 +74,56 @@ Creating the NGW:  nat-08c847f619caed7c5
 The AWS CLI will now remember your inputs, no further action is required until the ROSA **HCP** cluster installation is complete.
 
 # Delete your cluster
-Once you are done, feel free to destroy your ROSA **HCP** cluster by launching the same shell script and choosing option 5) this time. 
-```
-$ ./rosa_hcp.sh 
+Once done, feel free to destroy your ROSA HCP cluster by starting the same shell script, then choose option "**8)  TOOLS Menu**", then select option "**6)  Delete a specific HCP cluster**". 
+Simply copy and paste the cluster name from the list and then hit **ENTER**.
+
+<img width="747" alt="image" src="https://github.com/user-attachments/assets/dd8fbfcc-3208-4ddb-8a7f-349a9d5f9972">
 
 ```
-<img width="409" alt="image" src="https://github.com/user-attachments/assets/ee357ee8-5485-4051-872d-4be34da0af29">
+Option 6 Picked - Delete a specific HCP cluster
 
-```
-Option 5 Picked - Removing ROSA with HCP
+Current HCP cluster list:
+gm-2405191610
+gm-2406250906
+gm-2408291403
+
+
+Please pick one or hit ENTER to quit: gm-2408291403
+
+Let's get started with gm-2408291403 cluster
+
 #
-# Start deleting ROSA HCP cluster gm-1234567890, VPC, roles, etc. 
-# Further details can be found in /home/gmollo/tools/cluster/svil/fast-rosa-hcp-depoly/gm-2401061517.log LOG file
+# Start deleting ROSA HCP cluster gm-2408291403, VPC, roles, etc. 
+# Further details can be found in $CLUSTE_RLOG LOG file
 #
-Cluster deletion in progress 
-INFO: To watch your cluster uninstallation logs, run 'rosa logs uninstall -c gm-2401061517 --watch'
+Deleting the Jump Host (ID)  i-0568164055203945b
+Deleting the key-pair named  gm-2408291403_KEY
+Cluster  gm-2408291421 is a SingleAZ deployment with2of 2 nodes within the AWS VPC vpc-0f719fd7e4ae99c40
+Removing the NGW since it takes a lot of time to get deleted
+Operator roles prefix:  gm-2408291403
+Running "rosa delete cluster"
+Running "rosa logs unistall"
 ...
 ```
 It takes approximately 15 minutes to delete your cluster, including its VPCs, IAM roles, OIDCs, etc.<br />
+
+# Terraform
+It is possible to create/destroy a ROSA HCP by using a Terraform cluster template that is configured with the default cluster options. <br />
+More information is available here: [Creating a default ROSA cluster using Terraform](https://docs.openshift.com/rosa/rosa_hcp/terraform/rosa-hcp-creating-a-cluster-quickly-terraform.html).<br />
+The script will help you install the necessary CLI if it is not yet available on your laptop.<br />
+
+
+
+> [!NOTE]
+> All ROSA HCP clusters created with Terraform must be destroyed using Terraform. 
+> Please use option "**5) Terraform Menu**" in such cases.
+
+<img width="464" alt="image" src="https://github.com/user-attachments/assets/eb564e24-d155-4f95-8194-bfc181991cb1">
 
 #### Log File 
 During the implementation phase a LOG file is created in the same folder as the shell script, so you can follow all the intermediate steps.
 After a successful deployment a **cluster-admin** account is added to your cluster whose password will be recorded in the LOG file, feel free to change this to fit your security needs. See 'rosa create idp --help' for more information. 
 
-> [!NOTE]
-> It is mandatory to keep this file in its original location so that the script can automatically delete the cluster when necessary.
-> Once the cluster deletion process is complete, the LOG file will be moved from its current location to the **/tmp** folder.
 
 # Notes around resources, deployment, etc.
 ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-Zone), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly)
@@ -135,7 +161,7 @@ if you choose to deploy your ROSA HCP cluster in North Virginia (us-east-1), the
 From the main menù, click option #8 to access the " ROSA HCP TOOLS Menu ". <br />
 Here you will find some specific actions you can take to manage your environment:
 
-<img width="731" alt="image" src="https://github.com/user-attachments/assets/e5a86df4-eb87-40e8-a339-83bf2d44e3b7">
+<img width="760" alt="image" src="https://github.com/user-attachments/assets/c049137d-5b6d-48b0-a429-76b2c408b872">
 
 # Statistics (optional)
 By using this script you accept and allow the collection of some OS data only for statistical purposes, precisely the result that comes out of this command: uname -srvm.
