@@ -1,13 +1,26 @@
-# AWS ROSA with hosted control planes cluster (ROSA HCP) fast deploy
-The idea behind this shell script was to automatically create the necessary environment and deploy a ROSA **HCP** cluster in a few minutes, using the CLI. The initial setup includes the installation and configuration of the
+# AWS ROSA with hosted control planes cluster (HCP) fast deploy
+The idea behind this shell script was to automatically create the necessary environment and deploy one or more **AWS ROSA with hosted control planes (HCP)** cluster in a few minutes, using the CLI.
+
+This is not intended to replace the [Red Hat official documentation](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html), but rather to practice installing your own test environments in such a short time: the entire process to install/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
+
+Depending on your needs, you can easily create/delete a:
+
+- ROSA HCP Public Cluster, Single AZ
+- ROSA HCP Public Cluster, Multi Zone
+- ROSA HCP Private Cluster, Single AZ, with bastion host (Single AZ)
+- ROSA HCP Public Cluster, Single AZ, with AWS Graviton (ARM CPU)
+- TERRAFORM ROSA HCP Public Cluster, Multi AZ
+
+We have also added some "tools" to help you manage your CLI installation and AWS environment.
+
+The initial setup includes the installation and configuration of the
    - Virtual Private Cloud (VPC), including Subnets, IGW, NGW, Routes, etc.
    - Account and Operator roles and policies
    - OIDC identity provider configuration
 
-This is not intended to replace the [Red Hat official documentation](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html), but rather to practice installing your own test environments in such a short time: the entire process to install/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
 
 
-#### Script prerequisites
+# Script prerequisites
 - An AWS account with enough quota value to meet the minimum requirements for ROSA (100)
 - Your AWS Access Key and your AWS Secret Access Key
 - ROSA CLI and AWS CLI already installed and updated (the script will help automate this part too)
