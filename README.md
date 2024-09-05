@@ -7,9 +7,9 @@ Depending on your needs, you can easily create/delete a:
 
 - ROSA HCP Public Cluster, Single AZ
 - ROSA HCP Public Cluster, Multi Zone
-- ROSA HCP Private Cluster, Single AZ, with bastion host (Single AZ)
+- ROSA HCP Private Cluster, Single AZ, with bastion host
 - ROSA HCP Public Cluster, Single AZ, with AWS Graviton (ARM CPU)
-- TERRAFORM ROSA HCP Public Cluster, Multi AZ
+- TERRAFORM ROSA HCP Public Cluster, Multi Zone
 
 We have also added some "tools" to help you manage your CLI installation and AWS environment.
 
