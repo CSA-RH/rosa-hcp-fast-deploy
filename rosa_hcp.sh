@@ -57,7 +57,6 @@ SCRIPT_VERSION=v1.15.0
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # MANDATORY Variables - Warning do not delete or comment the following variables
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-export RHCS_TOKEN=eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI0NzQzYTkzMC03YmJiLTRkZGQtOTgzMS00ODcxNGRlZDc0YjUifQ.eyJpYXQiOjE3MjQ5MjcwNzYsImp0aSI6ImU4ZTlhZTUwLWVmZWUtNDZjNy04ZTBiLTc3M2NmNzc4YzI3YyIsImlzcyI6Imh0dHBzOi8vc3NvLnJlZGhhdC5jb20vYXV0aC9yZWFsbXMvcmVkaGF0LWV4dGVybmFsIiwiYXVkIjoiaHR0cHM6Ly9zc28ucmVkaGF0LmNvbS9hdXRoL3JlYWxtcy9yZWRoYXQtZXh0ZXJuYWwiLCJzdWIiOiJmOjUyOGQ3NmZmLWY3MDgtNDNlZC04Y2Q1LWZlMTZmNGZlMGNlNjpyaC1lZS1nbW9sbG8iLCJ0eXAiOiJPZmZsaW5lIiwiYXpwIjoiY2xvdWQtc2VydmljZXMiLCJub25jZSI6IjZkNTg3NjViLTRjZWMtNDAxMi05MWVjLTcxOTIxMGVmNjEwZiIsInNpZCI6ImZjNWY2N2RjLWJlNTMtNDQyZS04ZjE2LTE4NzA3NGE3ZmUyOSIsInNjb3BlIjoib3BlbmlkIGJhc2ljIGFwaS5pYW0uc2VydmljZV9hY2NvdW50cyByb2xlcyB3ZWItb3JpZ2lucyBjbGllbnRfdHlwZS5wcmVfa2MyNSBvZmZsaW5lX2FjY2VzcyJ9.EGuX5sQfnwz1i7Ip5PKQbrb0yaMBr-nMdER2JEgm78iLsNKfRf5i3PLu1cKY3bSe5Lg05hgZue5pATkp_v5hqg
 INSTALL_DIR=$(pwd)
 NOW=$(date +"%y%m%d%H%M")
 CLUSTER_NAME=${1:-gm-$NOW}
@@ -1171,6 +1170,8 @@ if [ -n "$VPC_LIST" ]; then
 #
 # Detach and delete IGW
 #
+                while read -r route_tables_id ; do aws ec2 delete-route-table --route-table-ids $route_tables_id ; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') 2>&1 >> "$CLUSTER_LOG"
+		while read -r netinterfaces_id ; do aws ec2 detach-network-interface --force --attachment-id $netinterfaces_id; done < <(aws ec2 describe-network-interfaces  --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkInterfaces | .[] | .Attachment.AttachmentId') 2>&1 >> "$CLUSTER_LOG"
                 IG_2B_DELETED=$(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId")
                 aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID 2>&1 >> "$CLUSTER_LOG"
                 aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED 2>&1 >> "$CLUSTER_LOG"
