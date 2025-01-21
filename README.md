@@ -122,7 +122,7 @@ It takes approximately 15 minutes to delete your cluster, including its VPCs, IA
 
 # Terraform
 It is possible to create/destroy a ROSA HCP by using a Terraform cluster template that is configured with the default cluster options. <br />
-The default ROSA version for Terraform cluster is 4.16.4, of course you can change it to a more up-to-date version in the **variables.tf** file.<br />
+The default ROSA version for Terraform cluster is 4.17.9, of course you can change it to a more up-to-date version in the **variables.tf** file.<br />
 More information is available here: [Creating a default ROSA cluster using Terraform](https://docs.openshift.com/rosa/rosa_hcp/terraform/rosa-hcp-creating-a-cluster-quickly-terraform.html).<br />
 The script will help you install the necessary CLI if it is not yet available on your laptop.<br />
 
