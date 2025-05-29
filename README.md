@@ -1,7 +1,7 @@
 # AWS ROSA with hosted control planes cluster (HCP) fast deploy
-The idea behind this shell script was to automatically create the necessary environment and deploy one or more **AWS ROSA with hosted control planes (HCP)** cluster in a few minutes, using the CLI.
+A long time ago in a galaxy far, far away from ... our Terraform provider, I decided to create a mechanism to automate the deployment of one or more **AWS ROSA with hosted control planes (HCP)** cluster including its associated VPC.
 
-This is not intended to replace the [Red Hat official documentation](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html), but rather to practice installing your own test environments in such a short time: the entire process to install/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
+This shell script is not intended to replace the [Red Hat official documentation](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html), but rather to practice installing your own test environments in such a short time: the entire process to install/delete a ROSA **HCP** cluster and all its resources will take approximately 15 minutes. <br /> 
 
 Depending on your needs, you can easily create/delete a:
 
