@@ -20,7 +20,7 @@ terraform {
       version = ">= 4.20.0"
     }
     rhcs = {
-      version = ">= 1.6.2"
+      version = ">= 1.6.3"
       source  = "terraform-redhat/rhcs"
     }
   }
@@ -47,7 +47,7 @@ locals {
 }
 
 resource "random_string" "random_name" {
-  length  = 3
+  length  = 6
   special = false
   upper   = false
 }
@@ -67,7 +67,7 @@ resource "time_sleep" "wait_60_seconds" {
 
 module "rosa-hcp" {
   source                 = "terraform-redhat/rosa-hcp/rhcs"
-  version                = "1.6.2"
+  version                = "1.6.3"
   cluster_name           = local.cluster_name
   openshift_version      = var.openshift_version
   account_role_prefix    = local.cluster_name
@@ -79,6 +79,23 @@ module "rosa-hcp" {
   aws_subnet_ids         = var.create_vpc ? var.private_cluster ? module.vpc[0].private_subnets : concat(module.vpc[0].public_subnets, module.vpc[0].private_subnets) : var.aws_subnet_ids
   create_account_roles   = true
   create_operator_roles  = true
+# Optional: Configure a cluster administrator user \ 
+
+1
+
+
+#
+# Option 1: Default cluster-admin user
+# Create an administrator user (cluster-admin) and automatically
+# generate a password by uncommenting the following parameter:
+#  create_admin_user = true
+# Generated administrator credentials are displayed in terminal output.
+#
+# Option 2: Specify administrator username and password
+# Create an administrator user and define your own password
+# by uncommenting and editing the values of the following parameters:
+#  admin_credentials_username = <username>
+#  admin_credentials_password = <password>
 
   depends_on = [time_sleep.wait_60_seconds]
 }
