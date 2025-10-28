@@ -5,11 +5,11 @@ This shell script is not intended to replace the [Red Hat official documentation
 
 Depending on your needs, you can easily create/delete a:
 
-- ROSA HCP Public Cluster, Single AZ
-- ROSA HCP Public Cluster, Multi Zone
-- ROSA HCP Private Cluster, Single AZ, with bastion host
-- ROSA HCP Public Cluster, Single AZ, with AWS Graviton (ARM CPU)
-- TERRAFORM ROSA HCP Public Cluster, Multi Zone
+- ROSA Public Cluster, Single AZ
+- ROSA Public Cluster, Multi Zone
+- ROSA Private Cluster, Single AZ, with bastion host
+- ROSA Public Cluster, Single AZ, with AWS Graviton (ARM CPU)
+- TERRAFORM ROSA Public Cluster, Multi Zone
 
 We have also added some "tools" to help you manage your CLI installation and AWS environment.
 
@@ -140,22 +140,11 @@ After a successful deployment a **cluster-admin** account is added to your clust
 # Notes around resources, deployment, etc.
 ROSA with **HCP** clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-Zone), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly)
 
-AWS Resource created includes:
-  - 1 [VPC](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#rosa-vpc_prerequisites) with cidr-block 10.0.0.0/16 will be created in the same Region that you intend to install your cluster. In these examples
-  - 1 or more Public subnets
-    - Single-AZ --> cidr-block 10.0.0.0/20
-    - Multi-Zone  --> cidr-blocks 10.0.0.0/20; 10.0.16.0/20; 10.0.32.0/20
-  - 1 or more Private subnets
-    - Single-AZ --> cidr-block  10.0.128.0/20 <br />
-  - Subnetes TAGS are like following:
-    - Public subnet: Key=kubernetes.io/role/elb,Value=1
-    - Private subnet: Key=kubernetes.io/role/internal-elb,Value=1<br />
-
 In the case of Option 3 (HCP PrivateLink in Single-AZ with Jump Host), a public subnet is included to allow egress via IGW+NGW and enable creation of a jump host to allow access to the cluster's private network via SSH. Also [an additional SG](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-aws-private-creating-cluster.html#rosa-hcp-aws-private-security-groups_rosa-hcp-aws-private-creating-cluster) will be created and attached to the PrivateLink endpoint to grant the necessary access to any entities outside of the VPC (eg. VPC peering, TGW). If you are using a firewall to control egress traffic, you must configure your firewall to grant access to the domain and port combinations [here](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#osd-aws-privatelink-firewall-prerequisites_prerequisites)
 > [!NOTE]
 > While ROSA HCP's control planes are always highly available, customer's worker node machinepools are scoped to single-AZs (subnets) only, they do not distribute automatically across AZs. If you want to have workers in
 > three different AZs, the script will create three machinepools for you.
- - 1 NAT GW per AZ
+  - 1 NAT GW per AZ
   - 1 Internet GW in just one AZ, to allow the egress (NAT) traffic to the Internet
   - Enable DNS hostnames
   - Enable DNS resolution
