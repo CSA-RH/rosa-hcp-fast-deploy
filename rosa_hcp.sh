@@ -116,7 +116,7 @@ aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" 2>&1 >> "$C
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
   echo "Creating network using 'rosa create network'..." 2>&1 >> "$CLUSTER_LOG"
-  rosa create network --param Name=$CLUSTER_NAME --mode auto 2>&1 >> "$CLUSTER_LOG" 
+  rosa create network --param Name=$CLUSTER_NAME --mode auto 2>&1 |tee -a "$CLUSTER_LOG"
 
 #
 echo "... Waiting for NGW to warm up " 2>&1 |tee -a "$CLUSTER_LOG"
