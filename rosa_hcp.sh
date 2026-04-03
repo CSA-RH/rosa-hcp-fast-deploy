@@ -74,9 +74,9 @@ PrivSUB_Single_AZ_CIDR_BLOCK=10.0.128.0/20
 # Here you can change the default instance type for the compute nodes (--compute-machine-type). 
 # Determines the amount of memory and vCPU allocated to each compute node.
 #
-#DEF_MACHINE_TYPE="m5.xlarge"
-DEF_MACHINE_TYPE="m6a.2xlarge"
-DEF_GRAVITON_MACHINE_TYPE="m6g.xlarge"
+DEF_MACHINE_TYPE="m5.xlarge"
+#DEF_MACHINE_TYPE="m6a.2xlarge"
+#DEF_GRAVITON_MACHINE_TYPE="m6g.xlarge"
 #
 AWS_Linux_x86_64=https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
 AWS_Linux_aarch64=https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip
