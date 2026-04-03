@@ -1,5 +1,5 @@
 #!/bin/bash
-#set -x
+# set -x
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #  +-----------------------------------+-----------------------------------+
 #  |                                                                       |
@@ -73,7 +73,8 @@ PrivSUB_Single_AZ_CIDR_BLOCK=10.0.128.0/20
 # Here you can change the default instance type for the compute nodes (--compute-machine-type). 
 # Determines the amount of memory and vCPU allocated to each compute node.
 #
-DEF_MACHINE_TYPE="m5.xlarge"
+#DEF_MACHINE_TYPE="m5.xlarge"
+DEF_MACHINE_TYPE="m6a.2xlarge"
 DEF_GRAVITON_MACHINE_TYPE="m6g.xlarge"
 #
 AWS_Linux_x86_64=https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
@@ -129,6 +130,10 @@ PRIV_SUB_2a=$(grep "Resource: .*SubnetPrivate.*Type: AWS::EC2::Subnet" "$CLUSTER
 PUBLIC_SUB_2a=$(grep "Resource: .*SubnetPublic.*Type: AWS::EC2::Subnet" "$CLUSTER_LOG" | sed -E 's/.*ID:.*(subnet-[a-z0-9]+).*/\1/'| tr -d '\r' | paste -sd "," -)
 #
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
+#
+# Extract VPC_ID from subnet (needed by Create_Jump_Host)
+VPC_ID_VALUE=$(aws ec2 describe-subnets --subnet-ids "$PUBLIC_SUB_2a" --query "Subnets[0].VpcId" --output text 2>/dev/null)
+echo "VPC_ID_VALUE (from subnet): " $VPC_ID_VALUE
 #
 echo "Public Subnet: "  $PUBLIC_SUB_2a
 echo "Private Subnet: " $PRIV_SUB_2a
@@ -383,7 +388,65 @@ SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
 echo "Creating ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 #
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --version 4.20.12 --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+if [ $? -eq 1 ]; then
+        OPSIDIDITAGAIN_REM_INST
+fi
+#
+echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
+rosa logs install -c $CLUSTER_NAME --watch 2>&1 >> "$CLUSTER_LOG"
+#
+rosa describe cluster -c $CLUSTER_NAME 2>&1 >> "$CLUSTER_LOG"
+#
+echo "Creating the cluster-admin user" 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
+#
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+#
+option_picked_green "Done!!! " 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Cluster " $CLUSTER_NAME " has been installed and is now up and running" 2>&1 |tee -a "$CLUSTER_LOG"
+option_picked_green "Please allow a few minutes before to login, for additional information check the $CLUSTER_LOG file" 2>&1 |tee -a "$CLUSTER_LOG"
+#
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+Fine
+}
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Main Menu - Installing a Public ROSA (Single-Zone)
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+Classic_Public() {
+#set -x
+NOW=$(date +"%y%m%d%H%M")
+CLUSTER_NAME=${1:-gm-$NOW}
+CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
+touch $CLUSTER_LOG
+PREFIX=${2:-$CLUSTER_NAME}
+BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
+#
+aws configure
+echo "#"
+echo "# Start installing ROSA cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |tee -a "$CLUSTER_LOG"
+#
+SingleAZ_VPC
+#
+echo "# Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y 2>&1 >> "$CLUSTER_LOG"
+INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
+WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
+SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
+OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
+echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
+echo "OIDC_ID " $OIDC_ID 2>&1 >> "$CLUSTER_LOG"
+echo "Creating operator-roles" 2>&1 >> "$CLUSTER_LOG"
+rosa create operator-roles --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y 2>&1 >> "$CLUSTER_LOG"
+SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
+#
+echo "Creating ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
+#
+rosa create cluster -c $CLUSTER_NAME --sts --version 4.20.12 --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 if [ $? -eq 1 ]; then
         OPSIDIDITAGAIN_REM_INST
 fi
@@ -447,7 +510,7 @@ SUBNET_IDS=$(echo $joined | sed -e 's/,$//g')
 #
 echo "Creating ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo "" 2>&1 >> "$CLUSTER_LOG"
-echo "rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --compute-machine-type $DEF_MACHINE_TYPE --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y" 2>&1 >> "$CLUSTER_LOG"
+#echo "rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --compute-machine-type $DEF_MACHINE_TYPE --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y" 2>&1 >> "$CLUSTER_LOG"
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 if [ $? -eq 1 ]; then
         OPSIDIDITAGAIN_REM_INST
@@ -509,7 +572,7 @@ SUBNET_IDS=$PRIV_SUB_2a
 #
 echo "Creating a Private ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 >> "$CLUSTER_LOG"
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --private --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --version=4.20.0 --private --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --properties zero_egress:true --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
 if [ $? -eq 1 ]; then
         OPSIDIDITAGAIN_REM_INST
 fi
@@ -627,7 +690,7 @@ if [ -n "$CLUSTER_LIST" ]; then
    read -r CLUSTER_NAME
 	for a in $CLUSTER_LIST
     	do
-		COUNTER=$((COUNTER=+1))
+		COUNTER=$((COUNTER+=1))
 		if [ "$CLUSTER_NAME" == $a ]; then
 		option_picked_green "Let's get started with " "$CLUSTER_NAME" " cluster"
                 rosa describe cluster -c $CLUSTER_NAME > $CLUSTER_NAME.txt
@@ -939,7 +1002,7 @@ else
    echo " ###########################################################################"
    curl -L0 ${!VAR2} --output rosa.tar.gz
    tar xvf rosa.tar.gz
-                sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.$ROSA_ACTUAL_V
+                [ -f /usr/local/bin/rosa ] && sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.unknown
                 sudo mv rosa /usr/local/bin/rosa
    # Clean up
    rm -rf rosa.tar.gz
@@ -994,7 +1057,7 @@ Countdown
 JQ_CLI() {
 #set -x
 [[ $OS == "Darwin" ]] && VAR4="JQ_${OS}"
-echo $VAR4 "-->" ${!VAR3}
+echo $VAR4 "-->" ${!VAR4}
 #
 # Check if JQ CLI is installed
 if [ "$(which jq 2>&1 > /dev/null;echo $?)" == "0" ]
@@ -1203,7 +1266,7 @@ if [ -n "$VPC_LIST" ]; then
    read -r VPC_ID
    for a in $VPC_LIST
     do
-	COUNTER=$((COUNTER=+1))
+	COUNTER=$((COUNTER+=1))
 	if [ "$VPC_ID" == $a ]; then
 		echo  "Going to delete --> " "$VPC_ID"
 #
@@ -1817,7 +1880,11 @@ aws ec2 run-instances --image-id resolve:ssm:/aws/service/ami-amazon-linux-lates
 #--count 1
 #
 ROSA_DNS=$(rosa describe cluster -c $CLUSTER_NAME|grep -i dns| awk -F: '{print $2}'| xargs)
-JH_PUB_IP=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST| jq -r '.Reservations[0].Instances[0].PublicIpAddress')
+# Wait for instance to be in running state before querying public IP
+echo "Waiting for Jump Host to be running..." 2>&1 |tee -a "$CLUSTER_LOG"
+JH_INSTANCE_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[0].Instances[0].InstanceId" --output text)
+aws ec2 wait instance-running --instance-ids "$JH_INSTANCE_ID"
+JH_PUB_IP=$(aws ec2 describe-instances --instance-ids "$JH_INSTANCE_ID" --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
 echo "Jump Host public IP is " "$JH_PUB_IP" 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 |tee -a "$CLUSTER_LOG"
 clear
@@ -1832,12 +1899,19 @@ echo  "
 127.0.0.1 api.$ROSA_DNS
 127.0.0.1 console-openshift-console.apps.rosa.$ROSA_DNS
 127.0.0.1 oauth.$ROSA_DNS
+
+NOTE (Mac): oc/curl must use ports 6443, 8443, 8080 instead of standard 443/80.
+Example: oc login https://api.$ROSA_DNS:6443
+         open https://console-openshift-console.apps.rosa.$ROSA_DNS:8443
 " 2>&1 |tee -a "$CLUSTER_LOG"
 #
 echo " "
 echo " 2) login to your newly created Jump Host: " 2>&1 |tee -a "$CLUSTER_LOG"
 echo  " "
-option_picked_green "sudo ssh -i "$CLUSTER_NAME"_KEY -L 6443:api.$ROSA_DNS:6443 -L 443:console-openshift-console.apps.rosa.$ROSA_DNS:443 -L 80:console-openshift-console.apps.rosa.$ROSA_DNS:80 ec2-user@$JH_PUB_IP" 2>&1 |tee -a "$CLUSTER_LOG"
+# Mac-compatible SSH tunnel: use high local ports to avoid sudo/SIP restrictions
+option_picked_green "ssh -i \"${CLUSTER_NAME}_KEY\" -L 6443:api.$ROSA_DNS:6443 -L 8443:console-openshift-console.apps.rosa.$ROSA_DNS:443 -L 8080:console-openshift-console.apps.rosa.$ROSA_DNS:80 ec2-user@$JH_PUB_IP" 2>&1 |tee -a "$CLUSTER_LOG"
+echo " " 2>&1 |tee -a "$CLUSTER_LOG"
+echo "NOTE (Mac): using local ports 8443->443 and 8080->80 to avoid root requirement." 2>&1 |tee -a "$CLUSTER_LOG"
 #
 echo  " "
 echo "3) from the Jump Host, download and install the OC CLI " 2>&1 |tee -a "$CLUSTER_LOG"
@@ -2090,6 +2164,7 @@ fi
     printf "${menu}**${number} 2)${menu} Create Public ROSA (Multi-Zone)                  ${normal}\n"
     printf "${menu}**${number} 3)${menu} Create Private ROSA (Single-AZ) with Jump Host ${normal}\n"
     printf "${menu}**${number} 4)${menu} Create Public ROSA (Single-AZ) with AWS Graviton (ARM) ${normal}\n"
+    printf "${menu}**${number} 9)${menu} Create Public CLASSIC ROSA (Single-AZ)  ${normal}\n"
     printf "${menu}**${number} --${menu} --------------------------------------------------------${normal}\n"
     printf "${menu}**${number} 5)${menu} TERRAFORM Menu ${normal}\n"
     printf "${menu}**${number} --${menu} --------------------------------------------------------${normal}\n"
@@ -2151,6 +2226,14 @@ while [ "$opt" != '' ]
             sub_menu_tools;
             show_menu;
         ;;
+        9) clear;
+	    BLOCK_INST;
+            option_picked "Option 9 Picked - Installing a Public CLASSIC ROSA cluster (Single-AZ)";
+            CHECK_BILLING_ACC
+            Classic_Public;
+            show_menu;
+        ;;
+
         x)Fine;
         ;;
         \n)exit;
