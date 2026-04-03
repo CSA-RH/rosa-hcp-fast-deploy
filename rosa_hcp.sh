@@ -705,7 +705,7 @@ if [ -n "$CLUSTER_LIST" ]; then
 #
 # Collecting a few cluster details
 #
-		OIDC_ID=$(cat $CLUSTER_NAME.txt |grep OIDC| awk -F/ '{print $4}'|cut -c 1-32)
+                OIDC_ID=$(grep 'OIDC Endpoint URL' "$CLUSTER_NAME.txt" | awk -F/ '{print $NF}' | awk '{print $1}')
 		DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}'| xargs)
 		DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}'| xargs)
 		CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}'| xargs)
