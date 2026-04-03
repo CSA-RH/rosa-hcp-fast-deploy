@@ -1,5 +1,6 @@
 #!/bin/bash
 # set -x
+set -euox pipefail
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #  +-----------------------------------+-----------------------------------+
 #  |                                                                       |
@@ -98,7 +99,7 @@ JQ_Linux_aarch64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linu
 JQ_Darwin=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-amd64
 JQ_Darwin_arm64=https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-macos-arm64
 #
-TERRAFORM_Linux_aarch64=https://releases.hashicorp.com/terraform/1.9.4/terraform_1.9.4_linux_amd64.zip
+TERRAFORM_Linux_aarch64=https://releases.hashicorp.com/terraform/1.9.4/terraform_1.9.4_linux_arm64.zip
 TERRAFORM_Darwin_arm64=https://releases.hashicorp.com/terraform/1.9.4/terraform_1.9.4_darwin_arm64.zip
 #ROSA_Winzoz=https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-windows.zip
 #
@@ -389,7 +390,7 @@ SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 echo "Creating ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 #
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --version 4.20.12 --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
-if [ $? -eq 1 ]; then
+if [ $? -ne 0 ]; then
         OPSIDIDITAGAIN_REM_INST
 fi
 #
@@ -447,7 +448,7 @@ SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 echo "Creating ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 #
 rosa create cluster -c $CLUSTER_NAME --sts --version 4.20.12 --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
-if [ $? -eq 1 ]; then
+if [ $? -ne 0 ]; then
         OPSIDIDITAGAIN_REM_INST
 fi
 #
@@ -512,7 +513,7 @@ echo "Creating ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo "" 2>&1 >> "$CLUSTER_LOG"
 #echo "rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --compute-machine-type $DEF_MACHINE_TYPE --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y" 2>&1 >> "$CLUSTER_LOG"
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
-if [ $? -eq 1 ]; then
+if [ $? -ne 0 ]; then
         OPSIDIDITAGAIN_REM_INST
 fi
 #
@@ -573,7 +574,7 @@ SUBNET_IDS=$PRIV_SUB_2a
 echo "Creating a Private ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo " " 2>&1 >> "$CLUSTER_LOG"
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --version=4.20.0 --private --compute-machine-type $DEF_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --properties zero_egress:true --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
-if [ $? -eq 1 ]; then
+if [ $? -ne 0 ]; then
         OPSIDIDITAGAIN_REM_INST
 fi
 #
@@ -645,7 +646,7 @@ SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 echo "Creating ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 # 
 rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --compute-machine-type $DEF_GRAVITON_MACHINE_TYPE --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y 2>&1 >> "$CLUSTER_LOG"
-if [ $? -eq 1 ]; then
+if [ $? -ne 0 ]; then
         OPSIDIDITAGAIN_REM_INST
 fi
 #
@@ -951,67 +952,82 @@ Countdown
 # Tools Menu - Option 3 - Install/Update ROSA CLI
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ROSA_CLI() {
-#set -xe
-VAR2="ROSA_${OS}"
-# Check if ROSA CLI is installed
-if [ -x "$(command -v /usr/local/bin/rosa)" ]
-then
-    CHECK_IF_UPDATE_IS_NEEDED=$(rosa version|grep "There is a newer release version"| awk -F/ '{print $1 ", going to install version --> " $2}')
-        if [ -z ${CHECK_IF_UPDATE_IS_NEEDED:+word} ]
-        then
-                ROSA_VERSION=$(/usr/local/bin/rosa version |awk -F: '{print $2}' |xargs)
-                echo " "
-                echo " "
-                option_picked_green "ROSA CLI is already installed."
-                echo "There is no need to update it, actual version is --> " $ROSA_VERSION
+    VAR2="ROSA_${OS}"
+
+    # Funzione interna per ottenere l'ultima versione da GitHub
+    get_latest_rosa_version() {
+        curl -s https://api.github.com/repos/openshift/rosa/releases/latest \
+        | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/'
+    }
+
+    LATEST=$(get_latest_rosa_version)
+
+    # Check if ROSA CLI is installed
+    if [ -x "$(command -v /usr/local/bin/rosa)" ]; then
+        INSTALLED=$(/usr/local/bin/rosa version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
+
+        echo "ROSA CLI installed: $INSTALLED"
+        echo "ROSA CLI latest:    $LATEST"
+
+        if [ "$INSTALLED" != "$LATEST" ]; then
+            echo " "
+            echo " ###########################################################################"
+            echo " # ROSA CLI update available. Updating from $INSTALLED to $LATEST ...       #"
+            echo " ###########################################################################"
+
+            # Determina architettura
+            ARCH=$(uname -m)
+            if [ "$ARCH" = "arm64" ]; then
+                FILE="rosa_darwin_arm64.tar.gz"
+            elif [ "$ARCH" = "x86_64" ]; then
+                FILE="rosa_darwin_amd64.tar.gz"
+            else
+                echo "Unsupported architecture: $ARCH"
+                return 1
+            fi
+
+            # Scarica e installa
+            curl -LO "https://github.com/openshift/rosa/releases/download/v$LATEST/$FILE"
+            tar -xzf "$FILE"
+
+            # Backup della vecchia versione
+            sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.$INSTALLED
+            sudo mv rosa /usr/local/bin/rosa
+            rm -f "$FILE"
+
+            echo -e "\033[01;32mROSA CLI updated to $LATEST!\033[00m"
         else
-   		echo " "
-   		echo " "
-   		echo " "
-   		echo " "
-   		echo " "
-   		echo " ###########################################################################"
-   		echo " #                                                                         #"
-   		echo " # Checking prerequisites:                                                 #"
-   		echo " # ROSA CLI is already installed. Checking for updates.. :                 #"
-   		echo " #                                                                         #"
-   		echo " ###########################################################################"
-                #ROSA_ACTUAL_V=$(rosa version|awk -F. 'NR==1{print $1"."$2"."$3 }')
-                ROSA_ACTUAL_V=$(rosa version|awk -F1. 'NR==1{print $2,$3}')
-                echo "ROSA actual version is --> " "1."$ROSA_ACTUAL_V
-                NEXT_V=$(rosa version|grep "There is a newer release version"| awk -F/ 'NR==1{print $1 ", going to install version --> " $2}')
-                echo $NEXT_V
-        	# Download and install ROSA CLI
-                curl -L0 ${!VAR2} --output rosa.tar.gz
-                tar xvf rosa.tar.gz
-                sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v."1."$ROSA_ACTUAL_V
-                sudo mv rosa /usr/local/bin/rosa
-        	# Clean up
-                rm -rf rosa.tar.gz
-        	# Trigger the update
-                rosa version
-                option_picked_green "ROSA CLI update completed."
+            echo -e "\033[01;32mROSA CLI is already up to date ($INSTALLED).\033[00m"
         fi
-else
-   echo " "
-   echo " ###########################################################################"
-   echo " #                                                                         #"
-   echo " # Checking prerequisites: ROSA CLI is NOT installed ...                   #"
-   echo " # going to download and install the latest version !                      #"
-   echo " #                                                                         #"
-   echo " ###########################################################################"
-   curl -L0 ${!VAR2} --output rosa.tar.gz
-   tar xvf rosa.tar.gz
-                [ -f /usr/local/bin/rosa ] && sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.unknown
-                sudo mv rosa /usr/local/bin/rosa
-   # Clean up
-   rm -rf rosa.tar.gz
-   # Verify the installation
-   rosa version
-   option_picked_green "ROSA CLI update completed."
-	CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l)
-fi
-Countdown
+
+    else
+        echo " "
+        echo " ###########################################################################"
+        echo " # ROSA CLI is NOT installed. Installing latest version $LATEST ...         #"
+        echo " ###########################################################################"
+
+        ARCH=$(uname -m)
+        if [ "$ARCH" = "arm64" ]; then
+            FILE="rosa_darwin_arm64.tar.gz"
+        elif [ "$ARCH" = "x86_64" ]; then
+            FILE="rosa_darwin_amd64.tar.gz"
+        else
+            echo "Unsupported architecture: $ARCH"
+            return 1
+        fi
+
+        curl -LO "https://github.com/openshift/rosa/releases/download/v$LATEST/$FILE"
+        tar -xzf "$FILE"
+        [ -f /usr/local/bin/rosa ] && sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.unknown
+        sudo mv rosa /usr/local/bin/rosa
+        rm -f "$FILE"
+
+        echo -e "\033[01;32mROSA CLI installed successfully ($LATEST)!\033[00m"
+    fi
+
+    # Aggiornamento contatori HCP se necessario
+    CURRENT_HCP=$(rosa list clusters 2>> /tmp/ciccio | grep -v "No clusters" | grep -v ID | grep -v WARN | wc -l)
+
 }
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # Tools Menu - Option 4 - Install/Update OC CLI
@@ -1564,7 +1580,7 @@ else
                     aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED 2>&1 >> "$CLUSTER_LOG"
                     while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
                     aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
-                    if [ $? -eq 1 ]; then
+                    if [ $? -ne 0 ]; then
                             OPSIDIDITAGAIN_VPC
                     fi
                         CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l)
@@ -1591,7 +1607,7 @@ fi
 various_checks(){
 #set -x
 # platform, OS stats
-if [ -n "$LAPTOP" ]; then
+if [ -n "${LAPTOP:-}" ]; then
 	NOW2=$(date +"%y%m%d%H%M%S")
 	CLUSTER_POST=gm-2402082339
 	HOST_TYPE="$OS"_"$ARC"
@@ -1979,7 +1995,7 @@ OPSIDIDITAGAIN_REM_INST(){
 #
         	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') 2>&1 >> $CLUSTER_LOG
         	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID 2>&1 >> $CLUSTER_LOG
-                if [ $? -eq 1 ]; then
+                if [ $? -ne 0 ]; then
                         OPSIDIDITAGAIN_VPC
                 fi
           	echo ""
@@ -2096,23 +2112,15 @@ sleep_180() {
 }
 #
 Countdown() {
- hour=0
- min=0
- sec=5
-        while [ $hour -ge 0 ]; do
-                 while [ $min -ge 0 ]; do
-                         while [ $sec -ge 0 ]; do
-                                 echo -ne "$hour:$min:$sec\033[0K\r"
-                                 let "sec=sec-1"
-                                 sleep 1
-                         done
-                         sec=59
-                         let "min=min-1"
-                 done
-                 min=59
-                 let "hour=hour-1"
-         done
+    sec=5
+    while [ $sec -gt 0 ]; do
+        echo -ne "Returning to menu in $sec\033[0K\r"
+        sleep 1
+        ((sec--))
+    done
+    echo ""  # Vai a capo alla fine
 }
+
 #
 Countdown_20() {
  hour=0
@@ -2467,17 +2475,18 @@ while [[ "$sub_tools" != '' ]]
         1) clear;
             option_picked "Option 1 Picked - Install/Update AWS CLI ";
             AWS_CLI;
-            sub_menu_CLIs;
+            sub_menu_tools;
         ;;
         2) clear;
             option_picked "Option 2 Picked - Install/Update ROSA CLI";
             ROSA_CLI;
-            sub_menu_CLIs;
+            Countdown
+            sub_menu_tools;
         ;;
         3) clear;
             option_picked "Option 3 Picked - Install/Update OC CLI";
             OC_CLI;
-            sub_menu_CLIs;
+            sub_menu_tools;
         ;;
         4) clear;
             option_picked "Option 4 Picked - Install/Updat Terraform CLI";
