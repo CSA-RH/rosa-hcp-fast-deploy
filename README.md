@@ -1,7 +1,7 @@
 # AWS ROSA with hosted control planes cluster (HCP) fast deploy
 A long time ago in a galaxy far, far away from ... our Terraform provider, I decided to create a mechanism to automate the deployment of one or more **AWS ROSA with hosted control planes (HCP)** cluster including its associated VPC.
 
-This shell script is not intended to replace the [Red Hat official documentation](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html), but rather to practice installing your own test environments in such a short time: the entire process to install/delete a ROSA cluster and all its resources will take approximately 15 minutes. <br /> 
+This shell script is not intended to replace the [Red Hat official documentation](https://docs.redhat.com/en/documentation/red_hat_openshift_service_on_aws/4/html-single/install_clusters/index#rosa-hcp-sts-creating-a-cluster-quickly), but rather to practice installing your own test environments in such a short time: the entire process to install/delete a ROSA cluster and all its resources will take approximately 15 minutes. <br /> 
 
 Depending on your needs, you can easily create/delete a:
 
@@ -21,9 +21,12 @@ The initial setup includes the installation and configuration of the
 
 
 # Script prerequisites
-- An AWS account with enough quota value to meet the minimum requirements for ROSA (100)
+- An AWS account with the required AWS service quotas: minimum **32 vCPUs** per region for Running On-Demand Standard (A, C, D, H, I, M, R, T, Z) EC2 instances (the AWS default is 5, which is insufficient). Full quota table: [Required AWS service quotas](https://docs.redhat.com/en/documentation/red_hat_openshift_service_on_aws/4/html-single/prepare_your_environment/index#rosa-sts-required-aws-service-quotas).
 - Your AWS Access Key and your AWS Secret Access Key
 - ROSA CLI and AWS CLI already installed and updated (the script will help automate this part too)
+
+> [!NOTE]
+> Before running the script, log in to Red Hat OCM. If no browser is available use `rosa login --use-device-code`; otherwise use `rosa login --use-auth-code`. An offline token can alternatively be retrieved from [console.redhat.com/openshift/token/rosa](https://console.redhat.com/openshift/token/rosa).
 
 > [!IMPORTANT]
 > Enable the ROSA service in the AWS Console and link the AWS and Red Hat accounts by following this procedure:
@@ -122,8 +125,8 @@ It takes approximately 15 minutes to delete your cluster, including its VPCs, IA
 
 # Terraform
 It is possible to create/destroy a ROSA cluster by using a Terraform template configured with the default options. <br />
-The default ROSA version for Terraform cluster is 4.19.9, of course you can change it to a more up-to-date version in the **variables.tf** file.<br />
-More information is available here: [Creating a default ROSA cluster using Terraform](https://docs.openshift.com/rosa/rosa_hcp/terraform/rosa-hcp-creating-a-cluster-quickly-terraform.html).<br />
+The default ROSA version for Terraform cluster is 4.19.35, of course you can change it to a more up-to-date version in the **variables.tf** file.<br />
+More information is available here: [Creating a default ROSA cluster using Terraform](https://docs.redhat.com/en/documentation/red_hat_openshift_service_on_aws/4/html-single/install_clusters/index#rosa-hcp-creating-a-cluster-quickly-terraform).<br />
 The script will help you install the necessary CLI if it is not yet available on your laptop.<br />
 
 > [!NOTE]
@@ -138,9 +141,9 @@ After a successful deployment a **cluster-admin** account is added to your clust
 
 
 # Notes around resources, deployment, etc.
-ROSA clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-Zone), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-sts-creating-a-cluster-quickly.html#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly)
+ROSA clusters can be deployed in several flavors (e.g. Public, PrivateLink, Single-AZ, Multi-Zone), the number and type of resources created by this script will vary depending on what you choose. Here is an on overview of the [default cluster specifications](https://docs.redhat.com/en/documentation/red_hat_openshift_service_on_aws/4/html-single/install_clusters/index#rosa-sts-overview-of-the-default-cluster-specifications_rosa-hcp-sts-creating-a-cluster-quickly)
 
-In the case of Option 3 (HCP PrivateLink in Single-AZ with Jump Host), a public subnet is included to allow egress via IGW+NGW and enable creation of a jump host to allow access to the cluster's private network via SSH. Also [an additional SG](https://docs.openshift.com/rosa/rosa_hcp/rosa-hcp-aws-private-creating-cluster.html#rosa-hcp-aws-private-security-groups_rosa-hcp-aws-private-creating-cluster) will be created and attached to the PrivateLink endpoint to grant the necessary access to any entities outside of the VPC (eg. VPC peering, TGW). If you are using a firewall to control egress traffic, you must configure your firewall to grant access to the domain and port combinations [here](https://docs.openshift.com/rosa/rosa_install_access_delete_clusters/rosa_getting_started_iam/rosa-aws-prereqs.html#osd-aws-privatelink-firewall-prerequisites_prerequisites)
+In the case of Option 3 (HCP PrivateLink in Single-AZ with Jump Host), a public subnet is included to allow egress via IGW+NGW and enable creation of a jump host to allow access to the cluster's private network via SSH. Also [an additional SG](https://docs.redhat.com/en/documentation/red_hat_openshift_service_on_aws/4/html-single/install_clusters/index#rosa-hcp-aws-private-security-groups_rosa-hcp-aws-private-creating-cluster) will be created and attached to the PrivateLink endpoint to grant the necessary access to any entities outside of the VPC (eg. VPC peering, TGW). If you are using a firewall to control egress traffic, you must configure your firewall to grant access to the domain and port combinations [here](https://docs.redhat.com/en/documentation/red_hat_openshift_service_on_aws/4/html-single/prepare_your_environment/index#rosa-hcp-firewall-prerequisites_rosa-hcp-prereqs)
 > [!NOTE]
 > While ROSA control planes are always highly available, customer's worker node machinepools are scoped to single-AZs (subnets) only, they do not distribute automatically across AZs. If you want to have workers in
 > three different AZs, the script will create three machinepools for you.
@@ -152,7 +155,7 @@ In the case of Option 3 (HCP PrivateLink in Single-AZ with Jump Host), a public 
 - Default ROSA installer role is '$CLUSTER_NAME' prefix
 if you choose to deploy your ROSA cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
 - Worker nodes:
-  - the default instance type based on AWS x86 is "m5.xlarge", while the default Arm-based Graviton worker node instance type is "m6g.xlarge". There are different [instance types](https://docs.openshift.com/rosa/rosa_architecture/rosa_policy_service_definition/rosa-hcp-instance-types.html), you can change one of the following variables according to your choice.
+  - the default instance type based on AWS x86 is "m5.xlarge", while the default Arm-based Graviton worker node instance type is "m6g.xlarge". There are different [instance types](https://docs.redhat.com/en/documentation/red_hat_openshift_service_on_aws/4/html-single/introduction_to_rosa/index#rosa-hcp-instance-types), you can change one of the following variables according to your choice.
      - DEF_MACHINE_TYPE="m5.xlarge"
      - DEF_GRAVITON_MACHINE_TYPE="m6g.xlarge" <br />
   - Single-AZ: 2x worker nodes will be created within the same subnet<br />
