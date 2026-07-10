@@ -51,7 +51,7 @@ set -euo pipefail
 #
 #
 #
-SCRIPT_VERSION=v1.15.0
+SCRIPT_VERSION=v1.16.0
 #
 #
 #
