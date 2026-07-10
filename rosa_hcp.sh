@@ -1,5 +1,5 @@
 #!/bin/bash
-# set -x
+#  set -x
 # Re-exec with bash if invoked with sh/dash/ash — process substitution requires bash.
 # $BASH holds the actual executable path (/bin/sh when run as "sh script.sh").
 case "$(basename "${BASH:-sh}")" in sh|dash|ash|ksh) exec /bin/bash "$0" "$@" ;; esac
@@ -161,7 +161,7 @@ aws cloudformation delete-stack --stack-name "$CLUSTER_NAME" --region "$AWS_REGI
   echo "Network deletion requested, please wait a few minutes for the NAT GW to be removed ....."
 sleep_180
 # removing the VPC
-#               SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk '{print $3}'|xargs|tr ',' '\n')
+#               SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk '{print $3}'|xargs|tr ',' '\n' || true)
 #               VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}'|xargs)
 #               echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
 #               while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg >> "$CLUSTER_LOG" 2>&1; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') >> "$CLUSTER_LOG" 2>&1
@@ -372,7 +372,7 @@ CLUSTER_NAME=${1:-gm-$NOW}
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 PREFIX=${2:-$CLUSTER_NAME}
-BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
+BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}' || true)
 #
 aws configure
 echo "#"
@@ -382,9 +382,9 @@ SingleAZ_VPC
 #
 echo "# Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
+INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
+WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}' || true)
+SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}' || true)
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
@@ -427,7 +427,7 @@ CLUSTER_NAME=${1:-gm-$NOW}
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 PREFIX=${2:-$CLUSTER_NAME}
-BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
+BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}' || true)
 #
 aws configure
 echo "#"
@@ -437,9 +437,9 @@ SingleAZ_VPC
 #
 echo "# Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
+INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
+WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}' || true)
+SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}' || true)
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
@@ -482,7 +482,7 @@ CLUSTER_NAME=${1:-gm-$NOW}
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 PREFIX=${2:-$CLUSTER_NAME}
-BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
+BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}' || true)
 #
 aws configure
 echo "#"
@@ -496,9 +496,9 @@ MultiAZ_VPC
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
+INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
+WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}' || true)
+SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}' || true)
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
@@ -544,7 +544,7 @@ CLUSTER_NAME=${1:-gm-$NOW}
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 PREFIX=${2:-$CLUSTER_NAME}
-BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
+BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}' || true)
 #
 aws configure
 echo "#"
@@ -557,9 +557,9 @@ SingleAZ_VPC
 # 
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
+INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
+WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}' || true)
+SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}' || true)
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
@@ -587,8 +587,9 @@ rosa create admin --cluster=$CLUSTER_NAME 2>&1 |tee -a "$CLUSTER_LOG"
 # by creating and attaching another security group to the PrivateLink endpoint to grant the necessary access
 #
 echo "Going to grant access to any entities outside of the VPC, through VPC peering and transit gateway,  by creating and attaching another security group to the PrivateLink endpoint to grant the necessary access" >> "$CLUSTER_LOG" 2>&1
-read -r VPCE_ID VPC_ID <<< $(aws ec2 describe-vpc-endpoints --filters "Name=tag:api.openshift.com/id,Values=$(rosa describe cluster -c ${CLUSTER_NAME} -o yaml | grep '^id: ' | cut -d' ' -f2)" --query 'VpcEndpoints[].[VpcEndpointId,VpcId]' --output text) >> "$CLUSTER_LOG" 2>&1
-export SG_ID=$(aws ec2 create-security-group --description "Granting API access to ${CLUSTER_NAME} from outside of VPC" --group-name "${CLUSTER_NAME}-api-sg" --vpc-id $VPC_ID --output text) >> "$CLUSTER_LOG" 2>&1
+read -r VPCE_ID VPC_ID <<< $(aws ec2 describe-vpc-endpoints --filters "Name=tag:api.openshift.com/id,Values=$(rosa describe cluster -c ${CLUSTER_NAME} -o yaml | grep '^id: ' | cut -d' ' -f2 || true)" --query 'VpcEndpoints[].[VpcEndpointId,VpcId]' --output text) >> "$CLUSTER_LOG" 2>&1
+SG_ID=$(aws ec2 create-security-group --description "Granting API access to ${CLUSTER_NAME} from outside of VPC" --group-name "${CLUSTER_NAME}-api-sg" --vpc-id $VPC_ID --output text 2>> "$CLUSTER_LOG")
+export SG_ID
 aws ec2 authorize-security-group-ingress --group-id $SG_ID --ip-permissions IpProtocol=tcp,FromPort=443,ToPort=443,IpRanges="[{CidrIp=0.0.0.0/0}]" >> "$CLUSTER_LOG" 2>&1
 aws ec2 modify-vpc-endpoint --vpc-endpoint-id $VPCE_ID --add-security-group-ids $SG_ID >> "$CLUSTER_LOG" 2>&1
 #
@@ -618,7 +619,7 @@ CLUSTER_NAME=${1:-gm-$NOW}
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 touch $CLUSTER_LOG
 PREFIX=${2:-$CLUSTER_NAME}
-BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}')
+BILLING_ID=$(rosa whoami|grep "AWS Account ID:"|awk '{print $4}' || true)
 #   
 aws configure                                                               
 echo "#"
@@ -630,9 +631,9 @@ SingleAZ_VPC
 #
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}')
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}')
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}')
+INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
+WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}' || true)
+SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}' || true)
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
@@ -699,12 +700,12 @@ if [ -n "$CLUSTER_LIST" ]; then
 #
 # Collecting a few cluster details
 #
-                OIDC_ID=$(grep 'OIDC Endpoint URL' "$CLUSTER_NAME.txt" | awk -F/ '{print $NF}' | awk '{print $1}')
-		DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}'| xargs)
-		DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}'| xargs)
-		CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}'| xargs)
-		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}'|awk -F, '{print $1}'| xargs)
-	        PRIVATE=$(cat $CLUSTER_NAME.txt|grep Private|awk -F: '{print $2}'|xargs)
+                OIDC_ID=$(grep 'OIDC Endpoint URL' "$CLUSTER_NAME.txt" | awk -F/ '{print $NF}' | awk '{print $1}' || true)
+		DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}'| xargs || true)
+		DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}'| xargs || true)
+		CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}'| xargs || true)
+		SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk -F: '{print $2}'|awk -F, '{print $1}'| xargs || true)
+	        PRIVATE=$(cat $CLUSTER_NAME.txt|grep Private|awk -F: '{print $2}'|xargs || true)
 # Removing Jump Host if any
 		if  [ "$PRIVATE" == "Yes" ]; then
                 JUMP_HOST="$CLUSTER_NAME"-jump-host
@@ -724,7 +725,7 @@ if [ -n "$CLUSTER_LIST" ]; then
                         echo ""
                 fi
 # Find VPC_ID
-		VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}')
+		VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}' || true)
 		PREFIX=$CLUSTER_NAME
                 echo "Cluster " $CLUSTER_NAME "is a" $DEPLOYMENT "deployment with " $CURRENT_NODES " of " $DESIRED_NODES " nodes within the AWS VPC " $VPC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 # removing the NGW since it takes a lot of time
@@ -832,7 +833,7 @@ echo "HCP available AWS Regions are:"
 echo " "
 printf "%s\n"  $AWS_REG_LIST
 #
-REG_CHECK=$( printf "%s\n"  "$AWS_REG_LIST" | grep "$AWS_REGION" )
+REG_CHECK=$( printf "%s\n"  "$AWS_REG_LIST" | grep "$AWS_REGION" || true)
 if [ "$REG_CHECK" == "$AWS_REGION" ]; then
         echo " "
         echo " "
@@ -958,7 +959,7 @@ ROSA_CLI() {
 
     # Check if ROSA CLI is installed
     if [ -x "$(command -v /usr/local/bin/rosa)" ]; then
-        INSTALLED=$(/usr/local/bin/rosa version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
+        INSTALLED=$(/usr/local/bin/rosa version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' || true)
 
         echo "ROSA CLI installed: $INSTALLED"
         echo "ROSA CLI latest:    $LATEST"
@@ -1135,7 +1136,7 @@ fi
 }
 FORCE_INST_TERRAFORM_CLI() {
 #set -xe
-TERRAFORM_LATEST_VERSION=$(terraform version|grep "You can update by downloading"| awk -F'[^0-9]*' '{print $2"." $3"."$4}')
+TERRAFORM_LATEST_VERSION=$(terraform version|grep "You can update by downloading"| awk -F'[^0-9]*' '{print $2"." $3"."$4}' || true)
 echo "Latest Terraform CLI version is: " "$TERRAFORM_LATEST_VERSION"
 TERRAFORM_Linux_aarch64=https://releases.hashicorp.com/terraform/"$TERRAFORM_LATEST_VERSION"/terraform_"$TERRAFORM_LATEST_VERSION"_linux_amd64.zip
 TERRAFORM_Darwin_arm64=https://releases.hashicorp.com/terraform/"$TERRAFORM_LATEST_VERSION"/terraform_"$TERRAFORM_LATEST_VERSION"_darwin_arm64.zip
@@ -1484,13 +1485,13 @@ if [ -n "$CLUSTER_LIST" ]; then
 # Collecting a few cluster details
 #
              rosa describe cluster -c "$CLUSTER_NAME" > $CLUSTER_NAME.txt
-             OIDC_ID=$(cat $CLUSTER_NAME.txt |grep OIDC| awk -F/ '{print $4}'|cut -c 1-32 )
-             DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}')
-             DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}')
-             CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}')
+             OIDC_ID=$(cat $CLUSTER_NAME.txt |grep OIDC| awk -F/ '{print $4}'|cut -c 1-32 || true)
+             DEPLOYMENT=$(cat $CLUSTER_NAME.txt |grep "Data Plane"|awk -F: '{print $2}' || true)
+             DESIRED_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (desired)"|awk -F: '{print $2}' || true)
+             CURRENT_NODES=$(cat $CLUSTER_NAME.txt |grep -i "Compute (current)"|awk -F: '{print $2}' || true)
 # Find VPC_ID
-             SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk '{print $3}'|xargs|tr ',' '\n')
-             VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}'|xargs)
+             SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk '{print $3}'|xargs|tr ',' '\n' || true)
+             VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}'|xargs || true)
              PREFIX="$CLUSTER_NAME"
              echo "#" >> "$CLUSTER_LOG" 2>&1
              echo "# Start deleting ROSA cluster $CLUSTER_NAME, VPC, roles, etc. "  >> "$CLUSTER_LOG" 2>&1
@@ -1558,7 +1559,7 @@ else
                     while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,  Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') >> $CLUSTER_LOG 2>&1
                     while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') >> $CLUSTER_LOG 2>&1
 #    
-                    while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $vpcendpoint_id; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') 2>&1   >> "$CLUSTER_LOG"
+                    while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $vpcendpoint_id; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') >> "$CLUSTER_LOG" 2>&1
 #    
                     while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id" >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') >> $CLUSTER_LOG 2>&1
                     while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,  Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> $CLUSTER_LOG 2>&1
@@ -1718,10 +1719,10 @@ echo "--------------------------------------------------------------------------
 rosa list user-role
 echo "#"
 echo "-----------------------------------------------------------------------------"
-rosa list account-role
+rosa list account-role || true
 echo "#"
 echo "-----------------------------------------------------------------------------"
-rosa list operator-roles
+rosa list operator-roles || true
 echo "#"
 echo " -------------------------------- E O F  -------------------------------------"
 echo " "
@@ -1739,7 +1740,7 @@ CHECK_BILLING_ACC() {
 BILLING_ACCOUNT=0
 #set -x 
 CLUSTER_ERR=/tmp/out1
-rosa create cluster --cluster-name=gm-cluster --sts --hosted-cp --version 2 -m auto -y &> $CLUSTER_ERR
+rosa create cluster --cluster-name=gm-cluster --sts --hosted-cp --version 2 -m auto -y &> $CLUSTER_ERR || true
 IS_BILL=$(grep -E "ERR: A billing account is required" < $CLUSTER_ERR)
 if [ -n "$IS_BILL" ]; then
         echo " "
@@ -1787,8 +1788,8 @@ CHECK_ROSA_VERSIONS() {
 #set -x 
 CLUSTER_ERR=/tmp/out1
 VER_LIST=/tmp/out2
-rosa create cluster --cluster-name=gm-cluster --sts --hosted-cp --version 2 -m auto -y &> $CLUSTER_ERR
-grep -E Valid < $CLUSTER_ERR |awk -F: '{print $2}'| tr ' ' '\n' | sort > $VER_LIST
+rosa create cluster --cluster-name=gm-cluster --sts --hosted-cp --version 2 -m auto -y &> $CLUSTER_ERR || true
+grep -E Valid < $CLUSTER_ERR |awk -F: '{print $2}'| tr ' ' '\n' | sort > $VER_LIST || true
 cat $VER_LIST
 echo " "
 echo " "
@@ -1806,8 +1807,8 @@ PICK_ROSA_VERSION() {
 #set -x 
 CLUSTER_ERR=/tmp/out1
 VER_LIST=/tmp/out2
-rosa create cluster --cluster-name=gm-cluster --sts --hosted-cp --version 2 -m auto -y &> $CLUSTER_ERR
-grep -E Valid < $CLUSTER_ERR |awk -F: '{print $2}'| tr ' ' '\n' | sort > $VER_LIST
+rosa create cluster --cluster-name=gm-cluster --sts --hosted-cp --version 2 -m auto -y &> $CLUSTER_ERR || true
+grep -E Valid < $CLUSTER_ERR |awk -F: '{print $2}'| tr ' ' '\n' | sort > $VER_LIST || true
 #cat $VER_LIST
 echo " "
 echo " "
@@ -1880,7 +1881,7 @@ aws ec2 run-instances --image-id resolve:ssm:/aws/service/ami-amazon-linux-lates
 #--security-group-ids "$SG_ID" \
 #--count 1
 #
-ROSA_DNS=$(rosa describe cluster -c $CLUSTER_NAME|grep -i dns| awk -F: '{print $2}'| xargs)
+ROSA_DNS=$(rosa describe cluster -c $CLUSTER_NAME|grep -i dns| awk -F: '{print $2}'| xargs || true)
 # Wait for instance to be in running state before querying public IP
 echo "Waiting for Jump Host to be running..." 2>&1 |tee -a "$CLUSTER_LOG"
 JH_INSTANCE_ID=$(aws ec2 describe-instances --filters Name=tag:Name,Values=$JUMP_HOST --query "Reservations[0].Instances[0].InstanceId" --output text)
@@ -1923,7 +1924,7 @@ gunzip openshift-client-linux.tar.gz
 tar -xvf openshift-client-linux.tar
 sudo mv oc /usr/local/bin
 " 2>&1 |tee -a "$CLUSTER_LOG"
-HOW_TO_LOG=$(grep "oc login" "$CLUSTER_LOG" |grep -v example)
+HOW_TO_LOG=$(grep "oc login" "$CLUSTER_LOG" |grep -v example || true)
 echo  " "
 echo " 4) login to your Public ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo  " "
@@ -1947,9 +1948,9 @@ OPSIDIDITAGAIN_REM_INST(){
 	printf "${fgred} ... Ops! ${normal}"
 	printf "${fgred} Something went wrong: please read the documentation and check the log file for any other messages. ${normal}"
     	echo " "
-        rosa delete operator-roles --prefix $PREFIX -m auto -y
-        rosa delete account-roles --prefix $PREFIX -m auto -y
-        rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y
+        rosa delete operator-roles --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1 || true
+        rosa delete account-roles --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1 || true
+        rosa delete oidc-provider --oidc-config-id $OIDC_ID -m auto -y >> "$CLUSTER_LOG" 2>&1 || true
 #
 		VPC_ID=$VPC_ID_VALUE
                 echo  "Going to remove the VPC called: " "$VPC_ID"
