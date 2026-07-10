@@ -1,5 +1,6 @@
 #!/bin/bash
 #  set -x
+  set -x
 # Re-exec with bash if invoked with sh/dash/ash — process substitution requires bash.
 # $BASH holds the actual executable path (/bin/sh when run as "sh script.sh").
 case "$(basename "${BASH:-sh}")" in sh|dash|ash|ksh) exec /bin/bash "$0" "$@" ;; esac
@@ -1741,7 +1742,7 @@ BILLING_ACCOUNT=0
 #set -x 
 CLUSTER_ERR=/tmp/out1
 rosa create cluster --cluster-name=gm-cluster --sts --hosted-cp --version 2 -m auto -y &> $CLUSTER_ERR || true
-IS_BILL=$(grep -E "ERR: A billing account is required" < $CLUSTER_ERR)
+IS_BILL=$(grep -E "ERR: A billing account is required" < $CLUSTER_ERR || true)
 if [ -n "$IS_BILL" ]; then
         echo " "
         echo " "
