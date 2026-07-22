@@ -960,7 +960,7 @@ ROSA_CLI() {
 
     # Check if ROSA CLI is installed
     if [ -x "$(command -v /usr/local/bin/rosa)" ]; then
-        INSTALLED=$(/usr/local/bin/rosa version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' || true)
+        INSTALLED=$(/usr/local/bin/rosa version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
 
         echo "ROSA CLI installed: $INSTALLED"
         echo "ROSA CLI latest:    $LATEST"
