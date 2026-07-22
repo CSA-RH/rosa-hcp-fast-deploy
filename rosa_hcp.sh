@@ -3,6 +3,14 @@
 # Re-exec with bash if invoked with sh/dash/ash — process substitution requires bash.
 # $BASH holds the actual executable path (/bin/sh when run as "sh script.sh").
 case "$(basename "${BASH:-sh}")" in sh|dash|ash|ksh) exec /bin/bash "$0" "$@" ;; esac
+# Associative arrays (Multi-AZ) need bash >= 4; prefer Homebrew bash on macOS if needed.
+if (( BASH_VERSINFO[0] < 4 )); then
+  for _bash in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    if [ -x "$_bash" ] && "$_bash" -c '(( BASH_VERSINFO[0] >= 4 ))'; then
+      exec "$_bash" "$0" "$@"
+    fi
+  done
+fi
 set -euo pipefail
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #  +-----------------------------------+-----------------------------------+
@@ -68,7 +76,8 @@ CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 PREFIX=${2:-$CLUSTER_NAME}
 OS=$(uname -s)
 ARC=$(uname -m)
-AWS_REGION=$(aws configure get region)
+AWS_REGION=$(aws configure get region 2>/dev/null || true)
+AWS_REGION=${AWS_REGION:-}
 #
 VPC_CIDR_BLOCK=10.0.0.0/16
 PubSUB_Single_AZ_CIDR_BLOCK=10.0.0.0/20
@@ -117,7 +126,7 @@ SingleAZ_VPC() {
 echo "#"
 touch $CLUSTER_LOG
 aws sts get-caller-identity >> "$CLUSTER_LOG" 2>&1
-aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" >> "$CLUSTER_LOG" 2>&1
+aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" >> "$CLUSTER_LOG" 2>&1 || true
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
   echo "Creating network using 'rosa create network'..." >> "$CLUSTER_LOG" 2>&1
@@ -130,8 +139,8 @@ echo "... Waiting for NGW to warm up " 2>&1 |tee -a "$CLUSTER_LOG"
   echo "Network creaated and saved to $CLUSTER_LOG"
 # Extract subnet IDs for cluster creation 
 #
-PRIV_SUB_2a=$(grep "Resource: .*SubnetPrivate.*Type: AWS::EC2::Subnet" "$CLUSTER_LOG" | sed -E 's/.*ID:.*(subnet-[a-z0-9]+).*/\1/' |tr -d '\r' | paste -sd "," -)
-PUBLIC_SUB_2a=$(grep "Resource: .*SubnetPublic.*Type: AWS::EC2::Subnet" "$CLUSTER_LOG" | sed -E 's/.*ID:.*(subnet-[a-z0-9]+).*/\1/'| tr -d '\r' | paste -sd "," -)
+PRIV_SUB_2a=$(grep "Resource: .*SubnetPrivate.*Type: AWS::EC2::Subnet" "$CLUSTER_LOG" | sed -E 's/.*ID:.*(subnet-[a-z0-9]+).*/\1/' |tr -d '\r' | paste -sd "," - || true)
+PUBLIC_SUB_2a=$(grep "Resource: .*SubnetPublic.*Type: AWS::EC2::Subnet" "$CLUSTER_LOG" | sed -E 's/.*ID:.*(subnet-[a-z0-9]+).*/\1/'| tr -d '\r' | paste -sd "," - || true)
 #
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 #
@@ -164,16 +173,16 @@ sleep_180
 #               SUBN=$(cat $CLUSTER_NAME.txt |grep -i "Subnets"|awk '{print $3}'|xargs|tr ',' '\n' || true)
 #               VPC_ID=$(aws ec2 describe-subnets --subnet-ids $SUBN|grep -i vpc|awk -F\" '{print $4}'|xargs)
 #               echo "Start deleting VPC ${VPC_ID} " 2>&1 |tee -a "$CLUSTER_LOG"
-#               while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg >> "$CLUSTER_LOG" 2>&1; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') >> "$CLUSTER_LOG" 2>&1
-#               while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl >> "$CLUSTER_LOG" 2>&1; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') >> "$CLUSTER_LOG" 2>&1
-#               while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $vpcendpoint_id; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') >> "$CLUSTER_LOG" 2>&1
-#               while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id"; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') >> "$CLUSTER_LOG" 2>&1
-#               while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id >> "$CLUSTER_LOG" 2>&1; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> "$CLUSTER_LOG" 2>&1
+#               while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg >> "$CLUSTER_LOG" 2>&1 || true; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') >> "$CLUSTER_LOG" 2>&1
+#               while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl >> "$CLUSTER_LOG" 2>&1 || true; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') >> "$CLUSTER_LOG" 2>&1
+#               while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $vpcendpoint_id || true; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') >> "$CLUSTER_LOG" 2>&1
+#               while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id" || true; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') >> "$CLUSTER_LOG" 2>&1
+#               while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id >> "$CLUSTER_LOG" 2>&1 || true; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> "$CLUSTER_LOG" 2>&1
 ## Detach and delete IGW
 #               IG_2B_DELETED=$(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId")
-#               aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID >> "$CLUSTER_LOG" 2>&1
-#               aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED >> "$CLUSTER_LOG" 2>&1
-#               while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') >> "$CLUSTER_LOG" 2>&1
+#               aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID >> "$CLUSTER_LOG" 2>&1 || true
+#               aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED >> "$CLUSTER_LOG" 2>&1 || true
+#               while read -r address_id ; do aws ec2 release-address --allocation-id $address_id || true; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') >> "$CLUSTER_LOG" 2>&1
 #
 #               aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID >> $CLUSTER_LOG 2>&1
 #                if [ $? -ne 0 ]; then
@@ -191,7 +200,7 @@ SingleAZ_VPC_OLD() {
 echo "#"
 touch $CLUSTER_LOG
 aws sts get-caller-identity >> "$CLUSTER_LOG" 2>&1
-aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" >> "$CLUSTER_LOG" 2>&1
+aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" >> "$CLUSTER_LOG" 2>&1 || true
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
 VPC_ID_VALUE=$(aws ec2 create-vpc --cidr-block $VPC_CIDR_BLOCK --query Vpc.VpcId --output text)
@@ -255,7 +264,7 @@ MultiAZ_VPC() {
 #set +x
 echo "#" 
 aws sts get-caller-identity >> "$CLUSTER_LOG" 2>&1
-aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" >> "$CLUSTER_LOG" 2>&1
+aws iam get-role --role-name "AWSServiceRoleForElasticLoadBalancing" >> "$CLUSTER_LOG" 2>&1 || true
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
@@ -490,6 +499,10 @@ echo "#"
 echo "Start installing ROSA cluster $CLUSTER_NAME in a Multi-Zone ..." 2>&1 |tee -a "$CLUSTER_LOG"
 echo "#"
 #
+if (( BASH_VERSINFO[0] < 4 )); then
+  option_picked "Multi-AZ requires bash >= 4 (associative arrays). Install it (e.g. brew install bash) and re-run."
+  return 1 2>/dev/null || exit 1
+fi
 declare -A AZ_PAIRED_ARRAY
 MultiAZ_VPC
 #
@@ -678,16 +691,17 @@ CLUSTER_LIST=$(rosa list clusters|grep -i "hosted cp"|grep -v uninstalling|awk '
 echo ""
 echo ""
 if [ -n "$CLUSTER_LIST" ]; then
-   COUNTER=""
+   COUNTER=0
+   CLUSTER_COUNT=$(echo "$CLUSTER_LIST" | wc -w | tr -d ' ')
    echo "Current ROSA cluster list:"
    echo "$CLUSTER_LIST"
    echo ""
    echo ""
    echo -n  "Please pick one ROSA cluster from the above list or hit ENTER to quit: "
-   read -r CLUSTER_NAME
+   read -r CLUSTER_NAME || true
 	for a in $CLUSTER_LIST
     	do
-		COUNTER=$((COUNTER+=1))
+		COUNTER=$((COUNTER + 1))
 		if [ "$CLUSTER_NAME" == $a ]; then
 		option_picked_green "Let's get started with " "$CLUSTER_NAME" " cluster"
                 rosa describe cluster -c $CLUSTER_NAME > $CLUSTER_NAME.txt
@@ -731,7 +745,7 @@ if [ -n "$CLUSTER_LIST" ]; then
                 echo "Cluster " $CLUSTER_NAME "is a" $DEPLOYMENT "deployment with " $CURRENT_NODES " of " $DESIRED_NODES " nodes within the AWS VPC " $VPC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 # removing the NGW since it takes a lot of time
 		echo "Removing the NGW since it takes a lot of time to get deleted"
-        	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=$VPC_ID| jq -r '.NatGateways[].NatGatewayId') >> "$CLUSTER_LOG" 2>&1
+        	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id || true; done < <(aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=$VPC_ID| jq -r '.NatGateways[].NatGatewayId') >> "$CLUSTER_LOG" 2>&1
 		echo "Operator roles prefix: " $PREFIX
 # removing the cluster
 		echo "Running \"rosa delete cluster\"" 2>&1 |tee -a "$CLUSTER_LOG"
@@ -759,7 +773,7 @@ if [ -n "$CLUSTER_LIST" ]; then
 		CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l || true)
 		CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l || true)
 	else
-		if [ $COUNTER = $CURRENT_VPC ]; then option_picked "This option doesn't match with $a or simply no ROSA cluster was chosen from the above list, returning to the Tools menu !"
+		if [ "$COUNTER" -eq "$CLUSTER_COUNT" ]; then option_picked "This option doesn't match with $a or simply no ROSA cluster was chosen from the above list, returning to the Tools menu !"
                 else
                 	echo ""
                 fi
@@ -773,7 +787,7 @@ echo ""
 echo ""
 ppp=x
 echo "Press ENTER to go back to the Menu"
-read -r ppp
+read -r ppp || true
 }
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # Terraform Menu - Installing a Public ROSA (Multi-Zone) with Terraform
@@ -826,7 +840,7 @@ sleep_5
 # Tools Menu - Check ROSA available Regions
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 HCP_REGIONS() {
-AWS_REGION=$(aws configure get region)
+AWS_REGION=$(aws configure get region 2>/dev/null || true)
 AWS_REG_LIST=$(rosa list regions --hosted-cp|grep -v SUPPORT| awk '{print $1}' || true)
 #
 echo " "
@@ -858,10 +872,8 @@ fi
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 AWS_CLI() {
 #set -x
-VAR3="AWS_${OS}_${ARC}"
-#[[ $OS == "Darwin" ]] && VAR3="AWS_${OS}"
-if [ $OS == "Darwin" ]; then
-VAR3="AWS_${OS}"
+if [ "$OS" == "Darwin" ]; then
+VAR3="AWS_Darwin"
 echo $VAR3 "-->" ${!VAR3}
 if [ -x "$(command -v /usr/local/bin/aws)" ]
 then
@@ -895,12 +907,12 @@ else
     echo "Verifying AWS CLI installation..."
     aws --version
     option_picked_green "AWS CLI installation completed."
-	AWS_REGION=$(aws configure get region)
+	AWS_REGION=$(aws configure get region 2>/dev/null || true)
 	CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l || true)
     fi
 fi
-if [ $OS == "Linux" ]; then
-VAR3="AWS_${OS}"
+if [ "$OS" == "Linux" ]; then
+VAR3="AWS_${OS}_${ARC}"
 echo $VAR3 "-->" ${!VAR3}
 # Check if AWS CLI is installed
 if [ -x "$(command -v /usr/local/bin/aws)" ]
@@ -938,7 +950,7 @@ else
     echo "Verifying AWS CLI installation..."
     aws --version
     option_picked_green "AWS CLI installation completed."
-	AWS_REGION=$(aws configure get region)
+	AWS_REGION=$(aws configure get region 2>/dev/null || true)
 	CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l || true)
     fi
 fi
@@ -1068,7 +1080,15 @@ Countdown
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 JQ_CLI() {
 #set -x
-[[ $OS == "Darwin" ]] && VAR4="JQ_${OS}"
+if [ "$OS" == "Darwin" ]; then
+  if [ "$ARC" == "arm64" ]; then
+    VAR4="JQ_Darwin_arm64"
+  else
+    VAR4="JQ_Darwin"
+  fi
+else
+  VAR4="JQ_${OS}_${ARC}"
+fi
 echo $VAR4 "-->" ${!VAR4}
 #
 # Check if JQ CLI is installed
@@ -1268,15 +1288,17 @@ CLUSTER_NAME=delete-vpc
 CLUSTER_LOG=$INSTALL_DIR/$CLUSTER_NAME.log
 VPC_LIST=$(aws ec2 describe-vpcs |grep -i vpcid|awk  '{print $2}'|awk -F\"  '{print $2}' || true)
 if [ -n "$VPC_LIST" ]; then
+   COUNTER=0
+   VPC_COUNT=$(echo "$VPC_LIST" | wc -w | tr -d ' ')
    echo "Current VPCs:"
    echo $VPC_LIST
    echo ""
    echo ""
    echo -n  "Please pick one or hit ENTER to quit: "
-   read -r VPC_ID
+   read -r VPC_ID || true
    for a in $VPC_LIST
     do
-	COUNTER=$((COUNTER+=1))
+	COUNTER=$((COUNTER + 1))
 	if [ "$VPC_ID" == $a ]; then
 		echo  "Going to delete --> " "$VPC_ID"
 #
@@ -1355,7 +1377,7 @@ else
 	#
 	#
 	echo "Waiting for NGW to die (~3 min) "
-	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,  Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') >> $CLUSTER_LOG 2>&1
+	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,  Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') >> $CLUSTER_LOG 2>&1
 	echo "Waiting for NAT Gateway to be deleted..."
 	while true; do
 		NGW_REMAINING=$(aws ec2 describe-nat-gateways \
@@ -1396,11 +1418,11 @@ else
 fi
                 # ------------------------------------------------------------------
 
-        	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') >> $CLUSTER_LOG 2>&1
-        	while read -r acl ; do  aws ec2 delete-network-acl --no-cli-pager --network-acl-id $acl >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') >> $CLUSTER_LOG 2>&1
-                while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --no-cli-pager --vpc-endpoint-ids $vpcendpoint_id; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') >> "$CLUSTER_LOG" 2>&1
-        	while read -r subnet_id ; do aws ec2 delete-subnet --no-cli-pager --subnet-id "$subnet_id" >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') >> $CLUSTER_LOG 2>&1
-#        	while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> $CLUSTER_LOG 2>&1
+        	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') >> $CLUSTER_LOG 2>&1
+        	while read -r acl ; do  aws ec2 delete-network-acl --no-cli-pager --network-acl-id $acl >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') >> $CLUSTER_LOG 2>&1
+                while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --no-cli-pager --vpc-endpoint-ids $vpcendpoint_id || true; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') >> "$CLUSTER_LOG" 2>&1
+        	while read -r subnet_id ; do aws ec2 delete-subnet --no-cli-pager --subnet-id "$subnet_id" >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') >> $CLUSTER_LOG 2>&1
+#        	while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> $CLUSTER_LOG 2>&1
 RTB_IDS=$(aws ec2 describe-route-tables \
     --filters Name=vpc-id,Values=$VPC_ID \
     --query 'RouteTables[?Associations[?Main==`false`]].RouteTableId' \
@@ -1408,18 +1430,18 @@ RTB_IDS=$(aws ec2 describe-route-tables \
 
 for RTB in $RTB_IDS; do
     echo "Deleting non-main route table $RTB..."
-    aws ec2 delete-route-table --route-table-id $RTB  2> "$CLUSTER_LOG"
+    aws ec2 delete-route-table --route-table-id $RTB  2> "$CLUSTER_LOG" || true
 done
 #
 # Detach and delete IGW
 #
-#                while read -r route_tables_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $route_tables_id >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> "$CLUSTER_LOG" 2>&1
-		while read -r netinterfaces_id ; do aws ec2 detach-network-interface --force --attachment-id $netinterfaces_id; done < <(aws ec2 describe-network-interfaces  --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkInterfaces | .[] | .Attachment.AttachmentId') >> "$CLUSTER_LOG" 2>&1
+#                while read -r route_tables_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $route_tables_id >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> "$CLUSTER_LOG" 2>&1
+		while read -r netinterfaces_id ; do aws ec2 detach-network-interface --force --attachment-id $netinterfaces_id || true; done < <(aws ec2 describe-network-interfaces  --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkInterfaces | .[] | .Attachment.AttachmentId') >> "$CLUSTER_LOG" 2>&1
                 IG_2B_DELETED=$(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId")
-                aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID >> "$CLUSTER_LOG" 2>&1
-                aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED >> "$CLUSTER_LOG" 2>&1
+                aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID >> "$CLUSTER_LOG" 2>&1 || true
+                aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED >> "$CLUSTER_LOG" 2>&1 || true
 #
-        	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') >> $CLUSTER_LOG 2>&1
+        	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id || true; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') >> $CLUSTER_LOG 2>&1
         	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID >> $CLUSTER_LOG 2>&1 || OPSIDIDITAGAIN_VPC
 fi
           	CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l || true)
@@ -1433,7 +1455,7 @@ fi
 		mv "$CLUSTER_LOG" /tmp
 #
 	else
-		if [ $COUNTER = $CURRENT_VPC ]; then option_picked "That doesn't match or no VPC was chosen, returning to the Tools Menu !"
+		if [ "$COUNTER" -eq "$VPC_COUNT" ]; then option_picked "That doesn't match or no VPC was chosen, returning to the Tools Menu !"
 		else
 		echo ""
 		fi
@@ -1449,7 +1471,7 @@ echo ""
 echo ""
 ppp=x
 echo "Press ENTER to go back to the Menu"
-read -r ppp
+read -r ppp || true
 }
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # Tools Menu - Option 8 - Delete ALL (Clusters, VPCs)
@@ -1503,7 +1525,7 @@ if [ -n "$CLUSTER_LIST" ]; then
              echo "#  Picked ==> " "$CLUSTER_NAME"
              echo "#  Cluster " $a "is a " $DEPLOYMENT "deployment with "$CURRENT_NODES" of"$DESIRED_NODES "nodes in VPC "$VPC_ID
 # removing the NGW since it takes a lot of time
-             while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID | jq -r '.NatGateways[].NatGatewayId') >> "$CLUSTER_LOG" 2>&1
+             while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id || true; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,Values='$VPC_ID | jq -r '.NatGateways[].NatGatewayId') >> "$CLUSTER_LOG" 2>&1
 # removing the cluster 
            option_picked "#  Going to delete the ROSA cluster named " "$CLUSTER_NAME" " and the VPC " "$VPC_ID" 2>&1 |tee -a "$CLUSTER_LOG"
            rosa delete cluster -c $CLUSTER_NAME --yes >> "$CLUSTER_LOG" 2>&1
@@ -1553,24 +1575,24 @@ else
 #                CHECK_NAT=$(aws ec2 describe-nat-gateways --filter 'Name=vpc-id, Values='$VPC_ID| jq -r '.NatGateways[].State')
 #                if [ "$CHECK_NAT" = "available" ]; then
                     echo "Waiting for NGW to die (~3 min) "
-                    while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,  Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') >> $CLUSTER_LOG 2>&1
+                    while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,  Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') >> $CLUSTER_LOG 2>&1
                     sleep_180
 #                fi
 #
-                    while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,  Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') >> $CLUSTER_LOG 2>&1
-                    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') >> $CLUSTER_LOG 2>&1
+                    while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,  Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') >> $CLUSTER_LOG 2>&1
+                    while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') >> $CLUSTER_LOG 2>&1
 #    
-                    while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $vpcendpoint_id; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') >> "$CLUSTER_LOG" 2>&1
+                    while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $vpcendpoint_id || true; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') >> "$CLUSTER_LOG" 2>&1
 #    
-                    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id" >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') >> $CLUSTER_LOG 2>&1
-                    while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,  Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> $CLUSTER_LOG 2>&1
+                    while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id" >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') >> $CLUSTER_LOG 2>&1
+                    while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,  Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> $CLUSTER_LOG 2>&1
 #  
 # Detach and delet  e IGW
 #  
                     IG_2B_DELETED=$(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId")
-                    aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID >> "$CLUSTER_LOG" 2>&1
-                    aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED >> "$CLUSTER_LOG" 2>&1
-                    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') >> $CLUSTER_LOG 2>&1
+                    aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID >> "$CLUSTER_LOG" 2>&1 || true
+                    aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED >> "$CLUSTER_LOG" 2>&1 || true
+                    while read -r address_id ; do aws ec2 release-address --allocation-id $address_id || true; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') >> $CLUSTER_LOG 2>&1
                     aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID >> $CLUSTER_LOG 2>&1 || OPSIDIDITAGAIN_VPC
                         CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l || true)
                         CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l || true)
@@ -1962,25 +1984,25 @@ OPSIDIDITAGAIN_REM_INST(){
 #                CHECK_NAT=$(aws ec2 describe-nat-gateways --filter 'Name=vpc-id, Values='$VPC_ID| jq -r '.NatGateways[].State')
 #                if [ "$CHECK_NAT" = "available" ]; then
                     echo "Waiting for NGW to die (~3 min) "
-                    while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,  Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') >> $CLUSTER_LOG 2>&1
+                    while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-nat-gateways --filter 'Name=vpc-id,  Values='$VPC_ID| jq -r '.NatGateways[].NatGatewayId') >> $CLUSTER_LOG 2>&1
                     sleep_180
 #                fi
 #
-        	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') >> $CLUSTER_LOG 2>&1
-        	while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') >> $CLUSTER_LOG 2>&1
+        	while read -r sg ; do aws ec2 delete-security-group --no-cli-pager --group-id $sg >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-security-groups --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.SecurityGroups[].GroupId') >> $CLUSTER_LOG 2>&1
+        	while read -r acl ; do  aws ec2 delete-network-acl --network-acl-id $acl >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-network-acls --filters 'Name=vpc-id,Values='$VPC_ID| jq -r '.NetworkAcls[].NetworkAclId') >> $CLUSTER_LOG 2>&1
 # 
-                while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $vpcendpoint_id; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') >> "$CLUSTER_LOG" 2>&1
+                while read -r vpcendpoint_id ; do aws ec2 delete-vpc-endpoints --vpc-endpoint-ids $vpcendpoint_id || true; done < <(aws ec2 describe-vpc-endpoints | jq -r '.VpcEndpoints[].VpcEndpointId') >> "$CLUSTER_LOG" 2>&1
 #
-        	while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id" >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') >> $CLUSTER_LOG 2>&1
-        	while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id >> $CLUSTER_LOG 2>&1; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> $CLUSTER_LOG 2>&1
+        	while read -r subnet_id ; do aws ec2 delete-subnet --subnet-id "$subnet_id" >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-subnets --filters 'Name=vpc-id,Values='$VPC_ID | jq -r '.Subnets[].SubnetId') >> $CLUSTER_LOG 2>&1
+        	while read -r rt_id ; do aws ec2 delete-route-table --no-cli-pager --route-table-id $rt_id >> $CLUSTER_LOG 2>&1 || true; done < <(aws ec2 describe-route-tables --filters 'Name=vpc-id,Values='$VPC_ID |jq -r '.RouteTables[].RouteTableId') >> $CLUSTER_LOG 2>&1
 #
 # Detach and delete IGW
 #
                 IG_2B_DELETED=$(aws ec2 describe-internet-gateways --filters 'Name=attachment.vpc-id,Values='$VPC_ID | jq -r ".InternetGateways[].InternetGatewayId")
-                aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID >> "$CLUSTER_LOG" 2>&1
-                aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED >> "$CLUSTER_LOG" 2>&1
+                aws ec2 detach-internet-gateway --internet-gateway-id $IG_2B_DELETED --vpc-id $VPC_ID >> "$CLUSTER_LOG" 2>&1 || true
+                aws ec2 delete-internet-gateway --no-cli-pager --internet-gateway-id $IG_2B_DELETED >> "$CLUSTER_LOG" 2>&1 || true
 #
-        	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') >> $CLUSTER_LOG 2>&1
+        	while read -r address_id ; do aws ec2 release-address --allocation-id $address_id || true; done < <(aws ec2 describe-addresses | jq -r '.Addresses[].AllocationId') >> $CLUSTER_LOG 2>&1
         	aws ec2 delete-vpc --no-cli-pager --vpc-id=$VPC_ID >> $CLUSTER_LOG 2>&1 || OPSIDIDITAGAIN_VPC
           	echo ""
         	echo ""
@@ -2029,14 +2051,14 @@ sleep_5() {
                  while [ $min -ge 0 ]; do
                          while [ $sec -ge 0 ]; do
                                  echo -ne "$hour:$min:$sec\033[0K\r"
-                                 let "sec=sec-1"
+                                 sec=$((sec - 1))
                                  sleep 1
                          done
                          sec=59
-                         let "min=min-1"
+                         min=$((min - 1))
                  done
                  min=59
-                 let "hour=hour-1"
+                 hour=$((hour - 1))
          done
 }
 sleep_10() {
@@ -2047,14 +2069,14 @@ sleep_10() {
                  while [ $min -ge 0 ]; do
                          while [ $sec -ge 0 ]; do
                                  echo -ne "$hour:$min:$sec\033[0K\r"
-                                 let "sec=sec-1"
+                                 sec=$((sec - 1))
                                  sleep 1
                          done
                          sec=59
-                         let "min=min-1"
+                         min=$((min - 1))
                  done
                  min=59
-                 let "hour=hour-1"
+                 hour=$((hour - 1))
          done
 }
 sleep_120() {
@@ -2065,14 +2087,14 @@ sleep_120() {
                  while [ $min -ge 0 ]; do
                          while [ $sec -ge 0 ]; do
                                  echo -ne "$hour:$min:$sec\033[0K\r"
-                                 let "sec=sec-1"
+                                 sec=$((sec - 1))
                                  sleep 1
                          done
                          sec=59
-                         let "min=min-1"
+                         min=$((min - 1))
                  done
                  min=59
-                 let "hour=hour-1"
+                 hour=$((hour - 1))
          done
 }
 #
@@ -2084,14 +2106,14 @@ sleep_180() {
                  while [ $min -ge 0 ]; do
                          while [ $sec -ge 0 ]; do
                                  echo -ne "$hour:$min:$sec\033[0K\r"
-                                 let "sec=sec-1"
+                                 sec=$((sec - 1))
                                  sleep 1
                          done
                          sec=59
-                         let "min=min-1"
+                         min=$((min - 1))
                  done
                  min=59
-                 let "hour=hour-1"
+                 hour=$((hour - 1))
          done
 }
 #
@@ -2114,14 +2136,14 @@ Countdown_20() {
                  while [ $min -ge 0 ]; do
                          while [ $sec -ge 0 ]; do
                                  echo -ne "$hour:$min:$sec\033[0K\r"
-                                 let "sec=sec-1"
+                                 sec=$((sec - 1))
                                  sleep 1
                          done
                          sec=59
-                         let "min=min-1"
+                         min=$((min - 1))
                  done
                  min=59
-                 let "hour=hour-1"
+                 hour=$((hour - 1))
          done
 }
 #
@@ -2163,7 +2185,7 @@ fi
     printf "${menu}**${number} 8)${menu} TOOLS Menu ${normal}\n"
     printf "\n${menu}**************************************************************${normal}\n"
 #
-AWS_REGION=$(aws configure get region)
+AWS_REGION=$(aws configure get region 2>/dev/null || true)
 CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l || true)
 CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l || true)
     echo "Current VPCs: " $CURRENT_VPC
@@ -2273,7 +2295,7 @@ export sub_tools="x"
     printf "\n${menu}**************************************************************${normal}\n"
 #
 #
-AWS_REGION=$(aws configure get region)
+AWS_REGION=$(aws configure get region 2>/dev/null || true)
 CURRENT_VPC=$(aws ec2 describe-vpcs|grep -i VpcId|wc -l || true)
 CURRENT_HCP=$(rosa list clusters  2>> /tmp/ciccio |grep -v "No clusters"|grep -v ID|grep -v WARN| wc -l || true)
     echo "Current VPCs: " $CURRENT_VPC
