@@ -1,6 +1,5 @@
 #!/bin/bash
 #  set -x
-  set -x
 # Re-exec with bash if invoked with sh/dash/ash — process substitution requires bash.
 # $BASH holds the actual executable path (/bin/sh when run as "sh script.sh").
 case "$(basename "${BASH:-sh}")" in sh|dash|ash|ksh) exec /bin/bash "$0" "$@" ;; esac
