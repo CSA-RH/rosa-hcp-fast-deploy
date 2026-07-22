@@ -1,5 +1,6 @@
 #!/bin/bash
 #  set -x
+  set -x
 # Re-exec with bash if invoked with sh/dash/ash — process substitution requires bash.
 # $BASH holds the actual executable path (/bin/sh when run as "sh script.sh").
 case "$(basename "${BASH:-sh}")" in sh|dash|ash|ksh) exec /bin/bash "$0" "$@" ;; esac
@@ -51,7 +52,7 @@ set -euo pipefail
 #
 #
 #
-SCRIPT_VERSION=v1.16.0
+SCRIPT_VERSION=v1.17.0
 #
 #
 #
@@ -504,14 +505,15 @@ echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
 echo "Creating operator-roles" >> "$CLUSTER_LOG" 2>&1
 rosa create operator-roles --hosted-cp --prefix $PREFIX --oidc-config-id $OIDC_ID --installer-role-arn $INSTALL_ARN -m auto -y >> "$CLUSTER_LOG" 2>&1
-# SUBNET_IDS variable will be populated based on combined subnet array
-printf -v joined '%s,%s,' "${!AZ_PAIRED_ARRAY[@]}" "${AZ_PAIRED_ARRAY[@]}"
-SUBNET_IDS=$(echo $joined | sed -e 's/,$//g')
+# I worker node vivono nelle subnet private; le subnet pubbliche servono solo ai NAT Gateway. ROSA le individua autonomamente dalla VPC tramite i tag
+# kubernetes.io/role/internal-elb.
+# "To create a Multi-AZ cluster, specify multi-az in the command and the private subnet IDs for each private subnet you want to deploy to."
+SUBNET_IDS=$(IFS=','; echo "${AZ_PRIV_ARRAY[*]}")
 #
 echo "Creating ROSA cluster " 2>&1 |tee -a "$CLUSTER_LOG"
 echo "" >> "$CLUSTER_LOG" 2>&1
 #echo "rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --compute-machine-type $DEF_MACHINE_TYPE --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y" >> "$CLUSTER_LOG" 2>&1
-rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y >> "$CLUSTER_LOG" 2>&1 || OPSIDIDITAGAIN_REM_INST
+rosa create cluster -c $CLUSTER_NAME --sts --hosted-cp --multi-az --compute-machine-type $DEF_MACHINE_TYPE --region ${AWS_REGION} --role-arn $INSTALL_ARN --support-role-arn $SUPPORT_ARN --worker-iam-role $WORKER_ARN --operator-roles-prefix $PREFIX --oidc-config-id $OIDC_ID --billing-account $BILLING_ID --subnet-ids=$SUBNET_IDS -m auto -y >> "$CLUSTER_LOG" 2>&1 || OPSIDIDITAGAIN_REM_INST
 #
 echo "Appending rosa installation logs to ${CLUSTER_LOG} " 2>&1 |tee -a "$CLUSTER_LOG"
 rosa logs install -c $CLUSTER_NAME --watch >> "$CLUSTER_LOG" 2>&1
