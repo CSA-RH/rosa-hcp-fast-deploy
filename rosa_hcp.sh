@@ -389,6 +389,8 @@ echo "# Start installing ROSA cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |te
 #
 SingleAZ_VPC
 #
+echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create ocm-role --no-console --prefix "$PREFIX" -y >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
 echo "# Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
@@ -444,6 +446,8 @@ echo "# Start installing ROSA cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |te
 #
 SingleAZ_VPC
 #
+echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create ocm-role --no-console --prefix "$PREFIX" -y >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
 echo "# Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
@@ -507,6 +511,8 @@ declare -A AZ_PAIRED_ARRAY
 MultiAZ_VPC
 #
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
+echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create ocm-role --no-console --prefix "$PREFIX" -y >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
@@ -569,6 +575,8 @@ echo "JUMP_HOST ON" >> "$CLUSTER_LOG" 2>&1
 #
 SingleAZ_VPC
 # 
+echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create ocm-role --no-console --prefix "$PREFIX" -y >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
@@ -643,6 +651,8 @@ echo "#"
 #
 SingleAZ_VPC
 #
+echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
+rosa create ocm-role --no-console --prefix "$PREFIX" -y >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
