@@ -16,6 +16,8 @@ We have also added some "tools" to help you manage your CLI installation and AWS
 The initial setup includes the installation and configuration of the
    - Virtual Private Cloud (VPC), including Subnets, IGW, NGW, Routes, etc.
    - Account and Operator roles and policies
+- [OCM role](https://docs.redhat.com/en/documentation/red_hat_openshift_service_on_aws/4/html/prepare_your_environment/rosa-hcp-prepare-iam-roles-resources#rosa-sts-about-ocm-role_prepare-role-resources): created with `rosa create ocm-role --no-console` (minimum permissions, CLI/Terraform only, no OCM web console)
+- The `user-role` is not created by the script: link it beforehand if you use the OCM console (`rosa list ocm-role` / `rosa list user-role` in the Tools menu)
    - OIDC identity provider configuration
 
 
