@@ -1,5 +1,5 @@
 #!/bin/bash
-#  set -x
+# set -x
 # Re-exec with bash if invoked with sh/dash/ash — process substitution requires bash.
 # $BASH holds the actual executable path (/bin/sh when run as "sh script.sh").
 case "$(basename "${BASH:-sh}")" in sh|dash|ash|ksh) exec /bin/bash "$0" "$@" ;; esac
@@ -978,6 +978,27 @@ ROSA_CLI() {
         | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/'
     }
 
+    # Nome asset della release GitHub in base a OS e architettura (formato: rosa_<os>_<arch>.zip)
+    rosa_asset_name() {
+        local os arch
+        case "$(uname -s)" in
+            Darwin) os=darwin ;;
+            Linux)  os=linux ;;
+            *) echo "Unsupported OS: $(uname -s)" >&2; return 1 ;;
+        esac
+        case "$(uname -m)" in
+            arm64|aarch64) arch=arm64 ;;
+            x86_64|amd64)  arch=amd64 ;;
+            *) echo "Unsupported architecture: $(uname -m)" >&2; return 1 ;;
+        esac
+        echo "rosa_${os}_${arch}.zip"
+    }
+
+    if ! command -v unzip > /dev/null 2>&1; then
+        echo "unzip is required to install the ROSA CLI: please install it (e.g. 'sudo dnf install unzip' or 'sudo apt install unzip') and retry."
+        return 1
+    fi
+
     LATEST=$(get_latest_rosa_version)
 
     # Check if ROSA CLI is installed
@@ -994,19 +1015,11 @@ ROSA_CLI() {
             echo " ###########################################################################"
 
             # Determina architettura
-            ARCH=$(uname -m)
-            if [ "$ARCH" = "arm64" ]; then
-                FILE="rosa_darwin_arm64.tar.gz"
-            elif [ "$ARCH" = "x86_64" ]; then
-                FILE="rosa_darwin_amd64.tar.gz"
-            else
-                echo "Unsupported architecture: $ARCH"
-                return 1
-            fi
+            FILE=$(rosa_asset_name) || return 1
 
             # Scarica e installa
-            curl -LO "https://github.com/openshift/rosa/releases/download/v$LATEST/$FILE"
-            tar -xzf "$FILE"
+            curl -fLO "https://github.com/openshift/rosa/releases/download/v$LATEST/$FILE"
+            unzip -o "$FILE" rosa || return 1
 
             # Backup della vecchia versione
             sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.$INSTALLED
@@ -1024,18 +1037,10 @@ ROSA_CLI() {
         echo " # ROSA CLI is NOT installed. Installing latest version $LATEST ...         #"
         echo " ###########################################################################"
 
-        ARCH=$(uname -m)
-        if [ "$ARCH" = "arm64" ]; then
-            FILE="rosa_darwin_arm64.tar.gz"
-        elif [ "$ARCH" = "x86_64" ]; then
-            FILE="rosa_darwin_amd64.tar.gz"
-        else
-            echo "Unsupported architecture: $ARCH"
-            return 1
-        fi
+        FILE=$(rosa_asset_name) || return 1
 
-        curl -LO "https://github.com/openshift/rosa/releases/download/v$LATEST/$FILE"
-        tar -xzf "$FILE"
+        curl -fLO "https://github.com/openshift/rosa/releases/download/v$LATEST/$FILE"
+        unzip -o "$FILE" rosa || return 1
         [ -f /usr/local/bin/rosa ] && sudo mv /usr/local/bin/rosa /usr/local/bin/rosa_old_v.unknown
         sudo mv rosa /usr/local/bin/rosa
         rm -f "$FILE"
