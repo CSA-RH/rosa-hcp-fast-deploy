@@ -125,6 +125,16 @@ Running "rosa logs unistall"
 ```
 It takes approximately 15 minutes to delete your cluster, including its VPCs, IAM roles, OIDCs, etc.<br />
 
+#### Reusing an existing VPC (second cluster in the same VPC)
+If the script finds an existing VPC in the target region, it asks whether to reuse it instead of creating a new one. When you reuse a VPC the script:
+- reuses the existing OCM role of the account/organization (it does not create another one);
+- creates **dedicated public and private subnets** for the new cluster, tagged with `kubernetes.io/role/elb` and `kubernetes.io/role/internal-elb`, and associates them with the route tables of the VPC (so the existing IGW and NAT GW are shared).
+
+> [!WARNING]
+> Installing more than one ROSA cluster in the same VPC is supported by Red Hat for customer-created VPCs, but it is **not recommended**: there is no strict network isolation between the clusters, VPC and OpenShift networking must be designed carefully (non-overlapping CIDRs, dedicated subnets and discovery tags per cluster, otherwise load balancers may pick the wrong subnets), and IGW, NAT GW and route tables become a shared dependency. The general recommendation is **one VPC per cluster**. See [Are multiple ROSA clusters in a single VPC supported?](https://access.redhat.com/solutions/6980058).
+
+When you delete a cluster that shares its VPC with other ROSA clusters, the script only removes the subnets of that cluster. The IGW, NAT GW, route tables and the VPC are kept until the last cluster in the VPC is deleted (a subnet hosting a NAT GW still in use is kept as well).
+
 # Terraform
 It is possible to create/destroy a ROSA cluster by using a Terraform template configured with the default options. <br />
 The default ROSA version for Terraform cluster is 4.19.35, of course you can change it to a more up-to-date version in the **variables.tf** file.<br />

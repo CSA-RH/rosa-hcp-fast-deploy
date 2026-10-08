@@ -202,6 +202,14 @@ fi
 rosa create ocm-role --no-console --prefix "$PREFIX" --mode auto -y </dev/null >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
 }
 #
+Get_Account_Role_ARNs() {
+# Uses IAM directly: 'rosa list account-roles' takes ~40s (downloads the whole OCM versions list)
+local infix=${1:-}
+INSTALL_ARN=$(aws iam get-role --role-name "${PREFIX}-${infix}Installer-Role" --query Role.Arn --output text)
+WORKER_ARN=$(aws iam get-role --role-name "${PREFIX}-${infix}Worker-Role" --query Role.Arn --output text)
+SUPPORT_ARN=$(aws iam get-role --role-name "${PREFIX}-${infix}Support-Role" --query Role.Arn --output text)
+}
+#
 SingleAZ_VPC() {
 #set +x
 echo "#"
@@ -244,6 +252,43 @@ echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 #
 #
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Shared VPC helpers: a VPC (and its IGW/NGW/route tables) may host more than one HCP cluster
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Returns 0 if another (not uninstalling) HCP cluster, different from $1, has its subnets in VPC $2
+Other_Clusters_In_VPC() {
+local self=$1 vpc=$2 c sub v
+for c in $CLUSTER_LIST; do
+  [ "$c" == "$self" ] && continue
+  sub=$(rosa describe cluster -c "$c" -o json 2>/dev/null | jq -r '.aws.subnet_ids[0] // empty' || true)
+  [ -z "$sub" ] && continue
+  v=$(aws ec2 describe-subnets --subnet-ids "$sub" --query 'Subnets[0].VpcId' --output text 2>/dev/null || true)
+  [ "$v" == "$vpc" ] && return 0
+done
+return 1
+}
+#
+# Deletes only the subnets of the cluster being removed. $1=VPC_ID $2=shared(yes/no) $3...=cluster subnets
+# - VPC shared: all the cluster subnets are removed, except the one hosting a NAT GW still used by the other clusters
+# - last cluster: only the subnets NOT managed by CloudFormation are removed (the stack deletes the others)
+Delete_Cluster_Subnets() {
+local vpc=$1 shared=$2 sn nat cf i; shift 2
+for sn in "$@"; do
+  cf=$(aws ec2 describe-subnets --subnet-ids "$sn" --query 'Subnets[0].Tags[?Key==`aws:cloudformation:stack-name`].Value|[0]' --output text 2>/dev/null || true)
+  if [ "$shared" != "yes" ] && [ -n "$cf" ] && [ "$cf" != "None" ]; then continue; fi
+  nat=$(aws ec2 describe-nat-gateways --filter Name=subnet-id,Values="$sn" Name=state,Values=pending,available --query 'NatGateways[0].NatGatewayId' --output text 2>/dev/null || true)
+  if [ "$shared" == "yes" ] && [ -n "$nat" ] && [ "$nat" != "None" ]; then
+    echo "WARNING: keeping subnet $sn, it hosts NAT GW $nat that is still used by other clusters in $vpc" 2>&1 |tee -a "$CLUSTER_LOG"
+    continue
+  fi
+  echo "Deleting subnet $sn" 2>&1 |tee -a "$CLUSTER_LOG"
+  for i in 1 2 3 4 5 6; do
+    aws ec2 delete-subnet --subnet-id "$sn" >> "$CLUSTER_LOG" 2>&1 && break
+    sleep 20
+  done
+done
+}
+#
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # Delete VPC 
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #
@@ -251,7 +296,10 @@ Delete_VPC() {
 #set +x
   echo "Deleting network created with 'rosa create network'..." 2>&1 |tee -a "$CLUSTER_LOG"
 #
-aws cloudformation delete-stack --stack-name "$CLUSTER_NAME" --region "$AWS_REGION"  2>&1 |tee -a "$CLUSTER_LOG"
+# The stack may have been created by another (first) cluster sharing this VPC: look it up from the VPC tag
+STACK_NAME=$(aws ec2 describe-vpcs --vpc-ids "${VPC_ID:-}" --query 'Vpcs[0].Tags[?Key==`aws:cloudformation:stack-name`].Value|[0]' --output text 2>/dev/null || true)
+if [ -z "$STACK_NAME" ] || [ "$STACK_NAME" == "None" ]; then STACK_NAME="$CLUSTER_NAME"; fi
+aws cloudformation delete-stack --stack-name "$STACK_NAME" --region "$AWS_REGION"  2>&1 |tee -a "$CLUSTER_LOG"
   echo "Network deletion requested, please wait a few minutes for the NAT GW to be removed ....."
 sleep_180
 # removing the VPC
@@ -478,9 +526,7 @@ echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
 Ensure_OCM_Role
 echo "# Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}' || true)
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}' || true)
+Get_Account_Role_ARNs HCP-ROSA-
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
@@ -535,9 +581,7 @@ echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
 Ensure_OCM_Role
 echo "# Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}' || true)
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}' || true)
+Get_Account_Role_ARNs 
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
@@ -600,9 +644,7 @@ echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
 Ensure_OCM_Role
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}' || true)
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}' || true)
+Get_Account_Role_ARNs HCP-ROSA-
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
@@ -664,9 +706,7 @@ echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
 Ensure_OCM_Role
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}' || true)
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}' || true)
+Get_Account_Role_ARNs HCP-ROSA-
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
@@ -740,9 +780,7 @@ echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
 Ensure_OCM_Role
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
-INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
-WORKER_ARN=$(rosa list account-roles|grep -i worker|grep $PREFIX|awk '{print $3}' || true)
-SUPPORT_ARN=$(rosa list account-roles|grep -i support|grep $PREFIX|awk '{print $3}' || true)
+Get_Account_Role_ARNs HCP-ROSA-
 OIDC_ID=$(rosa create oidc-config --mode auto --managed --yes -o json | jq -r '.id')
 echo "Creating the OIDC config" $OIDC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 echo "OIDC_ID " $OIDC_ID >> "$CLUSTER_LOG" 2>&1
@@ -839,8 +877,15 @@ if [ -n "$CLUSTER_LIST" ]; then
 		PREFIX=$CLUSTER_NAME
                 echo "Cluster " $CLUSTER_NAME "is a" $DEPLOYMENT "deployment with " $CURRENT_NODES " of " $DESIRED_NODES " nodes within the AWS VPC " $VPC_ID 2>&1 |tee -a "$CLUSTER_LOG"
 # removing the NGW since it takes a lot of time
+		OWN_SUBNETS=$(rosa describe cluster -c $CLUSTER_NAME -o json | jq -r '.aws.subnet_ids[]?' || true)
+		SHARED_VPC=no
+		if Other_Clusters_In_VPC "$CLUSTER_NAME" "$VPC_ID"; then
+			SHARED_VPC=yes
+			echo "WARNING: VPC $VPC_ID hosts other ROSA clusters: NGW, IGW, route tables and VPC will be kept" 2>&1 |tee -a "$CLUSTER_LOG"
+		else
 		echo "Removing the NGW since it takes a lot of time to get deleted"
         	while read -r instance_id ; do aws ec2 delete-nat-gateway --nat-gateway-id $instance_id || true; done < <(aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=$VPC_ID| jq -r '.NatGateways[].NatGatewayId') >> "$CLUSTER_LOG" 2>&1
+		fi
 		echo "Operator roles prefix: " $PREFIX
 # removing the cluster
 		echo "Running \"rosa delete cluster\"" 2>&1 |tee -a "$CLUSTER_LOG"
@@ -858,9 +903,13 @@ if [ -n "$CLUSTER_LIST" ]; then
 		rosa delete account-roles --prefix $PREFIX -m auto -y  >> "$CLUSTER_LOG" 2>&1
 # removing the VPC
 #
-		Delete_VPC
-#
-		option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+		Delete_Cluster_Subnets "$VPC_ID" "$SHARED_VPC" $OWN_SUBNETS
+		if [ "$SHARED_VPC" == "yes" ]; then
+			option_picked_green "VPC ${VPC_ID} kept: it is still used by other ROSA clusters" 2>&1 |tee -a "$CLUSTER_LOG"
+		else
+			Delete_VPC
+			option_picked_green "VPC ${VPC_ID} deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
+		fi
 		echo " "
 		option_picked_green "ROSA cluster $CLUSTER_NAME deleted !" 2>&1 |tee -a "$CLUSTER_LOG"
 		mv "$CLUSTER_LOG" /tmp
