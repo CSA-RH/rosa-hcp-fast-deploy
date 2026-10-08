@@ -117,6 +117,37 @@ TERRAFORM_Darwin_arm64=https://releases.hashicorp.com/terraform/1.9.4/terraform_
 #
 #
 #
+# Create a dedicated public/private subnet pair in an existing VPC (so that each cluster has its own subnets).
+# Args: VPC_ID, template private subnet, template public subnet (their route tables and AZ are reused).
+# Sets PRIV_SUB_2a and PUBLIC_SUB_2a.
+New_Subnets_In_VPC() {
+local VPC=$1 TPRIV=$2 TPUB=$3 AZ USED N PUB_CIDR PRIV_CIDR PUB_RT PRIV_RT
+AZ=$(aws ec2 describe-subnets --region "$AWS_REGION" --subnet-ids "$TPUB" --query 'Subnets[0].AvailabilityZone' --output text) || return 1
+PUB_RT=$(aws ec2 describe-route-tables --region "$AWS_REGION" --filters Name=association.subnet-id,Values="$TPUB" --query 'RouteTables[0].RouteTableId' --output text) || return 1
+PRIV_RT=$(aws ec2 describe-route-tables --region "$AWS_REGION" --filters Name=association.subnet-id,Values="$TPRIV" --query 'RouteTables[0].RouteTableId' --output text) || return 1
+if [ -z "$PUB_RT" ] || [ "$PUB_RT" = "None" ] || [ -z "$PRIV_RT" ] || [ "$PRIV_RT" = "None" ]; then
+  echo "# Cannot find the route tables of the template subnets: new subnets not created" 2>&1 |tee -a "$CLUSTER_LOG"; return 1
+fi
+USED=$(aws ec2 describe-subnets --region "$AWS_REGION" --filters Name=vpc-id,Values="$VPC" --query 'Subnets[].CidrBlock' --output text | tr '\t' '\n')
+# find two free /24 inside 10.0.0.0/16
+local FREE=()
+for N in $(seq 2 250); do
+  echo "$USED" | grep -qx "10.0.${N}.0/24" || FREE+=("10.0.${N}.0/24")
+  [ ${#FREE[@]} -ge 2 ] && break
+done
+[ ${#FREE[@]} -lt 2 ] && { echo "# No free /24 CIDR found in $VPC" 2>&1 |tee -a "$CLUSTER_LOG"; return 1; }
+PUB_CIDR=${FREE[0]}; PRIV_CIDR=${FREE[1]}
+PUBLIC_SUB_2a=$(aws ec2 create-subnet --region "$AWS_REGION" --vpc-id "$VPC" --cidr-block "$PUB_CIDR" --availability-zone "$AZ" \
+  --tag-specifications "ResourceType=subnet,Tags=[{Key=Name,Value=$CLUSTER_NAME-Public-Subnet},{Key=kubernetes.io/role/elb,Value=1}]" \
+  --query Subnet.SubnetId --output text) || return 1
+PRIV_SUB_2a=$(aws ec2 create-subnet --region "$AWS_REGION" --vpc-id "$VPC" --cidr-block "$PRIV_CIDR" --availability-zone "$AZ" \
+  --tag-specifications "ResourceType=subnet,Tags=[{Key=Name,Value=$CLUSTER_NAME-Private-Subnet},{Key=kubernetes.io/role/internal-elb,Value=1}]" \
+  --query Subnet.SubnetId --output text) || return 1
+aws ec2 associate-route-table --region "$AWS_REGION" --subnet-id "$PUBLIC_SUB_2a" --route-table-id "$PUB_RT" >> "$CLUSTER_LOG" 2>&1 || return 1
+aws ec2 associate-route-table --region "$AWS_REGION" --subnet-id "$PRIV_SUB_2a" --route-table-id "$PRIV_RT" >> "$CLUSTER_LOG" 2>&1 || return 1
+echo "Created new subnets in $VPC: Public $PUBLIC_SUB_2a ($PUB_CIDR, $PUB_RT), Private $PRIV_SUB_2a ($PRIV_CIDR, $PRIV_RT)" 2>&1 |tee -a "$CLUSTER_LOG"
+}
+#
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # Create a Single AZ VPC (using rosa create network)
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -154,10 +185,21 @@ if [ -z "$PRIV" ] || [ "$PRIV" = "None" ] || [ -z "$PUB" ] || [ "$PUB" = "None" 
   echo "# VPC $PICKED has no subnets tagged kubernetes.io/role/internal-elb and kubernetes.io/role/elb: cannot reuse it, a new VPC will be created."
   return 1
 fi
-VPC_ID_VALUE=$PICKED; PRIV_SUB_2a=$PRIV; PUBLIC_SUB_2a=$PUB
+VPC_ID_VALUE=$PICKED
+New_Subnets_In_VPC "$PICKED" "$PRIV" "$PUB" || return 1
 SUBNET_IDS=$PRIV_SUB_2a","$PUBLIC_SUB_2a
 echo "Reusing existing VPC $VPC_ID_VALUE (Public: $PUBLIC_SUB_2a, Private: $PRIV_SUB_2a)" 2>&1 |tee -a "$CLUSTER_LOG"
 return 0
+}
+#
+# Only one ocm-role is allowed per AWS account/organization: reuse it if it already exists.
+Ensure_OCM_Role() {
+if rosa list ocm-role 2>/dev/null | grep -q "arn:aws:iam"; then
+  echo "# OCM role already exists for this account/organization: reusing it" 2>&1 |tee -a "$CLUSTER_LOG"
+  rosa list ocm-role >> "$CLUSTER_LOG" 2>&1 || true
+  return 0
+fi
+rosa create ocm-role --no-console --prefix "$PREFIX" --mode auto -y </dev/null >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
 }
 #
 SingleAZ_VPC() {
@@ -433,7 +475,7 @@ echo "# Start installing ROSA cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |te
 SingleAZ_VPC
 #
 echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
-rosa create ocm-role --no-console --prefix "$PREFIX" --mode auto -y </dev/null >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
+Ensure_OCM_Role
 echo "# Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
@@ -490,7 +532,7 @@ echo "# Start installing ROSA cluster $CLUSTER_NAME in a Single-AZ ..." 2>&1 |te
 SingleAZ_VPC
 #
 echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
-rosa create ocm-role --no-console --prefix "$PREFIX" --mode auto -y </dev/null >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
+Ensure_OCM_Role
 echo "# Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
@@ -555,7 +597,7 @@ MultiAZ_VPC
 #
 echo "#" 2>&1 |tee -a "$CLUSTER_LOG"
 echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
-rosa create ocm-role --no-console --prefix "$PREFIX" --mode auto -y </dev/null >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
+Ensure_OCM_Role
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
@@ -619,7 +661,7 @@ echo "JUMP_HOST ON" >> "$CLUSTER_LOG" 2>&1
 SingleAZ_VPC
 # 
 echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
-rosa create ocm-role --no-console --prefix "$PREFIX" --mode auto -y </dev/null >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
+Ensure_OCM_Role
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
@@ -695,7 +737,7 @@ echo "#"
 SingleAZ_VPC
 #
 echo "# Creating OCM role ..." 2>&1 |tee -a "$CLUSTER_LOG"
-rosa create ocm-role --no-console --prefix "$PREFIX" --mode auto -y </dev/null >> "$CLUSTER_LOG" 2>&1 || { echo "ERROR: 'rosa create ocm-role' failed, check $CLUSTER_LOG" 2>&1 |tee -a "$CLUSTER_LOG"; exit 1; }
+Ensure_OCM_Role
 echo "Going to create account and operator roles ..." 2>&1 |tee -a "$CLUSTER_LOG"
 rosa create account-roles --hosted-cp --force-policy-creation --prefix $PREFIX -m auto -y >> "$CLUSTER_LOG" 2>&1
 INSTALL_ARN=$(rosa list account-roles|grep Install|grep $PREFIX|awk '{print $3}' || true)
