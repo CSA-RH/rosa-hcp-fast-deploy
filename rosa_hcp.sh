@@ -59,7 +59,7 @@ set -euo pipefail
 #
 #
 #
-SCRIPT_VERSION=v1.17.0
+SCRIPT_VERSION=v1.18.0
 #
 #
 #
@@ -86,8 +86,8 @@ PrivSUB_Single_AZ_CIDR_BLOCK=10.0.128.0/20
 # Here you can change the default instance type for the compute nodes (--compute-machine-type). 
 # Determines the amount of memory and vCPU allocated to each compute node.
 #
-DEF_MACHINE_TYPE="m5.xlarge"
-#DEF_MACHINE_TYPE="m6a.2xlarge"
+DEF_MACHINE_TYPE="m7i.xlarge"
+#DEF_MACHINE_TYPE="m5.xlarge"
 #DEF_GRAVITON_MACHINE_TYPE="m6g.xlarge"
 #
 AWS_Linux_x86_64=https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
@@ -1490,6 +1490,19 @@ if [[ -n "$STACK_NAME" ]]; then
     echo "VPC $VPC_ID belongs to CloudFormation stack: $STACK_NAME"
     echo "Deleting stack $STACK_NAME..."
 
+    # Subnets of the VPC NOT created by this stack (e.g. by other clusters) may still be associated
+    # to the stack route tables: CloudFormation can't delete them -> DELETE_FAILED. Remove them first.
+    for sn in $(aws ec2 describe-subnets --region "$AWS_REGION" --filters Name=vpc-id,Values="$VPC_ID" --query 'Subnets[].SubnetId' --output text); do
+        cf=$(aws ec2 describe-subnets --region "$AWS_REGION" --subnet-ids "$sn" --query 'Subnets[0].Tags[?Key==`aws:cloudformation:stack-name`].Value|[0]' --output text 2>/dev/null || true)
+        if [ -z "$cf" ] || [ "$cf" == "None" ]; then
+            echo "Deleting subnet $sn not managed by the stack"
+            for i in 1 2 3 4 5 6; do
+                aws ec2 delete-subnet --region "$AWS_REGION" --subnet-id "$sn" && break
+                sleep 20
+            done
+        fi
+    done
+
     aws cloudformation delete-stack \
         --stack-name "$STACK_NAME" \
         --region "$AWS_REGION"
@@ -1511,9 +1524,14 @@ if [[ -n "$STACK_NAME" ]]; then
     else
         echo "Stack still deleting (status: $STATUS)"
         echo "Waiting for CloudFormation to finish..."
-        aws cloudformation wait stack-delete-complete \
+        if ! aws cloudformation wait stack-delete-complete \
             --stack-name "$STACK_NAME" \
-            --region "$AWS_REGION"
+            --region "$AWS_REGION"; then
+            echo "Stack deletion failed, retrying once..."
+            aws cloudformation delete-stack --stack-name "$STACK_NAME" --region "$AWS_REGION"
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" --region "$AWS_REGION" \
+                || { echo "ERROR: stack $STACK_NAME deletion failed, check CloudFormation events"; return 1 2>/dev/null || exit 1; }
+        fi
 
         echo "CloudFormation reports: stack deletion completed."
     fi

@@ -167,8 +167,8 @@ In the case of Option 3 (HCP PrivateLink in Single-AZ with Jump Host), a public 
 - Default ROSA installer role is '$CLUSTER_NAME' prefix
 if you choose to deploy your ROSA cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
 - Worker nodes:
-  - the default instance type based on AWS x86 is "m5.xlarge", while the default Arm-based Graviton worker node instance type is "m6g.xlarge". There are different [instance types](https://docs.redhat.com/en/documentation/red_hat_openshift_service_on_aws/4/html-single/introduction_to_rosa/index#rosa-hcp-instance-types), you can change one of the following variables according to your choice.
-     - DEF_MACHINE_TYPE="m5.xlarge"
+  - the default instance type based on AWS x86 is "m7i.xlarge" (ROSA default since Q3 2026, previously m5), while the default Arm-based Graviton worker node instance type is "m6g.xlarge". There are different [instance types](https://docs.redhat.com/en/documentation/red_hat_openshift_service_on_aws/4/html-single/introduction_to_rosa/index#rosa-hcp-instance-types), you can change one of the following variables according to your choice.
+     - DEF_MACHINE_TYPE="m7i.xlarge"
      - DEF_GRAVITON_MACHINE_TYPE="m6g.xlarge" <br />
   - Single-AZ: 2x worker nodes will be created within the same subnet<br />
   - Multi-Zone: a minimum of 3x worker nodes will be created within the selected $AWS_REGION, **one per AZ**. This number may increase based on the number of AZs actually available within a specific Region. For example: if you choose to deploy your ROSA cluster in North Virginia (us-east-1), then the script will create a minimum of 6 worker nodes. <br />
